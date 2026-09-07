@@ -207,7 +207,7 @@ def get_product_subtitle(p_fam):
 
 
 def get_product_pillars(p_fam, ctx, ov):
-    """Get executive summary pillars matching App.jsx preview."""
+    """Get executive summary pillars matching App.jsx preview with dynamic WorkFabric & Channel Telemetry."""
     client_name = ov.get("client_name", ctx.get("client_name", "Corporate Client"))
     rm_name = ov.get("rm_name", ctx.get("rm_name", "Senior Relationship Manager"))
     mat_wall = ov.get("maturity_wall_str", ctx.get("debt_maturing_24m_str", "€3,000M"))
@@ -217,32 +217,49 @@ def get_product_pillars(p_fam, ctx, ov):
     if unhedged_gap == "N/A" or not unhedged_gap:
         unhedged_gap = "$8.0B"
     notional = ov.get("notional_bond", "EUR 600,000,000")
-    
+
+    # Extract dynamic WorkFabric signals (Latent Opportunities vs Desk Signals)
+    raw_signals = ov.get("signals") or ctx.get("signals") or []
+    wf_latents = [s for s in raw_signals if s.get("signal_type") == "LATENT_OPPORTUNITY"]
+    top_latent_summary = wf_latents[0].get("trigger_summary") if wf_latents else None
+
     if p_fam == "FX_HEDGE":
+        pillar2_desc = "Rolling 12M–24M zero-cost participating collars protecting gross margins."
+        if top_latent_summary:
+            pillar2_desc = f"WorkFabric Trigger: {top_latent_summary}. Dynamic participating collars protecting margins."
         return [
             ("1", "Exposure-led Architecture", f"Addressing the {unhedged_gap} USD hedge gap from commercial revenue expansion."),
-            ("2", "Multi-Tenor Layered Corridors", "Rolling 12M–24M zero-cost participating collars protecting gross margins."),
+            ("2", "Multi-Tenor Layered Corridors", pillar2_desc),
             ("3", "Electronic Desk Execution", "Automated liquidity sourcing through ING global FX electronic trading desk."),
             ("4", "Dedicated Coverage", f"Sector coverage led by {rm_name} with IFRS 9 hedge accounting support.")
         ]
     elif p_fam == "GREEN_ESG":
+        pillar2_desc = "Ring-fenced eligible asset pool with annual impact & allocation verification."
+        if top_latent_summary:
+            pillar2_desc = f"WorkFabric Opportunity: {top_latent_summary}. Ring-fenced eligible green asset pool."
         return [
             ("1", "Green Framework Alignment", "Alignment with ICMA Green Bond Principles and EU Taxonomy standards."),
-            ("2", "Use of Proceeds Pool", "Ring-fenced eligible asset pool with annual impact & allocation verification."),
+            ("2", "Use of Proceeds Pool", pillar2_desc),
             ("3", "Greenium Advantage", "Capturing 3-7 bps new-issue concession advantage from dedicated ESG funds."),
             ("4", "Sole ESG Structurer", "ING leading SPO documentation, investor roadshow, and syndicate execution.")
         ]
     elif p_fam == "RATES_HEDGE":
+        pillar2_desc = "Forward-starting IRS and swaptions to lock in current benchmark yield curve."
+        if top_latent_summary:
+            pillar2_desc = f"WorkFabric Pre-Hedge Trigger: {top_latent_summary}. Forward-starting IRS execution window."
         return [
             ("1", "Rate Risk Assessment", f"Quantifying interest rate repricing risk across the {mat_wall} debt horizon."),
-            ("2", "Pre-Hedge Swap Overlay", "Forward-starting IRS and swaptions to lock in current benchmark yield curve."),
+            ("2", "Pre-Hedge Swap Overlay", pillar2_desc),
             ("3", "Hedge Policy Alignment", "Optimizing treasury fixed vs floating debt ratio target."),
             ("4", "Syndicate Distribution", "Full balance sheet underwriting and rating agency advisory.")
         ]
     else:  # DCM_REFI
+        pillar2_desc = f"Tailored combination of {notional} benchmark EMTN."
+        if top_latent_summary:
+            pillar2_desc = f"WorkFabric Refinancing Catalyst: {top_latent_summary}. Sized for {notional} benchmark issuance."
         return [
             ("1", "Maturity-Led Sizing", f"Addressing the {mat_wall} near-term maturity profile."),
-            ("2", "Right-Sized Structure", f"Tailored combination of {notional} benchmark EMTN."),
+            ("2", "Right-Sized Structure", pillar2_desc),
             ("3", "Competitive Execution", "Direct syndicate distribution across European institutional bases."),
             ("4", "Long-Term Partnership", "Committed balance sheet underwriting and rating optimization.")
         ]

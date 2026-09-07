@@ -1329,7 +1329,29 @@ def copilot_chat_endpoint(req: CopilotMessage):
         "slide_10": {"title": "10. Regulatory Disclosures", "standards": "ICMA Green Bond Principles" if is_green else ("EMIR Refit & MiFID II" if is_fx else "MiFID II Professional Clients & Eligible Counterparties")}
     }
 
+    # Format Ingested Multi-Stream Signals (WorkFabric & Channels) for Dynamic Grounding
+    raw_bundle_signals = bundle.get("signals", [])
+    raw_source_chips = bundle.get("cf_source_chips", [])
+    
+    ingested_signals_block = {
+        "workfabric_latent_opportunities": [
+            {"summary": s.get("trigger_summary"), "details": s.get("description"), "confidence": s.get("confidence_pct")}
+            for s in raw_bundle_signals if s.get("signal_type") == "LATENT_OPPORTUNITY"
+        ],
+        "workfabric_desk_signals": [
+            {"summary": s.get("trigger_summary"), "metric": s.get("metric_identified"), "details": s.get("description")}
+            for s in raw_bundle_signals if s.get("signal_type") != "LATENT_OPPORTUNITY"
+        ],
+        "external_channel_telemetry": [
+            {"channel": c.get("channel"), "source": c.get("source_name"), "preview": c.get("preview")}
+            for c in raw_source_chips
+        ]
+    }
+
     system_instruction = f"""You are the senior ING Financial Markets Origination, Structuring & Regulatory Compliance Copilot for {client_name} ({p_family}).
+INGESTED MULTI-STREAM SIGNALS (WORKFABRIC & CHANNEL TELEMETRY):
+{json.dumps(ingested_signals_block, indent=2)}
+
 You assist Relationship Managers (RMs) by delivering consultative structuring commentary, CFO-level talking points, executing parameter mutations, and applying EU regulatory compliance remediations across pitchbook slides.
 
 CURRENT ACTIVE DECK SLIDES (DATABASE GROUND TRUTH):

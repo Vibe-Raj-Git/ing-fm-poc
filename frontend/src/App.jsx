@@ -366,7 +366,7 @@ export default function App() {
     setChatMessages([
       {
         sender: "bot",
-        text: `Hello! I am your Origination Copilot for **${opp.name}**.\n\nYou can ask questions, run regulatory audits, or instruct me to adjust parameters:\n• **"Run MiFID II, MAR & EU Green Bond Standard compliance audit"**\n• **"In Slide 7, update iTraxx Main to 60 bps"**\n• **"In Slide 6, change rate to 4.50% instead of 4.55%"**\n• **"Adjust bond sizing to €800M and tenor to 10Y"**`,
+        text: `Hello! I am your ING Copilot for **${opp.name}**.\n\nYou can ask questions, run regulatory audits, or instruct me to adjust parameters:\n• **"Run MiFID II, MAR & EU Green Bond Standard compliance audit"**\n• **"In Slide 7, update iTraxx Main to 60 bps"**\n• **"In Slide 6, change rate to 4.50% instead of 4.55%"**\n• **"Adjust bond sizing to €800M and tenor to 10Y"**`,
         time: new Date().toLocaleTimeString("en-GB", { timeZone: "Europe/Amsterdam", hour: "2-digit", minute: "2-digit", hour12: false })
       }
     ]);
@@ -742,37 +742,47 @@ export default function App() {
                 <div className="flex justify-end mb-1">
                   <img src="/assets/ing_logo_orange.png" alt="ING" className="h-5 object-contain" />
                 </div>
-                {(
-                  isFX ? [
+                {(() => {
+                  const rawLatents = deckOverrides.cf_latent_list || opp.cf_latent_list || ((opp.signals || []).filter(s => s.signal_type === "LATENT_OPPORTUNITY"));
+                  let topLatentSummary = deckOverrides.cf_latent || opp.cf_latent || null;
+                  if (!topLatentSummary && rawLatents && rawLatents.length > 0) {
+                    const first = rawLatents[0];
+                    topLatentSummary = typeof first === "string" ? first : (first.trigger_summary || first.summary || null);
+                  }
+                  const bondNotional = deckOverrides.notional_bond || "EUR 600,000,000";
+
+                  const pillars = isFX ? [
                     { t: "Exposure-led Architecture", d: `Addressing the ${unhedgedGapVal} USD hedge gap from commercial revenue expansion.` },
-                    { t: "Multi-Tenor Layered Corridors", d: "Rolling 12M–24M zero-cost participating collars protecting gross margins." },
+                    { t: "Multi-Tenor Layered Corridors", d: topLatentSummary ? `WorkFabric Trigger: ${topLatentSummary}. Dynamic participating collars protecting margins.` : "Rolling 12M–24M zero-cost participating collars protecting gross margins." },
                     { t: "Electronic Desk Execution", d: "Automated liquidity sourcing through ING global FX electronic trading desk." },
                     { t: "Dedicated Coverage", d: `Sector coverage led by ${rmName} with IFRS 9 hedge accounting support.` }
                   ] : isGreen ? [
                     { t: "Green Framework Alignment", d: "Alignment with ICMA Green Bond Principles and EU Taxonomy standards." },
-                    { t: "Use of Proceeds Pool", d: "Ring-fenced eligible asset pool with annual impact & allocation verification." },
+                    { t: "Use of Proceeds Pool", d: topLatentSummary ? `WorkFabric Opportunity: ${topLatentSummary}. Ring-fenced eligible green asset pool.` : "Ring-fenced eligible asset pool with annual impact & allocation verification." },
                     { t: "Greenium Advantage", d: "Capturing 3-7 bps new-issue concession advantage from dedicated ESG funds." },
                     { t: "Sole ESG Structurer", d: "ING leading SPO documentation, investor roadshow, and syndicate execution." }
                   ] : isRates ? [
                     { t: "Rate Risk Assessment", d: `Quantifying interest rate repricing risk across the ${maturityVal} debt horizon.` },
-                    { t: "Pre-Hedge Swap Overlay", d: "Forward-starting IRS and swaptions to lock in current benchmark yield curve." },
+                    { t: "Pre-Hedge Swap Overlay", d: topLatentSummary ? `WorkFabric Pre-Hedge Trigger: ${topLatentSummary}. Forward-starting IRS execution window.` : "Forward-starting IRS and swaptions to lock in current benchmark yield curve." },
                     { t: "Hedge Policy Alignment", d: "Optimizing treasury fixed vs floating debt ratio target." },
                     { t: "Syndicate Distribution", d: "Full balance sheet underwriting and rating agency advisory." }
                   ] : [
                     { t: "Maturity-Led Sizing", d: `Addressing the upcoming ${maturityVal} maturity profile proactively.` },
-                    { t: "Right-Sized Structure", d: `Tailored combination of ${deckOverrides.notional_bond} benchmark bond.` },
+                    { t: "Right-Sized Structure", d: topLatentSummary ? `WorkFabric Refinancing Catalyst: ${topLatentSummary}. Sized for ${bondNotional} benchmark issuance.` : `Tailored combination of ${bondNotional} benchmark bond.` },
                     { t: "Syndicate Distribution", d: "Direct distribution across European institutional investor accounts." },
                     { t: "Balance Sheet Support", d: "Committed credit facilities and ongoing treasury advisory." }
-                  ]
-                ).map((p, i) => (
-                  <div key={i} className="flex space-x-2 items-start">
-                    <div className="w-4 h-4 rounded-full bg-[#FF6200] text-white flex items-center justify-center font-bold text-[9px] shrink-0">{i + 1}</div>
-                    <div>
-                      <p className="font-bold text-[#FF6200] text-[11px]">{p.t}</p>
-                      <p className="text-gray-600 text-[10px]">{p.d}</p>
+                  ];
+
+                  return pillars.map((p, i) => (
+                    <div key={i} className="flex space-x-2 items-start">
+                      <div className="w-4 h-4 rounded-full bg-[#FF6200] text-white flex items-center justify-center font-bold text-[9px] shrink-0">{i + 1}</div>
+                      <div>
+                        <p className="font-bold text-[#FF6200] text-[11px]">{p.t}</p>
+                        <p className="text-gray-600 text-[10px]">{p.d}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ));
+                })()}
               </div>
             </div>
           </div>

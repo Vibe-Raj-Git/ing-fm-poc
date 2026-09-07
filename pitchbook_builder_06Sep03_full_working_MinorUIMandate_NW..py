@@ -18,10 +18,18 @@ def compute_canonical_bundle(ctx, ov=None):
     tenor_years = int(tenor_m.group(1)) if tenor_m else 7
     tenor_str = f"{tenor_years} Years (T + {tenor_years}Y)"
     
-    # 2. Spread & Swap Rate
-    spread_raw = ov.get("spread", ctx.get("indicative_spread", "Mid-Swap + 82 bps"))
-    sp_m = re.search(r"(\d+)\s*bps", str(spread_raw), re.IGNORECASE)
-    spread_bps = int(sp_m.group(1)) if sp_m else 82
+    # 2. Spread & Swap Rate (Dynamic DB + Copilot Overrides)
+    raw_s = (
+        ov.get("spread")
+        or ov.get("credit_spread_5y")
+        or ov.get("spread_5y_bps")
+        or ctx.get("credit_spread_5y")
+        or ctx.get("spread_5y_bps")
+        or ctx.get("indicative_spread")
+        or "Mid-Swap + 78 bps"
+    )
+    sp_m = re.search(r"(\d+)\s*bps", str(raw_s), re.IGNORECASE)
+    spread_bps = int(sp_m.group(1)) if sp_m else 78
     spread_str = f"Mid-Swap + {spread_bps} bps"
     
     swap_raw = ov.get("swap_5y", ctx.get("swap_5y", "2.62%"))
@@ -155,17 +163,23 @@ def add_footer(slide, is_white=False):
 
 
 def detect_product_family(ctx):
-    """Detect product family dynamically from opportunity type and DB context."""
-    p_type = str(ctx.get("opportunity_type") or ctx.get("type") or ctx.get("product_family") or "").lower()
-    
-    if any(k in p_type for k in ["fx", "currency", "foreign exchange", "collar", "commodit", "bunker", "freight"]):
-        return "FX_HEDGE"
-    if any(k in p_type for k in ["green", "sustainable", "esg", "sustainability"]):
+    combined = " ".join([
+        str(ctx.get("opportunity_type") or ""),
+        str(ctx.get("product_family") or ""),
+        str(ctx.get("type") or ""),
+        str(ctx.get("next_best_action") or ""),
+        str(ctx.get("trigger_catalyst") or ""),
+        str(ctx.get("why_now_nlg") or "")
+    ]).lower()
+    if any(k in combined for k in ["green", "sustainable", "esg", "slb", "sustainability"]):
         return "GREEN_ESG"
-    if any(k in p_type for k in ["rate", "irs", "pre-hedge", "swap"]):
+    if any(k in combined for k in ["fx", "currency", "collar", "usd", "hedging gap"]):
+        return "FX_HEDGE"
+    if any(k in combined for k in ["irs", "pre-hedge", "rate sensitivity", "swap overlay"]):
         return "RATES_HEDGE"
-    if any(k in p_type for k in ["refinanc", "dcm", "emtn", "bond", "capital market"]):
+    if any(k in combined for k in ["refinanc", "dcm", "emtn", "bond", "maturity wall"]):
         return "DCM_REFI"
+    return "DCM_REFI"
         
     return "DCM_REFI"
 
@@ -393,6 +407,71 @@ def fetch_pitchbook_bundle(canonical_id, client_id_raw, get_db_connection):
                     "confidence_pct": s[4]
                 })
 
+            # 6. Fetch Market Rates & Benchmark Curves from DB
+            try:
+                cur.execute("""
+                    SELECT tenor, swap_rate_pct, govt_yield_pct
+                    FROM ca.mkt_rates_curves
+                    WHERE currency = 'EUR'
+                    ORDER BY curve_id;
+                """)
+                mkt_curves = {}
+                for row in cur.fetchall():
+                    t, swap_pct, bund_pct = row[0], float(row[1]) if row[1] else None, float(row[2]) if row[2] else None
+                    mkt_curves[t] = {"swap_rate_pct": swap_pct, "govt_yield_pct": bund_pct}
+                
+                ctx["mkt_curves"] = mkt_curves
+                if "10Y" in mkt_curves and mkt_curves["10Y"]["govt_yield_pct"]:
+                    ctx["bund_10y_yield"] = f"{mkt_curves['10Y']['govt_yield_pct']:.2f}%"
+                if "10Y" in mkt_curves and mkt_curves["10Y"]["swap_rate_pct"]:
+                    ctx["swap_10y_rate"] = f"{mkt_curves['10Y']['swap_rate_pct']:.2f}%"
+                if "7Y" in mkt_curves and mkt_curves["7Y"]["swap_rate_pct"]:
+                    ctx["swap_7y_rate"] = f"{mkt_curves['7Y']['swap_rate_pct']:.2f}%"
+                if "5Y" in mkt_curves and mkt_curves["5Y"]["swap_rate_pct"]:
+                    ctx["swap_5y_rate"] = f"{mkt_curves['5Y']['swap_rate_pct']:.2f}%"
+            except Exception as e:
+                print(f"ca.mkt_rates_curves fetch warning: {e}")
+
+            # 7. Fetch Dynamic Credit Spreads from DB (Prioritize direct client/issuer match)
+            try:
+                c_name_val = str(ctx.get("client_name") or ctx.get("name") or "").strip()
+                c_lead = c_name_val.split()[0] if c_name_val else "Enel"
+                cur.execute("""
+                    SELECT tenor, spread_bps, all_in_yield_pct, issuer_or_rating
+                    FROM ca.ext_credit_spreads
+                    WHERE issuer_or_rating ILIKE %s
+                       OR issuer_or_rating ILIKE %s
+                       OR issuer_or_rating ILIKE '%%ENEL%%'
+                       OR issuer_or_rating ILIKE '%%BBB%%'
+                    ORDER BY
+                        CASE
+                            WHEN (issuer_or_rating ILIKE %s OR issuer_or_rating ILIKE %s OR issuer_or_rating ILIKE '%%ENEL%%') THEN 1
+                            ELSE 2
+                        END,
+                        spread_id ASC;
+                """, (f"%{c_lead}%", f"%{actual_cid}%", f"%{c_lead}%", f"%{actual_cid}%"))
+
+                credit_spreads = {}
+                for s_row in cur.fetchall():
+                    t_key = s_row[0]
+                    if t_key not in credit_spreads:
+                        credit_spreads[t_key] = {
+                            "spread_bps": float(s_row[1]) if s_row[1] is not None else 0.0,
+                            "all_in_yield": float(s_row[2]) if s_row[2] is not None else 0.0,
+                            "issuer": s_row[3]
+                        }
+                ctx["credit_spreads"] = credit_spreads
+                if "10Y" in credit_spreads:
+                    ctx["spread_10y_bps"] = f"{credit_spreads['10Y']['spread_bps']:.0f} bps"
+                    ctx["all_in_yield_10y"] = f"{credit_spreads['10Y']['all_in_yield']:.2f}%"
+                if "5Y" in credit_spreads:
+                    ctx["spread_5y_bps"] = f"{credit_spreads['5Y']['spread_bps']:.0f} bps"
+                    ctx["credit_spread_5y"] = f"{credit_spreads['5Y']['spread_bps']:.0f} bps"
+                    ctx["all_in_yield"] = f"{credit_spreads['5Y']['all_in_yield']:.2f}%"
+                    ctx["all_in_yield_5y"] = f"{credit_spreads['5Y']['all_in_yield']:.2f}%"
+            except Exception as e:
+                print(f"ca.ext_credit_spreads fetch warning: {e}")
+
     except Exception as e:
         print(f"fetch_pitchbook_bundle warning: {e}")
     finally:
@@ -465,9 +544,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     
     # -------- Client Data from Database (with override support) --------
     client_name = ov.get("client_name", ctx.get("client_name", "Corporate Client"))
-    raw_pf = ov.get("product_family") or (opp.get("product_family") if isinstance(opp, dict) else None) or ctx.get("product_family") or ctx.get("opportunity_type") or ""
-    detection_dict = {"product_family": str(raw_pf), **ctx, **(opp if isinstance(opp, dict) else {}), **ov}
-    p_fam = detect_product_family(detection_dict)
+    p_fam = ov.get("product_family", ctx.get("product_family", "DCM_REFI"))
     sm = get_slide_meta(p_fam)
     rm_name = ov.get("rm_name", ctx.get("rm_name", "Senior Relationship Manager"))
     
@@ -775,21 +852,40 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     add_logo(s4)
     add_footer(s4)
 
-    tier_str = ov.get("tier", ctx.get("tier", "Tier 1"))
-    if "Tier" in tier_str and "Investment" not in tier_str:
-        tier_str = f"{tier_str} (Investment Grade)"
+    # Rating / Tier parity with Segment 1 Client Data
+    tier_str = ov.get("rating_tier") or ov.get("credit_rating")
+    if not tier_str:
+        if ctx.get("client_id") == "CLI101" or "Enel" in ctx.get("client_name", ""):
+            tier_str = "S&P | BBB | Positive"
+        else:
+            base_tier = ctx.get("tier", "Tier 1")
+            tier_str = f"{base_tier} (Investment Grade)" if "Tier" in base_tier else base_tier
+
+    def _to_bn_val(val_str, fallback):
+        s = val_str or fallback
+        if not s or s == "N/A":
+            return fallback
+        import re
+        m = re.search(r'€?([0-9,]+(?:\.[0-9]+)?)\s*M', str(s))
+        if m:
+            num = float(m.group(1).replace(',', ''))
+            return f"€{num/1000:.1f}bn"
+        return s
+
+    s4_net_debt = ov.get("net_debt_display") or _to_bn_val(net_debt_str, "€58.5bn")
+    s4_liquidity = ov.get("liquidity_display") or _to_bn_val(liquidity_str, "€14.2bn")
 
     card3_lbl = "Unhedged FX Gap" if p_fam == "FX_HEDGE" else ("Eligible Green CapEx" if p_fam == "GREEN_ESG" else "24M Maturity Wall")
     if p_fam == "FX_HEDGE":
         card3_val = ov.get("unhedged_gap_str", "$8.0B")
     elif p_fam == "GREEN_ESG":
-        card3_val = "€3.5B"
+        card3_val = ov.get("eligible_green_capex", "€3.5bn")
     else:
         card3_val = mat_wall_str if (mat_wall_str and mat_wall_str != "N/A") else "€3,000M"
 
     metrics = [
-        ("Net Debt", net_debt_str if net_debt_str != "N/A" else "€16,200M", ING_DARK_SLATE),
-        ("Available Liquidity", liquidity_str if liquidity_str != "N/A" else "€7,800M", SUCCESS_GREEN),
+        ("Net Debt", s4_net_debt, ING_DARK_SLATE),
+        ("Available Liquidity", s4_liquidity, SUCCESS_GREEN),
         (card3_lbl, card3_val, ING_ORANGE),
         ("Credit Rating / Tier", tier_str, ING_DARK_SLATE)
     ]
@@ -842,7 +938,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     p_sub1.space_before = Pt(8)
 
     p_sub2 = tf_bot.add_paragraph()
-    p_sub2.text = f"• Robust liquidity buffer of {liquidity_str if liquidity_str != 'N/A' else '€7,800M'} provides substantial capacity to execute structured financing and risk management operations."
+    p_sub2.text = f"• Robust liquidity buffer of {s4_liquidity} provides substantial capacity to execute structured financing and risk management operations."
     p_sub2.font.size = Pt(10.5)
     p_sub2.font.color.rgb = RGBColor(55, 65, 81)
     p_sub2.space_before = Pt(6)
@@ -1083,7 +1179,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     r_title_box = s6.shapes.add_textbox(Inches(6.4), Inches(1.5), Inches(6.1), Inches(0.4))
     r_tf = r_title_box.text_frame
     r_p = r_tf.paragraphs[0]
-    r_p.text = "COST COMPARISON VS CONVENTIONAL ISSUANCE" if p_fam == "GREEN_ESG" else ("ILLUSTRATIVE FX MARGIN IMPACT BY SCENARIO" if p_fam == "FX_HEDGE" else "Illustrative All-In Cost by Scenario")
+    r_p.text = "COST COMPARISON VS CONVENTIONAL ISSUANCE" if p_fam == "GREEN_ESG" else ("Illustrative FX Outcome by Scenario" if p_fam == "FX_HEDGE" else "Illustrative All-In Cost by Scenario")
     r_p.alignment = PP_ALIGN.CENTER
     r_p.font.name = "Arial"
     r_p.font.size = Pt(12)
@@ -1099,17 +1195,26 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     if p_fam == "GREEN_ESG":
         s6_headers = ["Issuance Format", "Indicative Spread", "Annual Savings"]
         green_spread = calc["spread_bps"] - calc["greenium_bps"]
+        
+        # Dynamic calculation based on deal notional volume
+        notional_eur = calc.get("target_notional_eur") or 750000000.0
+        green_bps = calc.get("greenium_bps", 5)
+        slb_bps = 2
+        
+        green_savings = f"€{int(notional_eur * (green_bps / 10000)):,} / yr"
+        slb_savings = f"€{int(notional_eur * (slb_bps / 10000)):,} / yr"
+
         s6_data = [
-            ("Inaugural Green Bond (with Greenium)", f"Mid-Swap + {green_spread} bps (-{calc['greenium_bps']} bps)", "€375,000 / yr"),
-            ("Sustainability-Linked Bond (SLB)", f"Mid-Swap + {calc['spread_bps'] - 2} bps (-2 bps)", "€150,000 / yr"),
+            ("Inaugural Green Bond (with Greenium)", f"Mid-Swap + {green_spread} bps (-{green_bps} bps)", green_savings),
+            ("Sustainability-Linked Bond (SLB)", f"Mid-Swap + {calc['spread_bps'] - slb_bps} bps (-{slb_bps} bps)", slb_savings),
             ("Plain-Vanilla Senior EMTN", f"Mid-Swap + {calc['spread_bps']} bps (Flat)", "Baseline")
         ]
     elif p_fam == "FX_HEDGE":
-        s6_headers = ["FX Scenario", "Layered Collar Strategy", "Unhedged Exposure"]
+        s6_headers = ["EUR/USD Scenario", "Unhedged", "Collared"]
         s6_data = [
-            ("EUR/USD +5% (USD Weakens)", "1.0850 Floor Protected", "-$450M Impact"),
-            ("Spot Unchanged (1.0650)", "1.0650 Locked", "1.0650 Spot"),
-            ("EUR/USD -5% (USD Strengthens)", "Participate to 1.0450", "+$380M Gain")
+            ("EUR/USD 1.12 (+5%)", fx_up_unhedged, fx_up_hedged),
+            ("EUR/USD 1.065 (Spot)", fx_spot_unhedged, fx_spot_hedged),
+            ("EUR/USD 1.02 (-4%)", fx_down_unhedged, fx_down_hedged)
         ]
     else:
         s6_headers = ["Rate Scenario", "Refinance Today", "Wait 6 months"]
@@ -1193,10 +1298,10 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         b2 = "• Execution Window: Current credit spread stability provides optimal issuance timing ahead of upcoming maturities."
     elif p_fam == "GREEN_ESG":
         mkt_cards = [
-            ("EUR Green Spread", "77 bps", ING_DARK_SLATE),
-            ("Greenium Concession", "-5 bps", RGBColor(17, 24, 39)),
-            ("ECB Refi Rate", "2.25%", ING_ORANGE),
-            ("iTraxx Main", "58 bps", SUCCESS_GREEN)
+            ("EUR Green Spread", ov.get("eur_green_spread", "77 bps"), ING_DARK_SLATE),
+            ("Greenium Concession", ov.get("greenium_concession", "-5 bps"), RGBColor(17, 24, 39)),
+            ("ECB Refi Rate", ov.get("ecb_rate") or ov.get("ecb_refi_rate", "2.25%"), ING_ORANGE),
+            ("iTraxx Main", ov.get("itraxx_main") or ov.get("itraxx", "58 bps"), SUCCESS_GREEN)
         ]
         b1 = "• Central Bank Policy: ECB Refinancing Rate at 2.25%; Fed Funds Target at 4.00–4.25%."
         b2 = "• High ESG subscription ratios (3.8x book cover) provide attractive new-issue pricing compression."
@@ -1219,14 +1324,15 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         b1 = "• Central Bank Policy: ECB Refinancing Rate at 2.25%; Fed Funds Target at 4.00–4.25%."
         b2 = "• Tightening European investment grade credit spreads support attractive execution windows."
 
+    # 1. Top Row: 4 Metric Cards (includes dynamic iTraxx override)
     for idx, (lbl, val, val_color) in enumerate(mkt_cards):
         mx = Inches(0.8 + (idx * 2.95))
-        shp = s7.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, mx, Inches(1.5), Inches(2.8), Inches(1.5))
+        shp = s7.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, mx, Inches(1.45), Inches(2.8), Inches(1.45))
         shp.fill.solid()
         shp.fill.fore_color.rgb = BG_LIGHT
         shp.line.color.rgb = LINE_GRAY
 
-        tb_m = s7.shapes.add_textbox(mx + Inches(0.1), Inches(1.6), Inches(2.6), Inches(1.3))
+        tb_m = s7.shapes.add_textbox(mx + Inches(0.1), Inches(1.52), Inches(2.6), Inches(1.25))
         tf_m = tb_m.text_frame
         tf_m.word_wrap = True
         
@@ -1243,35 +1349,85 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         p.font.size = Pt(18)
         p.font.color.rgb = val_color
         p.alignment = PP_ALIGN.CENTER
-        p.space_before = Pt(6)
+        p.space_before = Pt(4)
 
-    # Bottom Container Box
-    shp_bot = s7.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(3.25), Inches(11.7), Inches(3.35))
+    # 2. Middle Container: Benchmark Reference Curves & Market Yields (Market DB)
+    shp_mid = s7.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(3.1), Inches(11.7), Inches(1.85))
+    shp_mid.fill.solid()
+    shp_mid.fill.fore_color.rgb = RGBColor(248, 250, 252)
+    shp_mid.line.color.rgb = RGBColor(226, 232, 240)
+
+    tb_mid_header = s7.shapes.add_textbox(Inches(1.0), Inches(3.18), Inches(11.3), Inches(0.35))
+    tf_mid_h = tb_mid_header.text_frame
+    tf_mid_h.word_wrap = True
+    p_mh = tf_mid_h.paragraphs[0]
+    p_mh.text = "Benchmark Reference Curves & Market Yields (Market DB)"
+    p_mh.font.bold = True
+    p_mh.font.size = Pt(11)
+    p_mh.font.color.rgb = ING_DARK_SLATE
+
+    bench_cards = [
+        ("5Y EUR Swap", ov.get("swap_5y", "2.62%"), ING_DARK_SLATE),
+        ("10Y German Bund", ov.get("bund_10y", "2.61%"), ING_DARK_SLATE),
+        ("5Y Credit Spread", ov.get("credit_spread_5y", "78 bps"), SUCCESS_GREEN),
+        ("All-In Benchmark", ov.get("all_in_yield", "3.40%"), ING_ORANGE)
+    ]
+
+    for b_idx, (b_lbl, b_val, b_col) in enumerate(bench_cards):
+        bx = Inches(1.0 + (b_idx * 2.85))
+        b_shp = s7.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, bx, Inches(3.6), Inches(2.65), Inches(1.15))
+        b_shp.fill.solid()
+        b_shp.fill.fore_color.rgb = RGBColor(255, 255, 255)
+        b_shp.line.color.rgb = RGBColor(229, 231, 235)
+
+        b_tb = s7.shapes.add_textbox(bx + Inches(0.1), Inches(3.68), Inches(2.45), Inches(0.95))
+        b_tf = b_tb.text_frame
+        b_tf.word_wrap = True
+        
+        bp0 = b_tf.paragraphs[0]
+        bp0.text = b_lbl
+        bp0.font.size = Pt(9.5)
+        bp0.font.bold = True
+        bp0.font.color.rgb = TEXT_MUTED
+        bp0.alignment = PP_ALIGN.CENTER
+
+        bp1 = b_tf.add_paragraph()
+        bp1.text = b_val
+        bp1.font.bold = True
+        bp1.font.size = Pt(16)
+        bp1.font.color.rgb = b_col
+        bp1.alignment = PP_ALIGN.CENTER
+        bp1.space_before = Pt(4)
+
+    # 3. Bottom Container: Macro & Market Context
+    shp_bot = s7.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(5.15), Inches(11.7), Inches(1.55))
     shp_bot.fill.solid()
     shp_bot.fill.fore_color.rgb = CARD_BG_BLUE
     shp_bot.line.color.rgb = CARD_BORDER_BLUE
 
-    tb_bot = s7.shapes.add_textbox(Inches(1.1), Inches(3.45), Inches(11.1), Inches(2.9))
+    tb_bot = s7.shapes.add_textbox(Inches(1.1), Inches(5.25), Inches(11.1), Inches(1.35))
     tf_bot = tb_bot.text_frame
     tf_bot.word_wrap = True
     
     p = tf_bot.paragraphs[0]
     p.text = "Macro & Market Context"
     p.font.bold = True
-    p.font.size = Pt(13)
+    p.font.size = Pt(12)
     p.font.color.rgb = ING_DARK_SLATE
 
     p_sub1 = tf_bot.add_paragraph()
     p_sub1.text = b1
-    p_sub1.font.size = Pt(10.5)
+    p_sub1.font.size = Pt(10)
     p_sub1.font.color.rgb = RGBColor(55, 65, 81)
-    p_sub1.space_before = Pt(8)
+    p_sub1.space_before = Pt(3)
 
     p_sub2 = tf_bot.add_paragraph()
     p_sub2.text = b2
-    p_sub2.font.size = Pt(10.5)
+    p_sub2.font.size = Pt(10)
     p_sub2.font.color.rgb = RGBColor(55, 65, 81)
-    p_sub2.space_before = Pt(6)
+    p_sub2.space_before = Pt(2)
+
+
     # =========================================================================
     # SLIDE 8: PROPOSAL FEATURES (2-Leg Multi-Tranche Term Sheet by Product)
     # =========================================================================
@@ -1315,21 +1471,30 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         doc_leg2 = "ISDA Master Agreement + CSA"
     elif p_fam == "GREEN_ESG":
         leg1_title = "Leg 1 — Green Bond Tranche"
-        leg2_title = "Leg 2 — Sustainability Overlay"
-        notional_leg1 = def_bond or "EUR 500,000,000"
-        notional_leg2 = def_swap or "EUR 250,000,000"
-        tenor_leg1 = ov.get("tenor", f"{t_yrs} Years (Green Benchmark)")
-        tenor_leg2 = "Annual SPT verification window"
-        bench_leg1 = f"{t_yrs}Y EUR mid-swap"
-        bench_leg2 = "Scope 1 & 2 Decarbonisation KPI"
-        spread_leg1 = ov.get("spread", f"Mid-swap + {calc['spread_bps'] - calc['greenium_bps']} bps (Greenium: -{calc['greenium_bps']} bps)")
-        spread_leg2 = "+/- 5 bps SPT step-up / step-down"
+        leg2_title = "Leg 2 — Sustainability-Linked Tranche"
+        notional_leg1 = def_bond or "EUR 600,000,000"
+        notional_leg2 = def_swap or "EUR 400,000,000"
+        tenor_leg1 = ov.get("tenor", f"{t_yrs} Years (T + {t_yrs}Y)")
+        tenor_leg2 = ov.get("tenor_leg2", "10 Years (T + 10Y)")
+        bund_10y_val = ctx.get("bund_10y_yield", "2.61%")
+        bench_leg1 = ov.get("bench_leg1", f"{t_yrs}Y EUR mid-swap")
+        bench_leg2 = ov.get("bench_leg2", f"10Y German Bund ({bund_10y_val}) / EUR mid-swap")
+        custom_spr = ov.get("spread")
+        if not custom_spr:
+            raw_s = ov.get("credit_spread_5y") or ov.get("spread_5y_bps")
+            if raw_s:
+                s_val = int(re.search(r"(\d+)", str(raw_s)).group(1)) if re.search(r"(\d+)", str(raw_s)) else calc['spread_bps']
+                custom_spr = f"Mid-swap + {s_val} bps (Greenium: -{calc.get('greenium_bps', 5)} bps)"
+            else:
+                custom_spr = f"Mid-swap + {calc['spread_bps']} bps (Greenium: -{calc['greenium_bps']} bps)"
+        spread_leg1 = custom_spr
+        spread_leg2 = ov.get("spread_leg2", "Mid-swap + 80 bps (-2 bps vs baseline, +/- 25 bps SPT)")
         fees_leg1 = "Underwriting fee per mandate letter"
-        fees_leg2 = "Second-Party Opinion (SPO) advisory"
+        fees_leg2 = "Underwriting fee + ESG Structuring advisory"
         settle_leg1 = "T+5 standard for EUR benchmark bonds"
-        settle_leg2 = "Annual impact & allocation verification"
+        settle_leg2 = "T+5 standard for EUR benchmark bonds"
         doc_leg1 = "Green Bond Framework / EMTN Prospectus"
-        doc_leg2 = "ICMA Green Bond Principles + SPO"
+        doc_leg2 = "Sustainability-Linked Framework / EMTN Prospectus"
     elif p_fam == "RATES_HEDGE":
         leg1_title = "Leg 1 — New Benchmark Bond"
         leg2_title = "Leg 2 — Pre-Hedge Swap"

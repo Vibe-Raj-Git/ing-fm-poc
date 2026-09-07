@@ -1,3 +1,7 @@
+
+## 1. Whenever I open a new instance, first run - source ./session-init.sh command from /home/user/ing-fm-poc
+## 2. For any changes in App.jsx, main.py or pitchbook_builder.py, run deploy-poc from /home/user/ing-fm-poc 
+
 # ING Financial Markets AI Agentic Platform — Operational Runbook
 
 Session Restart Quick Start
@@ -5,6 +9,8 @@ This is the only block normally required after a new Cloud Shell session
 
 cd ~/ing-fm-poc
 source ./session-init.sh
+
+To deploy: gcloud run deploy ing-fm-poc-service     --source .     --region "$REGION"     --port 8080     --add-cloudsql-instances "$INSTANCE_CONN"     --set-env-vars INSTANCE_CONNECTION_NAME="$INSTANCE_CONN",DB_USER="$DB_USER",DB_PASS="$DB_PASS",DB_NAME="$DB_NAME",GCP_PROJECT="$GCP_PROJECT",REGION="$REGION"     --clear-base-image     --allow-unauthenticated
 
 Then check:
 

@@ -238,3 +238,400 @@ ca.debt_maturity_schedule
 ca.ext_deals
 
 ca.digital_twin_signals
+
+============
+Run Full Database Inspection Script
+Run this in Cloud Shell to list all tables, their columns, and the exact signal/filing/market data currently stored for Enel:
+
+cd ~/ing-fm-poc
+
+python3 - << 'EOF'
+import os
+import sqlalchemy
+from sqlalchemy import text
+
+db_user = os.environ.get("DB_USER", "postgres")
+db_pass = os.environ.get("DB_PASS", "")
+db_name = os.environ.get("DB_NAME", "postgres")
+inst_conn = os.environ.get("INSTANCE_CONNECTION_NAME", "")
+
+try:
+    from google.cloud.sql.connector import Connector, IPTypes
+    connector = Connector()
+    def getconn():
+        return connector.connect(
+            inst_conn,
+            "pg8000",
+            user=db_user,
+            password=db_pass,
+            db=db_name,
+            ip_type=IPTypes.PUBLIC
+        )
+    engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=getconn)
+except Exception:
+    db_host = os.environ.get("DB_HOST", "127.0.0.1")
+    db_port = os.environ.get("DB_PORT", "5432")
+    engine = sqlalchemy.create_engine(f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}")
+
+with engine.connect() as conn:
+    print("===============================================================")
+    print(" 1. ALL TABLES IN 'ca' SCHEMA")
+    print("===============================================================")
+    res = conn.execute(text("""
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'ca'
+        ORDER BY table_name;
+    """))
+    tables = [r[0] for r in res.fetchall()]
+    for t in tables:
+        count = conn.execute(text(f'SELECT COUNT(*) FROM "ca"."{t}"')).fetchone()[0]
+        print(f"  • ca.{t:<30} ({count} rows)")
+
+    print("\n===============================================================")
+    print(" 2. COLUMNS & SAMPLE DATA FOR SIGNALS & FILINGS")
+    print("===============================================================")
+    
+    # Check digital_twin_signals
+    if "digital_twin_signals" in tables:
+        print("\n--- [ca.digital_twin_signals columns] ---")
+        cols = conn.execute(text("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_schema = 'ca' AND table_name = 'digital_twin_signals'
+        """)).fetchall()
+        for c, dt in cols:
+            print(f"   {c} ({dt})")
+            
+        print("\n--- [Sample Enel Signals in ca.digital_twin_signals] ---")
+        signals = conn.execute(text("""
+            SELECT * FROM ca.digital_twin_signals 
+            WHERE client_id = 'CLI101' OR client_id LIKE '%Enel%' LIMIT 5;
+        """)).mappings().fetchall()
+        for s in signals:
+            print(dict(s))
+
+    # Check ext_company_filings
+    if "ext_company_filings" in tables:
+        print("\n--- [ca.ext_company_filings columns] ---")
+        cols = conn.execute(text("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_schema = 'ca' AND table_name = 'ext_company_filings'
+        """)).fetchall()
+        for c, dt in cols:
+            print(f"   {c} ({dt})")
+            
+        print("\n--- [Sample Enel Filings in ca.ext_company_filings] ---")
+        filings = conn.execute(text("""
+            SELECT * FROM ca.ext_company_filings 
+            WHERE client_id = 'CLI101' OR client_id LIKE '%Enel%' LIMIT 3;
+        """)).mappings().fetchall()
+        for f in filings:
+            print(dict(f))
+
+    # Check ca_opportunity_scoring
+    if "ca_opportunity_scoring" in tables:
+        print("\n--- [ca.ca_opportunity_scoring columns] ---")
+        cols = conn.execute(text("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_schema = 'ca' AND table_name = 'ca_opportunity_scoring'
+        """)).fetchall()
+        for c, dt in cols:
+            print(f"   {c} ({dt})")
+            
+        print("\n--- [Enel Opportunity Scoring Record] ---")
+        opps = conn.execute(text("""
+            SELECT * FROM ca.ca_opportunity_scoring 
+            WHERE client_id = 'CLI101' OR client_id LIKE '%Enel%' LIMIT 2;
+        """)).mappings().fetchall()
+        for op in opps:
+            print(dict(op))
+
+EOF
+
+user@ing-fm-dev-1:~/ing-fm-poc$ cd ~/ing-fm-poc
+
+python3 - << 'EOF'
+import os
+import sqlalchemy
+from sqlalchemy import text
+
+# Database credentials from environment
+db_user = os.environ.get("DB_USER", "postgres")
+db_pass = os.environ.get("DB_PASS", "")
+EOF     print(f"• {schema}.{tname:<32} ({count_res[0]} rows)"){schema}"."{tname}"')).fetchone()b_name}")
+=== ALL TABLES IN DATABASE ===
+• ca.ca_opportunity_scoring           (19 rows)
+• ca.cand5_client_master              (0 rows)
+• ca.client_master                    (13 rows)
+• ca.coverage_teams                   (10 rows)
+• ca.debt_maturity_schedule           (15 rows)
+• ca.digital_twin_signals             (54 rows)
+• ca.document_vector_chunks           (22 rows)
+• ca.dt_client_master                 (13 rows)
+• ca.ext_company_filings              (13 rows)
+• ca.ext_credit_spreads               (8 rows)
+• ca.ext_deals                        (3 rows)
+• ca.mkt_rates_curves                 (10 rows)
+user@ing-fm-dev-1:~/ing-fm-poc$ 
+
+We have the complete table list. Notice three key tables here that provide the groundwork:
+
+ca.digital_twin_signals (54 rows — contains multi-channel signals like News RSS, Emails, Teams chats, and Analyst Notes).
+
+ca.document_vector_chunks (22 rows — contains the vector chunks and text extracts from ingested PDFs/PPTs).
+
+ca.ext_company_filings (13 rows — contains metadata for ingested corporate reports and filings).
+
+==================
+
+Run Detailed Column & Sample Data Inspection
+Run this script in Cloud Shell to see the exact columns and actual sample data for Enel (CLI101) across digital_twin_signals, document_vector_chunks, ext_company_filings, and ca_opportunity_scoring:
+
+cd ~/ing-fm-poc
+
+python3 - << 'EOF'
+import os
+import sqlalchemy
+from sqlalchemy import text
+
+db_user = os.environ.get("DB_USER", "postgres")
+db_pass = os.environ.get("DB_PASS", "")
+db_name = os.environ.get("DB_NAME", "postgres")
+inst_conn = os.environ.get("INSTANCE_CONNECTION_NAME", "")
+
+try:
+    from google.cloud.sql.connector import Connector, IPTypes
+    connector = Connector()
+    def getconn():
+        return connector.connect(
+            inst_conn,
+            "pg8000",
+            user=db_user,
+            password=db_pass,
+            db=db_name,
+            ip_type=IPTypes.PUBLIC
+        )
+    engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=getconn)
+except Exception:
+    db_host = os.environ.get("DB_HOST", "127.0.0.1")
+    db_port = os.environ.get("DB_PORT", "5432")
+    engine = sqlalchemy.create_engine(f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}")
+
+with engine.connect() as conn:
+    print("=" * 65)
+    print("1. ca.digital_twin_signals (Ingested Multi-Channel Signals)")
+    print("=" * 65)
+    cols = conn.execute(text("SELECT column_name, data_type FROM information_schema.columns WHERE table_schema='ca' AND table_name='digital_twin_signals'")).fetchall()
+    print("Columns:", [f"{c[0]} ({c[1]})" for c in cols])
+    
+    rows = conn.execute(text("SELECT * FROM ca.digital_twin_signals WHERE client_id='CLI101' LIMIT 5")).mappings().fetchall()
+    for r in rows:
+        print("\nRecord:", dict(r))
+
+    print("\n" + "=" * 65)
+    print("2. ca.document_vector_chunks (Ingested Document Chunks / Houseviews)")
+    print("=" * 65)
+    cols = conn.execute(text("SELECT column_name, data_type FROM information_schema.columns WHERE table_schema='ca' AND table_name='document_vector_chunks'")).fetchall()
+    print("Columns:", [f"{c[0]} ({c[1]})" for c in cols])
+    
+    rows = conn.execute(text("SELECT * FROM ca.document_vector_chunks LIMIT 3")).mappings().fetchall()
+    for r in rows:
+        print("\nRecord:", dict(r))
+
+    print("\n" + "=" * 65)
+    print("3. ca.ext_company_filings (Ingested Filings / Reports)")
+    print("=" * 65)
+    cols = conn.execute(text("SELECT column_name, data_type FROM information_schema.columns WHERE table_schema='ca' AND table_name='ext_company_filings'")).fetchall()
+    print("Columns:", [f"{c[0]} ({c[1]})" for c in cols])
+    
+    rows = conn.execute(text("SELECT * FROM ca.ext_company_filings WHERE client_id='CLI101' LIMIT 3")).mappings().fetchall()
+    for r in rows:
+        print("\nRecord:", dict(r))
+
+    print("\n" + "=" * 65)
+    print("4. ca.ca_opportunity_scoring (Synthesized Mandates & Rationale)")
+    print("=" * 65)
+    cols = conn.execute(text("SELECT column_name, data_type FROM information_schema.columns WHERE table_schema='ca' AND table_name='ca_opportunity_scoring'")).fetchall()
+    print("Columns:", [f"{c[0]} ({c[1]})" for c in cols])
+    
+    rows = conn.execute(text("SELECT * FROM ca.ca_opportunity_scoring WHERE client_id='CLI101' LIMIT 2")).mappings().fetchall()
+    for r in rows:
+        print("\nRecord:", dict(r))
+EOF
+
+This database inspection provides the exact technical lineage for the entire platform.
+
+Here is how each source is stored, differentiated, and mapped directly to the UI:
+
+1. Database Grounding & Ingestion Attribution
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│                               DATABASE INGESTION ARCHITECTURE                                │
+├──────────────────────────┬─────────────────────────────┬─────────────────────────────────────┤
+│ UI Section               │ Source Database Table       │ Grounded Column Fields              │
+├──────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ 1. CLIENT DATA           │ `ca.ext_company_filings`    │ `net_debt_eur_m` (€58,500M)         │
+│                          │ `ca.client_master`          │ `liquidity_eur_m` (€14,200M)        │
+│                          │                             │ `debt_maturing_24m_eur_m` (€10,127M)│
+├──────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ 2. MARKET DATA           │ `ca.mkt_rates_curves`       │ `eur_5y_swap` (2.62%), Bund (2.61%) │
+│                          │ `ca.ext_credit_spreads`     │ `credit_spread_bps` (78 bps)        │
+├──────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ 3. CONTEXT FABRIC        │ `ca.document_vector_chunks` │ `source_channel`: `TEAMS_CHAT`,     │
+│    (Internal CRM & Desk) │ `ca.digital_twin_signals`   │ `ANALYST_NOTE`, `CLIENT_EMAIL`      │
+│                          │                             │ `source_name`: Luca Moretti, Giulia │
+├──────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ 4. HOUSEVIEWS & NEWS     │ `ca.document_vector_chunks` │ `source_channel`: `NEWS_RSS`,       │
+│    (External & Research) │ `ca.digital_twin_signals`   │ `source_name`: Capital Market News  │
+│                          │                             │ `text_content`: $2.5bn multi-tranche│
+├──────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ 5. SYNTHESIZED MANDATE   │ `ca.ca_opportunity_scoring` │ `why_now_nlg` (Catalyst Rationale)  │
+│    (Hero Section Below)  │                             │ `next_best_action` (Execution Plan) │
+│                          │                             │ `est_revenue_eur_000` (Fee: €5.0M)  │
+└──────────────────────────┴─────────────────────────────┴─────────────────────────────────────┘
+
+=============
+
+**No database schema changes or column additions are required.**
+
+We verified that all the necessary tables, columns, and data points already exist in your database instance:
+
+---
+
+### Existing Table & Column Mapping
+
+* **Client Financials & Debt Wall:** Pulled directly from existing columns `net_debt_eur_m`, `liquidity_eur_m`, `debt_maturing_24m_eur_m` in **`ca.ext_company_filings`**.
+* **Market Benchmarks & Credit Spreads:** Pulled directly from existing columns in **`ca.mkt_rates_curves`** and **`ca.ext_credit_spreads`**.
+* **Context Fabric Signals & Author:** Pulled directly from existing columns `description`, `trigger_summary`, `confidence_pct` in **`ca.digital_twin_signals`** and `source_name` in **`ca.document_vector_chunks`** (where `source_channel = 'ANALYST_NOTE'`).
+* **Houseviews & News Feeds:** Pulled directly from existing records in **`ca.document_vector_chunks`** using the existing `source_channel = 'NEWS_RSS'`, `source_name`, and `text_content` columns.
+* **Synthesized Mandate & Rationale:** Pulled directly from existing columns `why_now_nlg` and `next_best_action` in **`ca.ca_opportunity_scoring`**.
+
+---
+
+### Why No Migrations Are Needed
+
+The update only changes:
+
+1. **The SQL query logic in `main.py**` to extract and categorize existing rows into clean response fields.
+2. **The JSX rendering tree in `frontend/src/App.jsx**` to display the $2 \times 2$ grid + full-width Mandate.
+
+The database tables remain untouched.
+
+===========
+
+Top $2 \times 2$ Grid (The 4 Audited Ingestion Feeds)The previous layout placed the Mandate inside the fourth box. Now, all four boxes represent pure raw inputs ingested from your database tables:
+┌──────────────────────────────────────┬──────────────────────────────────────┐
+│  SEGMENT 1: CLIENT DATA              │  SEGMENT 2: MARKET DATA              │
+│  [Static Balance Sheet & Maturities] │  [Live Curves & Spreads from DB]     │
+│  • Net Debt: €58,500M                │  • 5Y EUR Swap: 2.62%                │
+│  • Available Liquidity: €14,200M     │  • 10Y German Bund: 2.61%            │
+│  • 24M Maturity Wall: €10,127M       │  • Credit Spread: 78 bps             │
+├──────────────────────────────────────┼──────────────────────────────────────┤
+│  SEGMENT 3: CONTEXT FABRIC           │  SEGMENT 4: HOUSEVIEWS & NEWS (NEW)  │
+│  [Internal Chatter & CRM Signals]    │  [Audited Research & Market Wires]   │
+│  • Chips: 📝 Notes | 💬 Teams | ✉️ Email│  • Chips: 📄 Strategy.pdf | 📰 Wire  │
+│  • Desk Signal: €10.13bn refi review │  • ING Houseview: Pre-hedge 5Y-7Y rec│
+│  • Latent: Pre-hedge rates window    │  • News: $2.5bn multi-tranche bond   │
+│  • Attribution: Luca Moretti (DCM)   │  • Attribution: ING WB Research Desk │
+└──────────────────────────────────────┴──────────────────────────────────────┘
+2. Full-Width Hero Section (Synthesized Mandate & AI Catalyst)Directly underneath the $2 \times 2$ grid, you will see a prominent container spanning the entire width of the card:Live Status Badge: A pulsating orange indicator with SYNTHESIZED MANDATE & AI CATALYST and Multi-Signal Lineage Verified.Signal Lineage Audit Bar: A 4-column trace strip proving multi-signal causality:[1. Balance Sheet: €10.1B Maturity][2. Market DB: 5Y Swap 2.62% / 78bps][3. Context Fabric: €10.13B Refi Review][4. Houseview / News: $2.5B Tranche + Pre-Hedge]2-Column Execution Breakdown:Left Box: Catalyst Rationale (Why Now): "Enel successfully issued a US$4.5 billion Yankee bond, advised by White & Case..."Right Box: Proposed Execution & Structuring: "Engage Enel to discuss the strategic rationale behind the US$4.5bn Yankee bond issuance..."3. Rich Hover-Over Tooltip ExperienceHovering your cursor over any element displays the underlying audit trail:Hovering on 📄 ING_Utilities_Strategy_Q3.pdf: Shows the full research desk excerpt and target tenor guidance.Hovering on 📰 Capital Market News / Bloomberg: Shows the verified corporate filing note regarding the $2.5B issuance.Hovering on Desk Signal / Latent Opp: Shows confidence percentages ($95\%$, $85\%$) and evidence citations directly from ca.digital_twin_signals.Hovering on Catalyst Rationale / Proposed Execution: Shows the full un-truncated narrative from ca.ca_opportunity_scoring.4. Bottom Action BarAt the bottom of the card, the buttons remain fully functional:Ingestion Engine button: Launches the channel simulation and document ingestion modal.Open draft pitchbook button: Opens the slide preview drawer and origination copilot for Enel S.p.A. with all parameters intact.
+
+Workfabric Memo chip Database Query for Enel :-
+====================
+# Step 1: Query All Existing WorkFabric Memo Records for Enel
+Run this script in Cloud Shell to see all matching rows in ca.document_vector_chunks:
+cd ~/ing-fm-poc
+
+python3 - << 'EOF'
+import os
+import sqlalchemy
+from sqlalchemy import text
+
+db_user = os.environ.get("DB_USER", "postgres")
+db_pass = os.environ.get("DB_PASS", "ing_fm_password_2026")
+db_name = os.environ.get("DB_NAME", "ing_fm_db")
+inst_conn = os.environ.get("INSTANCE_CONNECTION_NAME", "teach-telecom-ai-sandbox:europe-west1:ing-fm-db")
+
+try:
+    from google.cloud.sql.connector import Connector, IPTypes
+    connector = Connector()
+    def getconn():
+        return connector.connect(
+            inst_conn,
+            "pg8000",
+            user=db_user,
+            password=db_pass,
+            db=db_name,
+            ip_type=IPTypes.PUBLIC
+        )
+    engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=getconn)
+except Exception:
+    db_host = os.environ.get("DB_HOST", "127.0.0.1")
+    db_port = os.environ.get("DB_PORT", "5432")
+    engine = sqlalchemy.create_engine(f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}")
+
+with engine.connect() as conn:
+    print("=" * 80)
+    print(" 🔎 EXISTING WORKFABRIC MEMO / ANALYST_NOTE RECORDS FOR ENEL (CLI101)")
+    print("=" * 80)
+
+    rows = conn.execute(text("""
+        SELECT chunk_id, client_id, source_channel, source_name, text_content, created_at
+        FROM ca.document_vector_chunks
+        WHERE (client_id = 'CLI101' OR client_id LIKE '%ENEL%')
+          AND source_channel IN ('WORKFABRIC_MEMO', 'ANALYST_NOTE')
+        ORDER BY created_at DESC, chunk_id DESC;
+    """)).mappings().fetchall()
+
+    print(f"Total Records Found: {len(rows)}\n")
+    for r in rows:
+        print(f"Chunk ID       : {r['chunk_id']}")
+        print(f"Client ID      : {r['client_id']}")
+        print(f"Channel        : {r['source_channel']}")
+        print(f"Source / Author: {r['source_name']}")
+        print(f"Created At     : {r['created_at']}")
+        print(f"Full Text      :\n{r['text_content']}")
+        print("-" * 80)
+EOF
+
+# Output
+user@ing-fm-dev-1:~/ing-fm-poc$ cd ~/ing-fm-poc
+
+python3 - << 'EOF'
+import os
+import sqlalchemy
+from sqlalchemy import text
+
+db_user = os.environ.get("DB_USER", "postgres")
+db_pass = os.environ.get("DB_PASS", "ing_fm_password_2026")
+db_name = os.environ.get("DB_NAME", "ing_fm_db")
+EOF     print("-" * 80)xt      :\n{r['text_content']}"))LYST_NOTE')xt_content, created_atrt}/{db_name}"))
+================================================================================
+ 🔎 EXISTING WORKFABRIC MEMO / ANALYST_NOTE RECORDS FOR ENEL (CLI101)
+================================================================================
+Total Records Found: 2
+
+Chunk ID       : 102
+Client ID      : CLI101
+Channel        : ANALYST_NOTE
+Source / Author: Luca Moretti (DCM Origination)
+Created At     : 2026-08-20 19:02:08.728518
+Full Text      :
+Large investment programmes, but the July dollar issuance means we should not equate capex with a funding gap. Residual maturities for 2026-2027 total approx €10.13bn. Candidate issue: residual funding sequencing and liability management.
+--------------------------------------------------------------------------------
+Chunk ID       : 2
+Client ID      : CLI009_ENEL
+Channel        : ANALYST_NOTE
+Source / Author: Luca Moretti (DCM Origination)
+Created At     : 2026-08-20 19:02:08.728518
+Full Text      :
+Large investment programmes, but the July dollar issuance means we should not equate capex with a funding gap. Residual maturities for 2026-2027 total approx €10.13bn. Candidate issue: residual funding sequencing and liability management.
+--------------------------------------------------------------------------------
+user@ing-fm-dev-1:~/ing-fm-poc$ 
+
+Table	Relevant Columns	Purpose
+ca.document_vector_chunks	chunk_id, client_id, source_channel, source_name, text_content, created_at	Stores raw touchpoints, author attribution, and hover tooltip excerpts for all channels (TEAMS_CHAT, CLIENT_EMAIL, WORKFABRIC_MEMO).
+ca.digital_twin_signals	signal_id, client_id, catalog_family, signal_type, metric_identified, trigger_summary, metric_value, description, confidence_pct, urgency, created_at	Stores structured signals extracted by the AI engine.
+ca.ca_opportunity_scoring	client_id, opportunity_type, priority_score, est_revenue_eur_000, next_best_action, why_now_nlg	Houses calibrated deal priorities, revenue projections, and action recommendations.

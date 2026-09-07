@@ -10,3 +10,6 @@ frontend/node_modules/
 frontend/src/*.bak*
 frontend/patch_app.js
 archive/
+
+archive/
+*.tar.gz

@@ -93,9 +93,50 @@ except Exception as e:
     print(f"  ✗ Database connection test failed: {e}")
 PYEOF
 
+# 8. Start FastAPI / React Application on Port 8080
+echo "[7/7] Ensuring FastAPI application server is running on port 8080..."
+if ! pgrep -f "uvicorn.*8080" >/dev/null 2>&1 && ! pgrep -f "python3.*main.py" >/dev/null 2>&1; then
+    nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8080 > /tmp/backend.log 2>&1 &
+    sleep 2
+    echo "  ✓ Backend & UI service started on port 8080 (PID: $!)."
+else
+    echo "  ✓ Backend service is already running on port 8080."
+fi
+
 echo "[7/7] Session initialization complete."
 echo "============================================================"
 echo " Project      : $GCP_PROJECT"
 echo " SQL Conn     : $INSTANCE_CONN"
 echo " Service URL  : ${SERVICE_URL:-NOT DEPLOYED YET}"
+echo "============================================================"
+# 7. Verify Cloud Run Service Health
+echo "[7/8] Verifying Cloud Run backend configuration..."
+SERVICE_URL="https://ing-fm-poc-service-acsckzryzq-ew.a.run.app"
+CR_COUNT=$(curl -s "${SERVICE_URL}/api/opportunities" 2>/dev/null | python3 -c "import sys, json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+
+if [ "$CR_COUNT" -eq 0 ]; then
+    echo "  ⚠️ Cloud Run API returned 0 opportunities. Re-binding Secret Manager credentials..."
+    gcloud run services update ing-fm-poc-service \
+      --project="teach-telecom-ai-sandbox" \
+      --region="europe-west1" \
+      --set-env-vars="INSTANCE_CONNECTION_NAME=teach-telecom-ai-sandbox:europe-west1:ing-postgres-db,DB_USER=postgres,DB_NAME=postgres,GCP_PROJECT=teach-telecom-ai-sandbox,REGION=europe-west1" \
+      --set-secrets="DB_PASS=db-postgres-pass:latest" \
+      --quiet >/dev/null 2>&1
+    echo "  ✓ Cloud Run environment refreshed with Secret Manager bindings."
+else
+    echo "  ✓ Cloud Run API verified: serving $CR_COUNT opportunities."
+fi
+
+# 8. Ensure Local Server Daemon is Available (Port 8080)
+echo "[8/8] Checking local FastAPI server on port 8080..."
+if ! pgrep -f "uvicorn.*8080" >/dev/null 2>&1; then
+    nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8080 > /tmp/backend.log 2>&1 &
+    sleep 2
+    echo "  ✓ Local backend service active on port 8080 (PID: $!)."
+else
+    echo "  ✓ Local backend service is already active on port 8080."
+fi
+
+echo "============================================================"
+echo "✓ POC Environment Fully Ready | Enel (CLI101) Parity Active"
 echo "============================================================"

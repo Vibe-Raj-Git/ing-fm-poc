@@ -532,19 +532,23 @@ def get_opportunities():
                         }
                     ]
 
-                # 2. Query ca.digital_twin_signals for Desk Signal & Structured Latent Opportunities
-                cf_latent_list = []
+                # 2. Query ca.digital_twin_signals for Desk Signal & Latent Opportunity
                 try:
-                    cur.execute("""SELECT trigger_summary FROM ca.digital_twin_signals WHERE (client_id = %s OR client_id LIKE %s OR client_id ILIKE '%ENEL%') AND signal_type = 'LATENT_OPPORTUNITY' ORDER BY signal_id ASC LIMIT 3;""", (cid_str, cid_str + "%"))
-                    cf_latent_list = [r[0] for r in cur.fetchall() if r and r[0]]
-                    cur.execute("""SELECT description, trigger_summary FROM ca.digital_twin_signals WHERE (client_id = %s OR client_id LIKE %s) AND catalog_family IN ('Financing/Capital Markets', 'Interest Rate') AND (signal_type IS NULL OR signal_type != 'LATENT_OPPORTUNITY') ORDER BY confidence_pct DESC, signal_id ASC LIMIT 1;""", (cid_str, cid_str + "%"))
+                    cur.execute("""
+                        SELECT description, trigger_summary
+                        FROM ca.digital_twin_signals
+                        WHERE (client_id = %s OR client_id LIKE %s)
+                          AND catalog_family IN ('Financing/Capital Markets', 'Interest Rate')
+                        ORDER BY confidence_pct DESC, signal_id ASC LIMIT 1;
+                    """, (cid_str, f"{cid_str}%"))
                     sig_row = cur.fetchone()
                     if sig_row:
-                        if sig_row[0]: cf_desc = sig_row[0]
-                        if sig_row[1] and not cf_latent_list: cf_latent = sig_row[1]
-                    if cf_latent_list: cf_latent = cf_latent_list[0]
-                except Exception as e_sig:
-                    logger.warning("Error querying signals: " + str(e_sig))
+                        if sig_row[0]:
+                            cf_desc = sig_row[0]
+                        if sig_row[1]:
+                            cf_latent = sig_row[1]
+                except Exception:
+                    pass
 
                 # 3. Query ca.document_vector_chunks for Segment 4 Houseviews & News
                 try:
@@ -579,7 +583,6 @@ def get_opportunities():
                     "action": action or "Proactive balance sheet advisory and fixed-to-floating rates review.",
                     "cf_description": cf_desc,
                     "cf_latent": cf_latent,
-                     "cf_latent_list": cf_latent_list,
                     "cf_author": cf_author,
                     "cf_source_chips": cf_source_chips,
                     "hv_doc_title": hv_doc_title,

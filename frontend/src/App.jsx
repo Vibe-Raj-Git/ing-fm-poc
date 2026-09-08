@@ -231,7 +231,27 @@ export default function App() {
       const metricsData = await metricsRes.json();
 
       setOpportunities(oppData);
-      setSignals(signalsData);
+      // Deduplicate and normalize client IDs across all signals
+      const uniqueSignals = Array.from(
+        new Map(
+          (signalsData || []).map((s) => {
+            const rawClient = s.client_name || s.client_id || "";
+            const isEnel = rawClient.includes("Enel") || rawClient.includes("CLI009");
+            const cleanClient = isEnel ? "Enel S.p.A." : rawClient;
+            const headline = s.headline || s.text || "";
+
+            return [
+              `${cleanClient.toLowerCase()}::${headline.toLowerCase().trim()}`,
+              {
+                ...s,
+                client_name: cleanClient,
+                text: `${cleanClient}: ${headline}`
+              }
+            ];
+          })
+        ).values()
+      );
+      setSignals(uniqueSignals);
       setMetrics(metricsData);
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
@@ -1462,11 +1482,16 @@ export default function App() {
             <div className="overflow-hidden whitespace-nowrap w-full relative group">
               <div className="animate-marquee flex items-center space-x-3 py-0.5">
                 {signals && signals.length > 0 ? (
-                  [...signals, ...signals].map((sig, idx) => (
+                  [...signals, ...signals].map((sig, idx) => {
+                    const canonicalId = (sig.client_id && (sig.client_id.includes("CLI009") || sig.client_id.includes("ENEL"))) 
+                      ? "CLI101" 
+                      : sig.client_id;
+                    return (
                     <button
-                      key={idx}
+                      key={`${sig.id || canonicalId || "sig"}-${idx}`}
                       onClick={() => {
-                        const el = document.getElementById(`client-${sig.client_id}`) || document.getElementById(sig.client_id);
+                        const targetId = `client-${canonicalId}`;
+                        const el = document.getElementById(targetId) || document.getElementById(`client-${sig.client_name}`) || document.getElementById(sig.client_name);
                         if (el) {
                           el.scrollIntoView({ behavior: "smooth", block: "center" });
                           el.classList.add("ring-2", "ring-orange-500", "transition-all", "duration-500");
@@ -1494,7 +1519,7 @@ export default function App() {
                         {sig.headline || sig.text || sig.trigger}
                       </span>
                     </button>
-                  ))
+                  );})
                 ) : null}
               </div>
             </div>

@@ -2,6 +2,23 @@
 ## 1. Whenever I open a new instance, first run - source ./session-init.sh command from /home/user/ing-fm-poc
 ## 2. For any changes in App.jsx, main.py or pitchbook_builder.py, run deploy-poc from /home/user/ing-fm-poc 
 
+#### To Disable Public Access:
+
+Bash
+gcloud run services remove-iam-policy-binding ing-fm-poc-service \
+    --region=europe-west1 \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+    
+#### If You Want to Re-Enable the Application
+To restore full functionality so the backend API responds normally, run:
+
+Bash
+gcloud run services add-iam-policy-binding ing-fm-poc-service \
+    --region=europe-west1 \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+
 # ING Financial Markets AI Agentic Platform — Operational Runbook
 
 Session Restart Quick Start

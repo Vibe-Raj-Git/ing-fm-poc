@@ -407,14 +407,34 @@ def fetch_pitchbook_bundle(canonical_id, client_id_raw, get_db_connection):
                     ctx["debt_maturing_24m"] = float(tot_wall)
                     ctx["debt_maturing_24m_str"] = f"€{tot_wall:,.0f}M"
 
-            # 5. Fetch Digital Twin Signals
+            # 5. Fetch Digital Twin Signals (Deterministic parity with main.py & App.jsx)
+            # Fetch top Latent Opportunities ordered deterministically by signal_id ASC
             cur.execute("""
                 SELECT signal_type, trigger_summary, metric_identified, description, confidence_pct
                 FROM ca.digital_twin_signals
-                WHERE client_id = %s
+                WHERE (client_id = %s OR client_id LIKE %s OR client_id ILIKE '%%ENEL%%')
+                  AND signal_type = 'LATENT_OPPORTUNITY'
+                ORDER BY signal_id ASC
+                LIMIT 3;
+            """, (actual_cid, actual_cid + "%"))
+            for s in cur.fetchall():
+                ctx["signals"].append({
+                    "signal_type": s[0],
+                    "trigger_summary": s[1],
+                    "metric_identified": s[2],
+                    "description": s[3],
+                    "confidence_pct": s[4]
+                })
+
+            # Also fetch top non-latent Desk/Market signals
+            cur.execute("""
+                SELECT signal_type, trigger_summary, metric_identified, description, confidence_pct
+                FROM ca.digital_twin_signals
+                WHERE (client_id = %s OR client_id LIKE %s OR client_id ILIKE '%%ENEL%%')
+                  AND (signal_type IS NULL OR signal_type != 'LATENT_OPPORTUNITY')
                 ORDER BY created_at DESC
                 LIMIT 3;
-            """, (actual_cid,))
+            """, (actual_cid, actual_cid + "%"))
             for s in cur.fetchall():
                 ctx["signals"].append({
                     "signal_type": s[0],

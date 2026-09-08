@@ -354,6 +354,70 @@ def get_live_signals():
     return signals
 
 
+def format_eur_amount(val_m: float, decimals: int = 2) -> str:
+    if val_m >= 1000:
+        val_bn = val_m / 1000.0
+        # Format cleanly without trailing zeros if exact, e.g. 14.2bn vs 10.127bn
+        formatted = f"{val_bn:.{decimals}f}".rstrip('0').rstrip('.')
+        return f"€{formatted}bn"
+    return f"€{val_m:,.0f}M"
+
+def synthesize_mandate_catalyst(client_name: str, product_family: str, liquidity_eur_m: float, debt_maturing_24m_eur_m: float, market_metrics: dict, context_memo: str, news_headline: str, base_why_now: str, base_action: str) -> dict:
+    """
+    Dynamically synthesizes grounded Catalyst Rationale and Proposed Execution using Vertex AI Gemini.
+    Generic across all clients and product families.
+    """
+    fallback_why = base_why_now or f"Upcoming debt maturities of €{debt_maturing_24m_eur_m:,.0f}M and market conditions warrant balance sheet review."
+    fallback_act = base_action or f"Structure targeted financing and hedging overlay tailored to liquidity runway of €{liquidity_eur_m:,.0f}M."
+
+    if not GENAI_AVAILABLE:
+        return {"why_now": fallback_why, "action": fallback_act}
+
+    try:
+        project_id = os.getenv("GCP_PROJECT", "teach-telecom-ai-sandbox")
+        region = os.getenv("REGION", "europe-west1")
+        client_gcp = genai.Client(vertexai=True, project=project_id, location=region)
+
+        prompt = f"""You are a senior CIB Debt Capital Markets (DCM) and Risk Solutions strategist at ING.
+Synthesize the provided database-grounded lineage metrics into two authoritative, desk-ready sentences for an executive pitchbook.
+
+CLIENT: {client_name}
+PRODUCT CONTEXT: {product_family}
+
+GROUNDED LINEAGE METRICS (4 OF 4 FEEDS):
+1. Balance Sheet Liquidity: Available Liquidity €{liquidity_eur_m:,.1f}M | Maturing Debt (24M): €{debt_maturing_24m_eur_m:,.1f}M
+2. Market DB Benchmarks: {json.dumps(market_metrics)}
+3. Context Fabric Tacit Knowledge: {context_memo[:400]}
+4. Houseviews & News Intelligence: {news_headline[:300]}
+5. Opportunity Scoring Baseline: Why Now: "{base_why_now}" | Action: "{base_action}"
+
+INSTRUCTIONS:
+Generate a valid JSON object with exactly two keys:
+1. "catalyst_rationale": Maximum 2 sentences. Synthesize WHY NOW—connect maturity profile, liquidity runway, market yields/spreads, and market intelligence.
+2. "proposed_execution": Maximum 2 sentences. Specify the exact recommended transaction, tenor, structuring overlay (e.g. green/sustainability format or pre-hedge derivative), and immediate execution milestone.
+
+STRICT CONSTRAINTS:
+- Do not invent numbers. Only use the metrics provided above.
+- Active voice, professional CIB tone.
+- Output JSON ONLY: {{"catalyst_rationale": "...", "proposed_execution": "..."}}"""
+
+        response = client_gcp.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.2
+            )
+        )
+        res_data = json.loads(response.text)
+        return {
+            "why_now": res_data.get("catalyst_rationale", fallback_why),
+            "action": res_data.get("proposed_execution", fallback_act)
+        }
+    except Exception as e:
+        logger.warning(f"Error generating mandate synthesis for {client_name}: {e}")
+        return {"why_now": fallback_why, "action": fallback_act}
+
 @app.get("/api/opportunities")
 def get_opportunities():
     conn, connector = get_db_connection()
@@ -407,22 +471,28 @@ def get_opportunities():
             except Exception as e_mkt:
                 logger.warning(f"Error fetching market curves for opportunities: {e_mkt}")
 
-            # Pre-fetch dynamic credit spreads from ca.ext_credit_spreads
-            credit_spreads = {}
-            try:
-                cur.execute("SELECT tenor, spread_bps, all_in_yield_pct FROM ca.ext_credit_spreads WHERE issuer_or_rating ILIKE '%BBB%' OR issuer_or_rating ILIKE '%ENEL%'")
-                for s_row in cur.fetchall():
-                    credit_spreads[s_row[0]] = {
-                        "spread_bps": f"{float(s_row[1]):.0f} bps" if s_row[1] is not None else None,
-                        "all_in": f"{float(s_row[2]):.2f}%" if s_row[2] is not None else None
-                    }
-            except Exception as e_spr:
-                logger.warning(f"Error fetching credit spreads for opportunities: {e_spr}")
-
             for r in client_rows:
                 cid, name, tier, hq, rm, sector, net_debt, liq, m24, score_num, opp_type, action, why_now, est_fee = r
                 cid_str = str(cid)
                 name_str = str(name)
+
+                # Client-specific credit spreads
+                credit_spreads = {}
+                first_word = name_str.split()[0].replace(',', '').strip() if name_str else ""
+                try:
+                    cur.execute("""
+                        SELECT tenor, spread_bps, all_in_yield_pct 
+                        FROM ca.ext_credit_spreads 
+                        WHERE issuer_or_rating ILIKE %s OR issuer_or_rating ILIKE %s
+                        ORDER BY tenor ASC;
+                    """, (f"%{first_word}%", "%BBB%"))
+                    for s_row in cur.fetchall():
+                        credit_spreads[s_row[0]] = {
+                            "spread_bps": f"{float(s_row[1]):.0f} bps" if s_row[1] is not None else None,
+                            "all_in": f"{float(s_row[2]):.2f}%" if s_row[2] is not None else None
+                        }
+                except Exception as e_spr:
+                    logger.warning(f"Error fetching credit spreads for {cid_str}: {e_spr}")
 
                 # Check debt maturities count
                 cur.execute("""
@@ -463,7 +533,7 @@ def get_opportunities():
                 hv_doc_title = "ING_Utilities_Strategy_Q3.pdf"
                 hv_doc_summary = "ING Strategy Desk: Utilities sector debt wall favors pre-hedging 2026-2027 tenors at 2.62% 5Y EUR swap benchmark."
                 news_source = "Capital Market News / Bloomberg"
-                news_headline = "Enel completed $2.5bn multi-tranche bond issuance; residual 2026-2027 debt maturities remain."
+                news_headline = f"{name_str} capital markets update: Monitoring debt maturity wall and rate pre-hedge window."
                 
                 # Dynamic Ingestion Chips Map from DB
                 cf_source_chips = []
@@ -474,10 +544,10 @@ def get_opportunities():
                     cur.execute("""
                         SELECT source_channel, source_name, text_content, created_at
                         FROM ca.document_vector_chunks
-                        WHERE (client_id = %s OR client_id LIKE %s OR client_id LIKE '%%ENEL%%')
+                        WHERE client_id = %s
                           AND source_channel IN ('WORKFABRIC_MEMO', 'CONTEXT_FABRIC', 'ANALYST_NOTE', 'TEAMS_CHAT', 'CLIENT_EMAIL')
                         ORDER BY created_at DESC, chunk_id DESC;
-                    """, (cid_str, f"{cid_str}%"))
+                    """, (cid_str,))
                     chunk_rows = cur.fetchall()
                     for c_chan, c_src, c_text, c_time in chunk_rows:
                         # Standardize ANALYST_NOTE -> WORKFABRIC_MEMO
@@ -535,51 +605,87 @@ def get_opportunities():
                 # 2. Query ca.digital_twin_signals for Desk Signal & Structured Latent Opportunities
                 cf_latent_list = []
                 try:
-                    cur.execute("""SELECT trigger_summary FROM ca.digital_twin_signals WHERE (client_id = %s OR client_id LIKE %s OR client_id ILIKE '%ENEL%') AND signal_type = 'LATENT_OPPORTUNITY' ORDER BY signal_id ASC LIMIT 3;""", (cid_str, cid_str + "%"))
+                    cur.execute("""SELECT trigger_summary FROM ca.digital_twin_signals WHERE client_id = %s AND signal_type = 'LATENT_OPPORTUNITY' ORDER BY signal_id ASC LIMIT 3;""", (cid_str,))
                     cf_latent_list = [r[0] for r in cur.fetchall() if r and r[0]]
-                    cur.execute("""SELECT description, trigger_summary FROM ca.digital_twin_signals WHERE (client_id = %s OR client_id LIKE %s) AND catalog_family IN ('Financing/Capital Markets', 'Interest Rate') AND (signal_type IS NULL OR signal_type != 'LATENT_OPPORTUNITY') ORDER BY confidence_pct DESC, signal_id ASC LIMIT 1;""", (cid_str, cid_str + "%"))
-                    sig_row = cur.fetchone()
-                    if sig_row:
-                        if sig_row[0]: cf_desc = sig_row[0]
-                        if sig_row[1] and not cf_latent_list: cf_latent = sig_row[1]
+                    
+                    # Check for latest ingested WorkFabric Context Memo first
+                    cur.execute("""
+                        SELECT text_content, source_name 
+                        FROM ca.document_vector_chunks 
+                        WHERE client_id = %s AND source_channel = 'WORKFABRIC_MEMO' 
+                        ORDER BY created_at DESC, chunk_id DESC 
+                        LIMIT 1;
+                    """, (cid_str,))
+                    wf_memo_row = cur.fetchone()
+                    if wf_memo_row and wf_memo_row[0]:
+                        cf_desc = wf_memo_row[0]
+                        if wf_memo_row[1]:
+                            cf_author = wf_memo_row[1]
+                    else:
+                        cur.execute("""SELECT description, trigger_summary FROM ca.digital_twin_signals WHERE client_id = %s AND catalog_family IN ('Financing/Capital Markets', 'Interest Rate') AND (signal_type IS NULL OR signal_type != 'LATENT_OPPORTUNITY') ORDER BY confidence_pct DESC, signal_id ASC LIMIT 1;""", (cid_str,))
+                        sig_row = cur.fetchone()
+                        if sig_row:
+                            if sig_row[0]: cf_desc = sig_row[0]
+                            if sig_row[1] and not cf_latent_list: cf_latent = sig_row[1]
                     if cf_latent_list: cf_latent = cf_latent_list[0]
                 except Exception as e_sig:
                     logger.warning("Error querying signals: " + str(e_sig))
 
-                # 3. Query ca.document_vector_chunks for Segment 4 Houseviews & News
+                # 3. Query ca.document_vector_chunks for Segment 4 Houseviews & News (Dynamic per-client)
                 try:
                     cur.execute("""
                         SELECT text_content, source_name
                         FROM ca.document_vector_chunks
-                        WHERE (client_id = %s OR client_id LIKE %s OR client_id LIKE '%%ENEL%%')
+                        WHERE client_id = %s
                           AND source_channel = 'NEWS_RSS'
+                        ORDER BY created_at DESC, chunk_id DESC
                         LIMIT 1;
-                    """, (cid_str, f"{cid_str}%"))
+                    """, (cid_str,))
                     news_row = cur.fetchone()
                     if news_row:
                         if news_row[0]:
-                            news_headline = news_row[0]
+                            raw_txt = str(news_row[0]).strip()
+                            if "[1] HEADLINE:" in raw_txt:
+                                # Extract the line containing [1] HEADLINE:
+                                for line in raw_txt.splitlines():
+                                    if "[1] HEADLINE:" in line:
+                                        hl_part = line.strip()
+                                        news_headline = f"LIVE RSS INTELLIGENCE WIRE: {hl_part}"
+                                        break
+                            else:
+                                news_headline = raw_txt
                         if news_row[1]:
                             news_source = news_row[1]
-                except Exception:
-                    pass
+                except Exception as e_news:
+                    logger.warning(f"Error querying news for {cid_str}: {e_news}")
+
+                # Purely dynamic market metrics from live DB tables
+                spr_5y = credit_spreads.get("5Y", {})
+                client_spread_bps = spr_5y.get("spread_bps")
+
+                swap_5y = mkt_curves.get("5Y", {}).get("swap")
+                bund_10y = mkt_curves.get("10Y", {}).get("bund")
+                swap_7y = mkt_curves.get("7Y", {}).get("swap")
+
+                final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
+                final_action = action or "Proactive capital markets advisory and rate hedging review."
 
                 opps.append({
                     "id": cid_str,
                     "name": name_str,
-                    "type": "SUSTAINABLE FUNDING | FRAMEWORK OPTIMIZATION" if ("ENEL" in cid_str.upper() or cid_str == "CLI101") else opp_type,
-                    "is_debt": float(m24) > 0 or total_nominal > 0 or "DEBT" in opp_type.upper(),
-                    "subtitle": f"External ratings: S&P | BBB | Positive ({hq or sector})" if ("ENEL" in cid_str.upper() or cid_str == "CLI101") else f"{tier or 'Tier 1'} client ({hq or sector})",
+                    "type": opp_type or "CAPITAL MARKETS",
+                    "is_debt": float(m24) > 0 or total_nominal > 0 or "DEBT" in (opp_type or "").upper(),
+                    "subtitle": f"{tier or 'Coverage'} ({sector or hq or 'Corporate'})",
                     "tier": tier or "Tier 1",
                     "score": score_val,
                     "score_num": int(score_num),
                     "chips": chips,
-                    "callout": f"{why_now} {action}".strip(),
-                    "why_now": why_now or "Active market rates dynamics and corporate funding schedule.",
-                    "action": action or "Proactive balance sheet advisory and fixed-to-floating rates review.",
+                    "callout": f"{final_why_now} {final_action}".strip(),
+                    "why_now": final_why_now,
+                    "action": final_action,
                     "cf_description": cf_desc,
                     "cf_latent": cf_latent,
-                     "cf_latent_list": cf_latent_list,
+                    "cf_latent_list": cf_latent_list,
                     "cf_author": cf_author,
                     "cf_source_chips": cf_source_chips,
                     "hv_doc_title": hv_doc_title,
@@ -594,11 +700,11 @@ def get_opportunities():
                     "debt_maturing_24m_str": f"€{float(m24):,.0f}M" if float(m24) > 0 else "—",
                     "debt_maturing_24m_bn": (f"€{float(m24)/1000:,.2f}bn" if float(m24) >= 1000 else f"€{float(m24):,.0f}M") if float(m24) > 0 else "—",
                     "rm_name": rm or "Coverage Director",
-                     "eur_10y_bund": mkt_curves.get("10Y", {}).get("bund", "2.61%"),
-                     "eur_5y_swap": mkt_curves.get("5Y", {}).get("swap", "2.62%"),
-                     "eur_7y_swap": mkt_curves.get("7Y", {}).get("swap", "2.74%"),
-                     "credit_spread_5y_bps": credit_spreads.get("5Y", {}).get("spread_bps", "78 bps"),
-                     "credit_spread_10y_bps": credit_spreads.get("10Y", {}).get("spread_bps", "80 bps")
+                    "eur_10y_bund": bund_10y or "—",
+                    "eur_5y_swap": swap_5y or "—",
+                    "eur_7y_swap": swap_7y or "—",
+                    "credit_spread_5y_bps": client_spread_bps or "—",
+                    "credit_spread_10y_bps": credit_spreads.get("10Y", {}).get("spread_bps") or "—"
                 })
 
             cur.close()
@@ -607,6 +713,7 @@ def get_opportunities():
                 connector.close()
         except Exception as exc:
             logger.error(f"Error querying opportunities: {exc}")
+            return opps
 
     return opps
 

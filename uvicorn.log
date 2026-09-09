@@ -1,0 +1,13 @@
+nohup: ignoring input
+INFO:     Started server process [10495]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+WARNING:ing_fm_backend:Error fetching credit spreads for opportunities: cannot access local variable 'tier' where it is not associated with a value
+INFO:     127.0.0.1:37282 - "GET /api/opportunities HTTP/1.1" 200 OK
+WARNING:ing_fm_backend:Error fetching credit spreads for opportunities: cannot access local variable 'tier' where it is not associated with a value
+INFO:     127.0.0.1:47762 - "GET /api/opportunities HTTP/1.1" 200 OK
+WARNING:ing_fm_backend:Error fetching credit spreads for opportunities: cannot access local variable 'tier' where it is not associated with a value
+INFO:     127.0.0.1:43622 - "GET /api/opportunities HTTP/1.1" 200 OK
+WARNING:ing_fm_backend:Error fetching credit spreads for opportunities: cannot access local variable 'tier' where it is not associated with a value
+INFO:     127.0.0.1:47164 - "GET /api/opportunities HTTP/1.1" 200 OK

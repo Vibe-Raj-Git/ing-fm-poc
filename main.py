@@ -1062,7 +1062,7 @@ TEXT CONTENT:
 
 Extract structured signal parameters matching the database schema as STRICT JSON without markdown:
 {{
-  "signal_type": "REFINANCING | LIQUIDITY | COVENANT | HEDGING | M&A",
+  "signal_type": "SUSTAINABLE FUNDING | REFINANCING | LIQUIDITY | COVENANT | HEDGING | M&A",
   "catalog_family": "Financing/Capital Markets | Interest Rate | Foreign Exchange | Sustainable Finance",
   "metric_identified": "Short headline / metric identified (max 100 chars)",
   "trigger_summary": "1-sentence executive trigger summary",
@@ -1129,7 +1129,12 @@ Extract structured signal parameters matching the database schema as STRICT JSON
             new_why_now = str(extracted.get("trigger_summary", text[:200]))
             new_fee = float(extracted.get("est_revenue_eur_000", 5500))
             new_score = int(extracted.get("priority_score", 94))
-            new_type = str(extracted.get("signal_type", "REFINANCING"))
+            extracted_cat = str(extracted.get("catalog_family", "")).lower()
+            ext_sig = str(extracted.get("signal_type", "")).lower()
+            if "sustainable" in extracted_cat or "green" in ext_sig or "sustainable" in ext_sig:
+                new_type = "SUSTAINABLE FUNDING"
+            else:
+                new_type = str(extracted.get("signal_type", "REFINANCING")).upper()
 
             cur.execute("""
                 UPDATE ca.ca_opportunity_scoring

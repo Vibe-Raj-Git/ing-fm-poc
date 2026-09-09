@@ -263,7 +263,7 @@ def build_deck_model(raw_db_data: Dict[str, Any], overrides: Optional[Dict[str, 
         "title": "Cover Slide",
         "kicker": ov.get("kicker") or ("SUSTAINABLE & ESG CAPITAL STRUCTURING" if is_green else "FX & COMMODITY RISK ADVISORY" if is_fx else "RATES RISK & LIABILITY MANAGEMENT" if is_rates else "DCM CAPITAL STRUCTURING"),
         "client_name": client_name,
-        "subtitle": ov.get("subtitle") or ("Inaugural Hybrid Green Bond & Sustainability Framework" if is_green else "Strategic FX Exposure Risk & Layered Hedging Programme" if is_fx else "Pre-Hedge Swap Overlay & Rate Sensitivity Immunisation" if is_rates else "Refinancing & Capital Markets Execution Framework"),
+        "subtitle": ov.get("subtitle") or ("Sustainable Funding" if is_green else "Strategic FX Exposure Risk & Layered Hedging Programme" if is_fx else "Pre-Hedge Swap Overlay & Rate Sensitivity Immunisation" if is_rates else "Refinancing & Capital Markets Execution Framework"),
         "prepared_by": rm_name,
         "date": ov.get("market_date") or datetime.now().strftime("%d %B %Y")
     }

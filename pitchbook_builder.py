@@ -199,7 +199,7 @@ def get_product_subtitle(p_fam):
     """Get product subtitle text."""
     mapping = {
         "FX_HEDGE": "Strategic FX Exposure Risk & Layered Hedging Programme",
-        "GREEN_ESG": "Inaugural Hybrid Green Bond & Sustainability Framework",
+        "GREEN_ESG": "Sustainable Funding",
         "RATES_HEDGE": "Pre-Hedge Swap Overlay & Rate Sensitivity Immunisation",
         "DCM_REFI": "Refinancing & Capital Markets Execution Framework"
     }
@@ -236,7 +236,7 @@ def get_product_pillars(p_fam, ctx, ov):
     elif p_fam == "GREEN_ESG":
         pillar2_desc = "Ring-fenced eligible asset pool with annual impact & allocation verification."
         if top_latent_summary:
-            pillar2_desc = f"WorkFabric Opportunity: {top_latent_summary}. Ring-fenced eligible green asset pool."
+            pillar2_desc = f"{top_latent_summary}. Ring-fenced eligible green asset pool."
         return [
             ("1", "Green Framework Alignment", "Alignment with ICMA Green Bond Principles and EU Taxonomy standards."),
             ("2", "Use of Proceeds Pool", pillar2_desc),
@@ -670,7 +670,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     p_desk.alignment = PP_ALIGN.RIGHT
 
     # 4. Main Hero Text Box
-    tb1 = s1.shapes.add_textbox(Inches(0.9), Inches(1.1), Inches(11.5), Inches(4.5))
+    tb1 = s1.shapes.add_textbox(Inches(0.9), Inches(2.5), Inches(11.5), Inches(3.5))
     tf1 = tb1.text_frame
     tf1.word_wrap = True
 

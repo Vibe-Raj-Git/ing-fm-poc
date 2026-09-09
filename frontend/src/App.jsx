@@ -653,7 +653,7 @@ export default function App() {
 
     const subtitleText = deckOverrides.subtitle || (
       isFX ? "Strategic FX Exposure Risk & Layered Hedging Programme" :
-      isGreen ? "Inaugural Hybrid Green Bond & Sustainability Framework" :
+      isGreen ? "Sustainable Funding" :
       isRates ? "Pre-Hedge Swap Overlay & Rate Sensitivity Immunisation" : "Refinancing & Capital Markets Execution Framework"
     );
 
@@ -661,18 +661,18 @@ export default function App() {
       case 0: // COVER
         return (
           <div className="h-full flex flex-col justify-between bg-[#0C112B] text-white p-8 rounded-lg relative overflow-hidden border-l-8 border-[#FF6200]">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="text-[11px] font-mono tracking-widest text-[#FF6200] uppercase font-bold">
-                  {kickerText}
-                </span>
-                <h1 className="text-3xl font-bold tracking-tight mt-1 text-white">{clientName}</h1>
-                <p className="text-sm text-gray-300 mt-1 font-medium">{subtitleText}</p>
-              </div>
+            <div className="flex justify-end items-start">
               <div className="text-right flex flex-col items-end">
                 <img src="/assets/ing_logo_white.png" alt="ING" className="h-7 object-contain mb-1" />
                 <span className="text-[10px] text-gray-400 font-medium tracking-wide">Financial Markets Origination</span>
               </div>
+            </div>
+            <div className="my-auto py-6">
+              <span className="text-[11px] font-mono tracking-widest text-[#FF6200] uppercase font-bold">
+                {kickerText}
+              </span>
+              <h1 className="text-4xl font-bold tracking-tight mt-2 text-white">{clientName}</h1>
+              <p className="text-base text-gray-300 mt-2 font-medium">{subtitleText}</p>
             </div>
             <div className="border-t border-gray-800 pt-4 flex justify-between items-end text-[11px] text-gray-400">
               <div>
@@ -778,7 +778,7 @@ export default function App() {
                     { t: "Dedicated Coverage", d: `Sector coverage led by ${rmName} with IFRS 9 hedge accounting support.` }
                   ] : isGreen ? [
                     { t: "Green Framework Alignment", d: "Alignment with ICMA Green Bond Principles and EU Taxonomy standards." },
-                    { t: "Use of Proceeds Pool", d: topLatentSummary ? `WorkFabric Opportunity: ${topLatentSummary}. Ring-fenced eligible green asset pool.` : "Ring-fenced eligible asset pool with annual impact & allocation verification." },
+                    { t: "Use of Proceeds Pool", d: topLatentSummary ? `${topLatentSummary}. Ring-fenced eligible green asset pool.` : "Ring-fenced eligible asset pool with annual impact & allocation verification." },
                     { t: "Greenium Advantage", d: "Capturing 3-7 bps new-issue concession advantage from dedicated ESG funds." },
                     { t: "Sole ESG Structurer", d: "ING leading SPO documentation, investor roadshow, and syndicate execution." }
                   ] : isRates ? [

@@ -1242,11 +1242,11 @@ async def check_compliance_endpoint(req: Request):
     green_pool_data = "Total Eligible Pool: €3,500M (Renewables: €1,850M, Smart Grids: €1,100M, Storage: €550M)" if is_green else "Refinancing Debt Maturity Profile"
 
     compliance_prompt = f"""You are the Senior Executive Director of EU Financial Regulatory Compliance at ING Wholesale Banking.
-Conduct an authoritative compliance audit of the 10-slide institutional pitchbook for {client_name} ({p_family}).
+Conduct an authoritative compliance audit of the 11-slide institutional pitchbook for {client_name} ({p_family}).
 
 REGULATORY CRITERIA:
 1. MiFID II (Directive 2014/65/EU Art. 24/54): Professional Clients only; mandatory proximate non-binding pricing disclaimer on Slide 8.
-2. Market Abuse Regulation (MAR Art. 11): Market Sounding safe harbour disclosure on Slide 10.
+2. Market Abuse Regulation (MAR Art. 11): Market Sounding safe harbour disclosure on Slide 11.
 3. European Green Bond Standard (EuGB) & EU Taxonomy (Reg 2020/852): 100% green pool allocation (€3,500M) and Second-Party Opinion (SPO) verification on Slide 5.
 4. EMIR (Regulation 648/2012): NFC+ status for derivative pre-hedges.
 
@@ -1576,8 +1576,19 @@ def copilot_chat_endpoint(req: CopilotMessage):
             "macro_context": "ECB Refinancing Rate at 2.25%; Fed Funds Target at 4.00–4.25%; ESG book cover at 3.8x driving new-issue concession compression"
         },
         "slide_8": {"title": s8_title, "leg_1": s8_leg1, "leg_2": s8_leg2},
-        "slide_9": {"title": "09. Execution Roadmap", "milestones": ["Mandate & Framework Publication", "Global Investor Roadshow", "Syndicated Bookbuilding & Pricing"]},
-        "slide_10": {"title": "10. Regulatory Disclosures", "standards": "ICMA Green Bond Principles" if is_green else ("EMIR Refit & MiFID II" if is_fx else "MiFID II Professional Clients & Eligible Counterparties")}
+        "slide_9": {
+            "title": "09. Why Execute With Us",
+            "capabilities": [
+                {"title": "Global DCM franchise", "desc": "Leading bookrunner across investment-grade, high-yield, and hybrid capital across EMEA."},
+                {"title": "24-hour bookbuilding coverage", "desc": "Follow-the-sun syndicate desks across Amsterdam, London, Singapore and New York."},
+                {"title": "Strong credit standing", "desc": "Investment-grade rated balance sheet supporting underwriting commitments."},
+                {"title": "Electronic syndicate platform", "desc": "Real-time orderbook transparency and allocation reporting during bookbuild."},
+                {"title": "Regulatory & documentation support", "desc": "Dedicated legal, ratings-advisory, and prospectus / EMTN documentation support."},
+                {"title": "Dedicated coverage team", "desc": "A named DCM originator and structurer, not a call centre."}
+            ]
+        },
+        "slide_10": {"title": "10. Execution Roadmap" if not is_green else "10. SPO & Syndicate Plan", "milestones": ["Mandate & Framework Publication", "Global Investor Roadshow", "Syndicated Bookbuilding & Pricing"]},
+        "slide_11": {"title": "11. Regulatory Disclosures" if not is_green else "11. ICMA Disclosures", "standards": "ICMA Green Bond Principles" if is_green else ("EMIR Refit & MiFID II" if is_fx else "MiFID II Professional Clients & Eligible Counterparties")}
     }
 
     # Format Ingested Multi-Stream Signals (WorkFabric & Channels) for Dynamic Grounding
@@ -1621,7 +1632,7 @@ RESPONSE ARCHITECTURE & STYLE GUIDELINES:
 3. **EU Regulatory Compliance & Remediation**:
    When the user asks to "Apply compliance recommendations", "Remediate", or adjust compliance standards:
    - Act as the presentation drafting engine applying approved EU compliance standards (MiFID II Art. 24/54, MAR Art. 11, EU Green Bond Standard/EuGB, and EMIR).
-   - In "reply", provide an authoritative breakdown of the specific legal clauses, Second-Party Opinion (SPO) alignments, and proximate pricing legends applied to Slide 5, Slide 8, and Slide 10.
+   - In "reply", provide an authoritative breakdown of the specific legal clauses, Second-Party Opinion (SPO) alignments, and proximate pricing legends applied to Slide 5, Slide 8, and Slide 11.
    - In "overrides", return the required slide overrides:
      {{
        "pricing_caveat": "Indicative pricing subject to credit committee approval and MiFID II Art. 24 disclosures.",

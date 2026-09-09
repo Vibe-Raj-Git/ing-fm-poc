@@ -105,7 +105,7 @@ Structuring Advisory: Why should the client consider an IRS pre-hedge instead of
 
 Rate Sensitivity: What happens to our debt servicing costs if EUR swap rates rise by 50 bps?
 
-Execution Strategy: What are the critical execution milestones on Slide 9?
+Execution Strategy: What are the critical execution milestones on Slide 10?
 
 The chat test results show that **ING Copilot** accurately pulls context directly from the rendered slide data, executes cross-slide synthesis, and responds with precise financial figures.
 
@@ -150,3 +150,6 @@ To further test the model, here are more advanced prompts categorized by specifi
 * `Run a full MiFID II compliance check across this deck.`
 * `Are there any missing disclaimers or target market disclosures on Slide 8 and Slide 10?`
 * `Apply all recommended compliance remediations to the deck.`
+### Slide 9: Why Execute With Us
+- **Franchise Capabilities**: Global DCM presence, 24-hour follow-the-sun coverage (Amsterdam, London, Singapore, New York), strong investment-grade balance sheet.
+- **Execution Technology & Advisory**: Electronic syndicate platform with real-time allocation reporting, dedicated ratings/regulatory documentation support, and named coverage officers.

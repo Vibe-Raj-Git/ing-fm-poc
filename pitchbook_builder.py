@@ -532,8 +532,9 @@ def get_slide_meta(p_fam):
             "s6_cat": "SENSITIVITY ANALYSIS", "s6_ttl": "FX Scenario Analysis & Layered Collar Payoff",
             "s7_cat": "MARKET INTELLIGENCE", "s7_ttl": "Central Bank Differentials & FX Forward Points",
             "s8_cat": "TRANSACTION STRUCTURING", "s8_ttl": "Indicative FX Risk Management Term Sheet",
-            "s9_cat": "EXECUTION ROADMAP", "s9_ttl": "Layered Roll Framework & Desk Execution",
-            "s10_cat": "REGULATORY DISCLOSURES", "s10_ttl": "Target Market Notice & EMIR Derivative Disclosures"
+            "s9_cat": "WHY EXECUTE WITH US", "s9_ttl": "Why Execute With Us",
+            "s10_cat": "EXECUTION ROADMAP", "s10_ttl": "Layered Roll Framework & Desk Execution",
+            "s11_cat": "REGULATORY DISCLOSURES", "s11_ttl": "Target Market Notice & EMIR Derivative Disclosures"
         },
         "GREEN_ESG": {
             "s2_cat": "SUSTAINABILITY CATALYST", "s2_ttl": "ESG Capital Strategy & Decarbonization Catalyst",
@@ -542,8 +543,9 @@ def get_slide_meta(p_fam):
             "s6_cat": "SENSITIVITY ANALYSIS", "s6_ttl": "Greenium vs Plain-Vanilla Cost Sensitivity",
             "s7_cat": "MARKET INTELLIGENCE", "s7_ttl": "ESG Credit Spreads & Green Bond Index Backdrop",
             "s8_cat": "TRANSACTION STRUCTURING", "s8_ttl": "Indicative Green / Sustainability-Linked Term Sheet",
-            "s9_cat": "EXECUTION ROADMAP", "s9_ttl": "Second-Party Opinion (SPO) & Syndicate Timeline",
-            "s10_cat": "REGULATORY DISCLOSURES", "s10_ttl": "ICMA Green Bond Principles & Target Market Notice"
+            "s9_cat": "WHY EXECUTE WITH US", "s9_ttl": "Why Execute With Us",
+            "s10_cat": "EXECUTION ROADMAP", "s10_ttl": "Second-Party Opinion (SPO) & Syndicate Timeline",
+            "s11_cat": "REGULATORY DISCLOSURES", "s11_ttl": "ICMA Green Bond Principles & Target Market Notice"
         },
         "RATES_HEDGE": {
             "s2_cat": "RATE RISK CATALYST", "s2_ttl": "Rate Path Volatility & IRS Pre-Hedge Catalyst",
@@ -552,8 +554,9 @@ def get_slide_meta(p_fam):
             "s6_cat": "SENSITIVITY ANALYSIS", "s6_ttl": "Rate Shift Sensitivity & Pre-Hedge Lock Analysis",
             "s7_cat": "MARKET INTELLIGENCE", "s7_ttl": "Benchmark Yields & Swap Curve Backdrop",
             "s8_cat": "TRANSACTION STRUCTURING", "s8_ttl": "Indicative Pre-Hedge Swap & EMTN Term Sheet",
-            "s9_cat": "EXECUTION ROADMAP", "s9_ttl": "ISDA Schedule, CSA & Execution Timeline",
-            "s10_cat": "REGULATORY DISCLOSURES", "s10_ttl": "Target Market Notice & EMIR Classification Disclosures"
+            "s9_cat": "WHY EXECUTE WITH US", "s9_ttl": "Why Execute With Us",
+            "s10_cat": "EXECUTION ROADMAP", "s10_ttl": "ISDA Schedule, CSA & Execution Timeline",
+            "s11_cat": "REGULATORY DISCLOSURES", "s11_ttl": "Target Market Notice & EMIR Classification Disclosures"
         },
         "DCM_REFI": {
             "s2_cat": "STRATEGIC CATALYST", "s2_ttl": "Executive Context & Opportunity Rationale",
@@ -562,8 +565,9 @@ def get_slide_meta(p_fam):
             "s6_cat": "SENSITIVITY ANALYSIS", "s6_ttl": "Refinancing Scenario Analysis",
             "s7_cat": "MARKET INTELLIGENCE", "s7_ttl": "Benchmark Yields & Credit Spread Backdrop",
             "s8_cat": "TRANSACTION STRUCTURING", "s8_ttl": "Indicative Debt Financing Term Sheet",
-            "s9_cat": "EXECUTION ROADMAP", "s9_ttl": "Roadmap & Syndicate Timeline",
-            "s10_cat": "REGULATORY DISCLOSURES", "s10_ttl": "Regulatory Notices & Target Market Classification"
+            "s9_cat": "WHY EXECUTE WITH US", "s9_ttl": "Why Execute With Us",
+            "s10_cat": "EXECUTION ROADMAP", "s10_ttl": "Roadmap & Syndicate Timeline",
+            "s11_cat": "REGULATORY DISCLOSURES", "s11_ttl": "Regulatory Notices & Target Market Classification"
         }
     }
     return meta.get(p_fam, meta["DCM_REFI"])
@@ -1626,23 +1630,103 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
 
 
 
-    # SLIDE 9: EXECUTION ROADMAP (Exact Preview Parity)
+    # =========================================================================
+    # SLIDE 9: WHY EXECUTE WITH US (Universal Franchise Capability Slide)
     # =========================================================================
     s9 = prs.slides.add_slide(blank)
+    add_header(s9, "Franchise Capabilities & Syndicate Strength", category="WHY EXECUTE WITH US")
+    add_logo(s9)
+    add_footer(s9)
+
+    why_cards = [
+        ("icon_globe.png", "Global DCM franchise", "Leading bookrunner across investment-grade, high-yield, and hybrid capital across EMEA."),
+        ("icon_pulse.png", "24-hour bookbuilding coverage", "Follow-the-sun syndicate desks across Amsterdam, London, Singapore and New York."),
+        ("icon_shield.png", "Strong credit standing", "Investment-grade rated balance sheet supporting underwriting commitments."),
+        ("icon_chart.png", "Electronic syndicate platform", "Real-time orderbook transparency and allocation reporting during bookbuild."),
+        ("icon_check.png", "Regulatory & documentation support", "Dedicated legal, ratings-advisory, and prospectus / EMTN documentation support."),
+        ("icon_team.png", "Dedicated coverage team", "A named DCM originator and structurer, not a call centre.")
+    ]
+
+    # Dynamic path resolution compatible with local dev, Docker & Cloud Run container
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    candidate_paths = [
+        os.path.join(base_dir, "frontend", "public", "assets"),
+        os.path.join(base_dir, "public", "assets"),
+        os.path.join(base_dir, "assets"),
+        "/home/user/ing-fm-poc/frontend/public/assets"
+    ]
+    assets_dir = next((p for p in candidate_paths if os.path.isdir(p)), candidate_paths[0])
+    card_w = Inches(3.68)
+    card_h = Inches(2.20)
+    col_gap = Inches(0.35)
+    row_gap = Inches(0.30)
+    grid_left = Inches(0.85)
+    grid_top = Inches(1.65)
+
+    for idx, (icon_file, title_txt, desc_txt) in enumerate(why_cards):
+        col = idx % 3
+        row = idx // 3
+        x = grid_left + col * (card_w + col_gap)
+        y = grid_top + row * (card_h + row_gap)
+
+        card_box = s9.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, card_w, card_h)
+        card_box.fill.solid()
+        card_box.fill.fore_color.rgb = RGBColor(255, 255, 255)
+        card_box.line.color.rgb = RGBColor(229, 231, 235)
+        card_box.line.width = Pt(1.0)
+
+        badge_sz = Inches(0.50)
+        badge_x = x + Inches(0.25)
+        badge_y = y + Inches(0.22)
+        badge = s9.shapes.add_shape(MSO_SHAPE.OVAL, badge_x, badge_y, badge_sz, badge_sz)
+        badge.fill.solid()
+        badge.fill.fore_color.rgb = ING_ORANGE
+        badge.line.fill.background()
+
+        icon_path = os.path.join(assets_dir, icon_file)
+        if os.path.exists(icon_path):
+            img_sz = Inches(0.28)
+            img_x = badge_x + (badge_sz - img_sz) / 2
+            img_y = badge_y + (badge_sz - img_sz) / 2
+            s9.shapes.add_picture(icon_path, img_x, img_y, width=img_sz, height=img_sz)
+
+        tb = s9.shapes.add_textbox(x + Inches(0.22), y + Inches(0.80), card_w - Inches(0.44), card_h - Inches(0.88))
+        tf = tb.text_frame
+        tf.word_wrap = True
+        tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = Inches(0)
+
+        p_t = tf.paragraphs[0]
+        p_t.text = title_txt
+        p_t.font.name = "Arial"
+        p_t.font.size = Pt(11.5)
+        p_t.font.bold = True
+        p_t.font.color.rgb = ING_ORANGE
+
+        p_d = tf.add_paragraph()
+        p_d.text = desc_txt
+        p_d.font.name = "Arial"
+        p_d.font.size = Pt(9.5)
+        p_d.font.color.rgb = RGBColor(75, 85, 99)
+        p_d.space_before = Pt(4)
+
+    # =========================================================================
+    # SLIDE 10: EXECUTION ROADMAP (Exact Preview Parity)
+    # =========================================================================
+    s10 = prs.slides.add_slide(blank)
     
     # Dynamic Title Resolution matching Preview Canvas
     if p_fam == "FX_HEDGE":
-        s9_title = "Layered FX Hedging & Execution Roadmap"
+        s10_title = "Layered FX Hedging & Execution Roadmap"
     elif p_fam == "GREEN_ESG":
-        s9_title = "Green Bond Framework & Issuance Timetable"
+        s10_title = "Green Bond Framework & Issuance Timetable"
     elif p_fam == "RATES_HEDGE":
-        s9_title = "ISDA Schedule, CSA & Execution Timeline"
+        s10_title = "ISDA Schedule, CSA & Execution Timeline"
     else:
-        s9_title = "Indicative Execution Roadmap & Timeline"
+        s10_title = "Indicative Execution Roadmap & Timeline"
 
-    add_header(s9, s9_title, category="EXECUTION ROADMAP")
-    add_logo(s9)
-    add_footer(s9)
+    add_header(s10, s10_title, category="EXECUTION ROADMAP")
+    add_logo(s10)
+    add_footer(s10)
 
     # Dynamic Steps matching React App.jsx case 8 exactly
     if p_fam == "FX_HEDGE":
@@ -1685,7 +1769,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         cx = start_x + i * (card_w + gap_x)
         
         # 1. Card Container (clean light border matching React Preview)
-        c_box = s9.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx, start_y, card_w, card_h)
+        c_box = s10.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx, start_y, card_w, card_h)
         c_box.fill.solid()
         c_box.fill.fore_color.rgb = RGBColor(255, 255, 255)
         c_box.line.color.rgb = RGBColor(229, 231, 235)  # border-gray-200
@@ -1695,7 +1779,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         badge_sz = Inches(0.40)
         badge_x = cx + (card_w - badge_sz) / 2
         badge_y = start_y + Inches(0.18)
-        b_shp = s9.shapes.add_shape(MSO_SHAPE.OVAL, badge_x, badge_y, badge_sz, badge_sz)
+        b_shp = s10.shapes.add_shape(MSO_SHAPE.OVAL, badge_x, badge_y, badge_sz, badge_sz)
         b_shp.fill.solid()
         b_shp.fill.fore_color.rgb = ING_ORANGE
         b_shp.line.fill.background()
@@ -1711,7 +1795,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         b_p.alignment = PP_ALIGN.CENTER
 
         # 3. Text Block
-        tb = s9.shapes.add_textbox(cx + Inches(0.1), start_y + Inches(0.65), card_w - Inches(0.2), card_h - Inches(0.7))
+        tb = s10.shapes.add_textbox(cx + Inches(0.1), start_y + Inches(0.65), card_w - Inches(0.2), card_h - Inches(0.7))
         tf = tb.text_frame
         tf.word_wrap = True
         tf.margin_left = Inches(0.05)
@@ -1747,19 +1831,19 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         p_body.font.color.rgb = RGBColor(100, 116, 139)
         p_body.alignment = PP_ALIGN.CENTER
 
-    # SLIDE 10: REGULATORY DISCLAIMERS
+    # SLIDE 11: REGULATORY DISCLAIMERS
     # =========================================================================
-    s10 = prs.slides.add_slide(blank)
-    add_header(s10, sm["s10_ttl"], category=sm["s10_cat"])
-    add_logo(s10)
-    add_footer(s10)
+    s11 = prs.slides.add_slide(blank)
+    add_header(s11, sm["s11_ttl"], category=sm["s11_cat"])
+    add_logo(s11)
+    add_footer(s11)
 
-    shp = s10.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(1.5), Inches(11.7), Inches(5.0))
+    shp = s11.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(1.5), Inches(11.7), Inches(5.0))
     shp.fill.solid()
     shp.fill.fore_color.rgb = BG_LIGHT
     shp.line.color.rgb = LINE_GRAY
 
-    tb_disc = s10.shapes.add_textbox(Inches(1.1), Inches(1.8), Inches(11.1), Inches(4.4))
+    tb_disc = s11.shapes.add_textbox(Inches(1.1), Inches(1.8), Inches(11.1), Inches(4.4))
     tf_disc = tb_disc.text_frame
     tf_disc.word_wrap = True
     p = tf_disc.paragraphs[0]

@@ -393,9 +393,48 @@ def build_deck_model(raw_db_data: Dict[str, Any], overrides: Optional[Dict[str, 
         }
     }
 
-    # ==================== SLIDE 9: EXECUTION ROADMAP ====================
+    # ==================== SLIDE 9: WHY EXECUTE WITH US ====================
     s9 = {
         "slide_number": 9,
+        "category": "WHY EXECUTE WITH US",
+        "title": "Why Execute With Us",
+        "pillars": [
+            {
+                "icon": "icon_globe.png",
+                "title": "Global DCM franchise",
+                "desc": "Leading bookrunner across investment-grade, high-yield, and hybrid capital across EMEA."
+            },
+            {
+                "icon": "icon_pulse.png",
+                "title": "24-hour bookbuilding coverage",
+                "desc": "Follow-the-sun syndicate desks across Amsterdam, London, Singapore and New York."
+            },
+            {
+                "icon": "icon_shield.png",
+                "title": "Strong credit standing",
+                "desc": "Investment-grade rated balance sheet supporting underwriting commitments."
+            },
+            {
+                "icon": "icon_chart.png",
+                "title": "Electronic syndicate platform",
+                "desc": "Real-time orderbook transparency and allocation reporting during bookbuild."
+            },
+            {
+                "icon": "icon_check.png",
+                "title": "Regulatory & documentation support",
+                "desc": "Dedicated legal, ratings-advisory, and prospectus / EMTN documentation support."
+            },
+            {
+                "icon": "icon_team.png",
+                "title": "Dedicated coverage team",
+                "desc": "A named DCM originator and structurer, not a call centre."
+            }
+        ]
+    }
+
+    # ==================== SLIDE 10: EXECUTION ROADMAP ====================
+    s10 = {
+        "slide_number": 10,
         "category": "EXECUTION ROADMAP",
         "title": "Execution Roadmap & Syndicate Timeline",
         "milestones": [
@@ -406,9 +445,9 @@ def build_deck_model(raw_db_data: Dict[str, Any], overrides: Optional[Dict[str, 
         ]
     }
 
-    # ==================== SLIDE 10: REGULATORY DISCLOSURES ====================
-    s10 = {
-        "slide_number": 10,
+    # ==================== SLIDE 11: REGULATORY DISCLOSURES ====================
+    s11 = {
+        "slide_number": 11,
         "category": "REGULATORY DISCLOSURES",
         "title": "Regulatory Notices & Target Market Classification",
         "disclaimers": ov.get("disclaimers") or [
@@ -422,5 +461,5 @@ def build_deck_model(raw_db_data: Dict[str, Any], overrides: Optional[Dict[str, 
         "client_id": client.get("client_id") or ov.get("client_id"),
         "client_name": client_name,
         "product_family": p_family,
-        "slides": [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10]
+        "slides": [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11]
     }

@@ -427,7 +427,7 @@ export default function App() {
       setFlaggedSlides(auditData.flagged_slides || []);
 
       const flagBullets = (auditData.flags || []).map(f => `• **Slide ${f.slide_number} (${f.rule})**: ${f.issue}`).join("\n");
-      const botAuditReply = `🛡️ **Full-Deck Compliance Audit Results:**\n\n**Overall Risk Assessment:** ${auditData.overall_risk_assessment || "MEDIUM"} ⚠️\n\n${auditData.compliance_summary || "Audit completed across all 10 slides."}\n\n**Flagged Items:**\n${flagBullets || "No major flags identified."}\n\n*Click below or type "Apply compliance recommendations" to automatically remediate all slides.*`;
+      const botAuditReply = `🛡️ **Full-Deck Compliance Audit Results:**\n\n**Overall Risk Assessment:** ${auditData.overall_risk_assessment || "MEDIUM"} ⚠️\n\n${auditData.compliance_summary || "Audit completed across all 11 slides."}\n\n**Flagged Items:**\n${flagBullets || "No major flags identified."}\n\n*Click below or type "Apply compliance recommendations" to automatically remediate all slides.*`;
 
       setChatMessages(prev => [
         ...prev,
@@ -484,7 +484,7 @@ export default function App() {
 • **Indicative Terms & Sizing**: Qualified with non-binding execution caveats.
 • **Regulatory Disclosures**: MiFID II, EMIR, and Target Market notices active.
 
-*All 10 slides in the preview canvas and PowerPoint deck are now 100% compliant.*`;
+*All 11 slides in the preview canvas and PowerPoint deck are now 100% compliant.*`;
 
       setChatMessages(prev => [
         ...prev,
@@ -1271,7 +1271,74 @@ export default function App() {
             </div>
           );
         }
-        case 8: // SLIDE 9: ROADMAP
+        case 8: { // SLIDE 9: WHY EXECUTE WITH US
+          const capabilityCards = [
+            {
+              icon: "icon_globe.png",
+              title: "Global DCM franchise",
+              desc: "Leading bookrunner across investment-grade, high-yield, and hybrid capital across EMEA."
+            },
+            {
+              icon: "icon_pulse.png",
+              title: "24-hour bookbuilding coverage",
+              desc: "Follow-the-sun syndicate desks across Amsterdam, London, Singapore and New York."
+            },
+            {
+              icon: "icon_shield.png",
+              title: "Strong credit standing",
+              desc: "Investment-grade rated balance sheet supporting underwriting commitments."
+            },
+            {
+              icon: "icon_chart.png",
+              title: "Electronic syndicate platform",
+              desc: "Real-time orderbook transparency and allocation reporting during bookbuild."
+            },
+            {
+              icon: "icon_check.png",
+              title: "Regulatory & documentation support",
+              desc: "Dedicated legal, ratings-advisory, and prospectus / EMTN documentation support."
+            },
+            {
+              icon: "icon_team.png",
+              title: "Dedicated coverage team",
+              desc: "A named DCM originator and structurer, not a call centre."
+            }
+          ];
+
+          return (
+            <div className="h-full flex flex-col justify-between bg-white p-5 rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+              <div>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <span className="text-[10px] font-bold tracking-wider text-[#FF6200] uppercase">WHY EXECUTE WITH US</span>
+                    <h2 className="text-xl font-bold text-gray-900 tracking-tight mt-0.5">Franchise Capabilities & Syndicate Strength</h2>
+                    <div className="h-0.5 w-12 bg-[#FF6200] mt-1.5 rounded-full"></div>
+                  </div>
+                  <img src="/assets/ing_logo_orange.png" alt="ING" className="h-6 object-contain" />
+                </div>
+
+                <div className="grid grid-cols-3 gap-3.5 mt-2">
+                  {capabilityCards.map((card, idx) => (
+                    <div key={idx} className="p-3.5 rounded-lg border border-gray-200/90 bg-white shadow-xs flex flex-col justify-between h-[155px]">
+                      <div>
+                        <div className="w-8 h-8 rounded-full bg-[#FF6200] flex items-center justify-center mb-2 shadow-xs">
+                          <img src={`/assets/${card.icon}`} alt="" className="w-4 h-4 object-contain" />
+                        </div>
+                        <h3 className="font-bold text-[#FF6200] text-xs leading-snug mb-1">{card.title}</h3>
+                        <p className="text-[10.5px] text-gray-600 leading-relaxed line-clamp-3">{card.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="text-center text-[10px] text-gray-400 border-t border-gray-100 pt-1.5 font-medium">
+                ING Wholesale Banking • Strictly Confidential
+              </div>
+            </div>
+          );
+        }
+
+        case 9:case 9: // SLIDE 10: ROADMAP
         return (
           <div className="h-full flex flex-col justify-between bg-white p-5 rounded-lg border border-gray-200">
             <div>
@@ -1321,7 +1388,7 @@ export default function App() {
           </div>
         );
 
-      case 9: // SLIDE 10: REGULATORY DISCLOSURES
+      case 10: // SLIDE 11: REGULATORY DISCLOSURES
         return (
           <div className="h-full flex flex-col justify-between bg-white p-5 rounded-lg border border-gray-200">
             <div>
@@ -1355,7 +1422,7 @@ export default function App() {
     if (!opp) return [
       "01. Cover Slide", "02. Strategic Catalyst", "03. Executive Summary", 
       "04. Balance Sheet", "05. Exposure / Maturity", "06. Sensitivity Analysis", 
-      "07. Market Backdrop", "08. Term Sheet", "09. Execution Roadmap", "10. Disclosures"
+      "07. Market Backdrop", "08. Term Sheet", "09. Why Execute With Us", "10. Execution Roadmap", "11. Disclosures"
     ];
     const pType = (opp.opportunity_type || opp.type || opp.product_family || "").toLowerCase();
     const cName = (opp.name || opp.client_name || "").toLowerCase();
@@ -1367,25 +1434,25 @@ export default function App() {
       return [
         "01. Cover Slide", "02. Strategic Catalyst", "03. Executive Summary", 
         "04. Balance Sheet & Inflows", "05. FX Sizing & Hedge Gap", "06. Collar Payoff Matrix", 
-        "07. Forward Points & Rates", "08. FX Advisory Term Sheet", "09. Layered Roll Schedule", "10. EMIR Disclosures"
+        "07. Forward Points & Rates", "08. FX Advisory Term Sheet", "09. Why Execute With Us", "10. Layered Roll Schedule", "11. EMIR Disclosures"
       ];
     } else if (isGreen) {
       return [
         "01. Cover Slide", "02. Decarbonization Catalyst", "03. Executive Summary", 
         "04. ESG Balance Sheet", "05. Use of Proceeds Pool", "06. Greenium Sensitivity", 
-        "07. ESG Market Backdrop", "08. Green Bond Term Sheet", "09. SPO & Syndicate Plan", "10. ICMA Disclosures"
+        "07. ESG Market Backdrop", "08. Green Bond Term Sheet", "09. Why Execute With Us", "10. SPO & Syndicate Plan", "11. ICMA Disclosures"
       ];
     } else if (isRates) {
       return [
         "01. Cover Slide", "02. Rate Risk Catalyst", "03. Executive Summary", 
         "04. Capital Structure Snapshot", "05. Debt & Swap Horizon", "06. Rate Shift Sensitivity", 
-        "07. Swap Curve Backdrop", "08. Pre-Hedge Term Sheet", "09. Execution Roadmap", "10. Regulatory Disclosures"
+        "07. Swap Curve Backdrop", "08. Pre-Hedge Term Sheet", "09. Why Execute With Us", "10. Execution Roadmap", "11. Regulatory Disclosures"
       ];
     } else {
       return [
         "01. Cover Slide", "02. Strategic Catalyst", "03. Executive Summary", 
         "04. Balance Sheet Foundation", "05. Debt Maturity Profile", "06. Refinancing Sensitivity", 
-        "07. Credit Spread Backdrop", "08. EMTN Term Sheet", "09. Syndicate Timeline", "10. Regulatory Disclosures"
+        "07. Credit Spread Backdrop", "08. EMTN Term Sheet", "09. Why Execute With Us", "10. Syndicate Timeline", "11. Regulatory Disclosures"
       ];
     }
   };
@@ -2424,7 +2491,7 @@ ${chip.preview}`}
                 {/* Left: Slide Navigation */}
                 <div className="w-52 border-r border-gray-200 bg-[#F8F9FA] p-2.5 overflow-y-auto space-y-1 shrink-0">
                   <p className="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider px-2 py-1">
-                    Deck Slides (10)
+                    Deck Slides (11)
                   </p>
                   {getDynamicSlideTitles(activeClient).map((title, idx) => {
                     const isFlagged = flaggedSlides.includes(idx + 1);
@@ -2470,12 +2537,12 @@ ${chip.preview}`}
                     </button>
 
                     <span className="text-[11px] font-medium text-gray-500">
-                      Slide <b className="text-gray-900">{currentSlideIndex + 1}</b> of 10
+                      Slide <b className="text-gray-900">{currentSlideIndex + 1}</b> of 11
                     </span>
 
                     <button
-                      onClick={() => setCurrentSlideIndex(Math.min(9, currentSlideIndex + 1))}
-                      disabled={currentSlideIndex === 9}
+                      onClick={() => setCurrentSlideIndex(Math.min(10, currentSlideIndex + 1))}
+                      disabled={currentSlideIndex === 10}
                       className="inline-flex items-center space-x-1 px-2.5 py-1 rounded border border-gray-300 text-[11px] font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-40"
                     >
                       <span>Next</span>

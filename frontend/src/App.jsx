@@ -1534,7 +1534,7 @@ export default function App() {
                 Today's Cohort Matches
               </p>
               <h1 className="text-3xl font-serif font-bold text-[#0C112B] mb-2">
-                {displayedOpportunities.length} opportunities surfaced
+                {displayedOpportunities.length} {displayedOpportunities.length === 1 ? "opportunity" : "opportunities"} surfaced
               </h1>
               <p className="text-sm text-gray-600 leading-relaxed">
                 Each match combines live market rates curves and internal corporate debt schedules from database into pre-drafted pitchbooks.

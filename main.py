@@ -762,8 +762,52 @@ def get_opportunities():
                 bund_10y = mkt_curves.get("10Y", {}).get("bund")
                 swap_7y = mkt_curves.get("7Y", {}).get("swap")
 
-                final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
-                final_action = action or "Proactive capital markets advisory and rate hedging review."
+                # Universal LLM synthesis: Trigger Gemini if narration is missing, short, or generic DB boilerplate
+                is_generic = (
+                    not why_now or 
+                    "corporate treasury assesses" in str(why_now).lower() or 
+                    "active balance sheet review" in str(why_now).lower() or
+                    len(str(why_now).strip()) < 40
+                )
+
+                if is_generic and GENAI_AVAILABLE:
+                    try:
+                        synth_metrics = {
+                            "swap_5y": swap_5y or "2.62%",
+                            "bund_10y": bund_10y or "2.61%",
+                            "credit_spread": client_spread_bps or "78 bps"
+                        }
+                        synth = synthesize_mandate_catalyst(
+                            client_name=name_str,
+                            product_family=str(opp_type or "Refinancing & Pre-Hedging"),
+                            liquidity_eur_m=float(liq or 0),
+                            debt_maturing_24m_eur_m=float(m24 or 0),
+                            market_metrics=synth_metrics,
+                            context_memo=str(cf_desc or ""),
+                            news_headline=str(news_headline or ""),
+                            base_why_now=str(why_now or ""),
+                            base_action=str(action or "")
+                        )
+                        final_why_now = synth.get("why_now") or why_now
+                        final_action = synth.get("action") or action
+
+                        # Persist synthesized narrative back to ca_opportunity_scoring for high-speed subsequent requests
+                        try:
+                            cur.execute("""
+                                UPDATE ca.ca_opportunity_scoring
+                                SET why_now_nlg = %s, next_best_action = %s
+                                WHERE client_id = %s;
+                            """, (final_why_now, final_action, cid_str))
+                            conn.commit()
+                        except Exception as e_up:
+                            logger.warning(f"Could not persist synthesis for {cid_str}: {e_up}")
+                    except Exception as e_gen:
+                        logger.warning(f"Dynamic synthesis skipped for {cid_str}: {e_gen}")
+                        final_why_now = why_now or f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M."
+                        final_action = action or "Proactive capital markets advisory and rate hedging review."
+                else:
+                    final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
+                    final_action = action or "Proactive capital markets advisory and rate hedging review."
 
                 opps.append({
                     "id": cid_str,

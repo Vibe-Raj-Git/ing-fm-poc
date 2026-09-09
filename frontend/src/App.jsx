@@ -1928,66 +1928,79 @@ ${chip.preview}`}
               </p>
               {metrics?.priorities && metrics.priorities.length > 0 ? (
                 <div className="space-y-3">
-                  {metrics.priorities.filter(item => ACTIVE_UI_CLIENT_IDS.includes(item.client_id) || ACTIVE_UI_CLIENT_IDS.includes(item.id) || (item.title && item.title.toLowerCase().includes("enel"))).map((item, idx) => (
-                    <div 
-                      key={idx} 
-                      onClick={() => {
-                        // Find matching client or build complete opportunity object from priority record
-                        let match = opportunities.find(o => 
-                          o.name?.toLowerCase().includes(item.title?.toLowerCase()) || 
-                          item.title?.toLowerCase().includes(o.name?.toLowerCase()) ||
-                          o.id === item.client_id ||
-                          o.id === item.id
-                        );
-                        if (!match) {
-                          match = {
-                            id: item.client_id || item.id || 'CLI101',
-                            name: item.title || item.name,
-                            sector: item.sector || 'Wholesale',
-                            country: item.country || 'Europe',
-                            rm_name: item.rm_name || 'Coverage Director',
-                            net_debt: item.net_debt || 0,
-                            liquidity: item.liquidity || 0,
-                            debt_maturing_24m: item.debt_maturing_24m || 0,
-                            score: item.score || 85,
-                            type: item.opportunity_type || item.type || 'Risk Advisory',
-                            callout: item.desc || item.why_now || 'High-priority exposure identified.',
-                            chips: item.chips || ['Priority', `Score: ${item.score || 85}`]
-                          };
-                        }
-                        handleOpenPreview(match);
-                      }}
-                      className="bg-white hover:bg-orange-50/40 transition-all border border-gray-200 hover:border-orange-300 rounded-xl p-4 shadow-sm cursor-pointer group"
-                    >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center space-x-1 text-orange-700 text-[10px] font-extrabold uppercase tracking-wider">
-                          <ShieldAlert size={12} className="text-[#FF6200]" />
-                          <span>{item.badge}</span>
+                  {metrics.priorities
+                    .filter(item => 
+                      ACTIVE_UI_CLIENT_IDS.includes(item.client_id) || 
+                      ACTIVE_UI_CLIENT_IDS.includes(item.id) || 
+                      (item.title && item.title.toLowerCase().includes("enel"))
+                    )
+                    .sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
+                    .map((item, idx) => {
+                      const presentationRank = idx + 1;
+                      const dynamicBadge = item.badge
+                        ? item.badge.replace(/RANK #\d+/, "RANK #" + presentationRank)
+                        : (item.type || "LIQUIDITY") + " · RANK #" + presentationRank + " (SCORE " + (item.score || 85) + ")";
+
+                      return (
+                        <div 
+                          key={item.client_id || item.id || idx} 
+                          onClick={() => {
+                            let match = opportunities.find(o => 
+                              o.name?.toLowerCase().includes(item.title?.toLowerCase()) || 
+                              item.title?.toLowerCase().includes(o.name?.toLowerCase()) ||
+                              o.id === item.client_id ||
+                              o.id === item.id
+                            );
+                            if (!match) {
+                              match = {
+                                id: item.client_id || item.id || 'CLI101',
+                                name: item.title || item.name,
+                                sector: item.sector || 'Wholesale',
+                                country: item.country || 'Europe',
+                                rm_name: item.rm_name || 'Coverage Director',
+                                net_debt: item.net_debt || 0,
+                                liquidity: item.liquidity || 0,
+                                debt_maturing_24m: item.debt_maturing_24m || 0,
+                                score: item.score || 85,
+                                type: item.opportunity_type || item.type || 'Risk Advisory',
+                                callout: item.desc || item.why_now || 'High-priority exposure identified.',
+                                chips: item.chips || ['Priority', 'Score: ' + (item.score || 85)]
+                              };
+                            }
+                            handleOpenPreview(match);
+                          }}
+                          className="bg-white hover:bg-orange-50/40 transition-all border border-gray-200 hover:border-orange-300 rounded-xl p-4 shadow-sm cursor-pointer group"
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center space-x-1 text-orange-700 text-[10px] font-extrabold uppercase tracking-wider">
+                              <ShieldAlert size={12} className="text-[#FF6200]" />
+                              <span>{dynamicBadge}</span>
+                            </div>
+                            {item.fee_estimate && (
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                Fee: {item.fee_estimate}
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="text-sm font-bold text-[#0C112B] group-hover:text-[#FF6200] transition-colors mb-1">
+                            {item.title}
+                          </h3>
+                          <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
+                            {item.desc}
+                          </p>
+                          {item.action && (
+                            <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] gap-2">
+                              <span className="text-gray-500 font-medium truncate flex-1" title={item.action}>
+                                <strong className="text-[#000066]">Action:</strong> {item.action}
+                              </span>
+                              <span className="text-[#FF6200] font-bold text-[10px] group-hover:translate-x-0.5 transition-transform shrink-0">
+                                Open Pitchbook &rarr;
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        {item.fee_estimate && (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                            Fee: {item.fee_estimate}
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="text-sm font-bold text-[#0C112B] group-hover:text-[#FF6200] transition-colors mb-1">
-                        {item.title}
-                      </h3>
-                      <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
-                        {item.desc}
-                      </p>
-                      {item.action && (
-                        <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px]">
-                          <span className="text-gray-500 font-medium truncate max-w-[200px]">
-                            <strong className="text-[#000066]">Action:</strong> {item.action}
-                          </span>
-                          <span className="text-[#FF6200] font-bold text-[10px] group-hover:translate-x-0.5 transition-transform">
-                            Open Pitchbook →
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                      );
+                    })}
                 </div>
               ) : (
                 <div className="bg-white border border-gray-200 rounded-xl p-4 text-center text-gray-400">

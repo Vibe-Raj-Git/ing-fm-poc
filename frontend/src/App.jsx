@@ -741,7 +741,7 @@ export default function App() {
                   <p className="text-gray-700 text-[10px] leading-relaxed">
                     {deckOverrides.window || (
                       isFX ? "EUR/USD forward points offer structural hedging pickup; volatility corridor allows zero-cost collar structuring." :
-                      isGreen ? "Strong ESG investor liquidity generating 3-7 bps greenium pricing concession across European green bonds." :
+                      isGreen ? "Strong ESG investor liquidity generating 3-7 bps greenium pricing concession across European green bonds, subject to market conditions." :
                       isRates ? "Current 5Y EUR swap easing at 2.62% provides attractive entry window for forward-starting IRS." :
                       "Favorable benchmark credit spreads across European issuance windows."
                     )}
@@ -752,7 +752,7 @@ export default function App() {
                   <p className="text-gray-700 text-[10px] leading-relaxed">
                     {deckOverrides.action || (
                       isFX ? "Propose staged 12M–24M layered FX hedging programme with zero-cost collar overlays to close ~$8bn gap." :
-                      isGreen ? "Establish inaugural Green Bond / Hybrid Framework with second-party SPO verification." :
+                      isGreen ? "Establish inaugural Green Bond with second-party SPO verification." :
                       isRates ? "Execute €400M pre-hedge IRS overlay to lock in current base yield before debt issuance." :
                       "Propose capital structuring dialogue and benchmark EMTN roadshow."
                     )}
@@ -802,7 +802,7 @@ export default function App() {
                   ] : isGreen ? [
                     { t: "Green Framework Alignment", d: "Alignment with ICMA Green Bond Principles and EU Taxonomy standards." },
                     { t: "Use of Proceeds Pool", d: topLatentSummary ? `${topLatentSummary}. Ring-fenced eligible green asset pool.` : "Ring-fenced eligible asset pool with annual impact & allocation verification." },
-                    { t: "Greenium Advantage", d: "Capturing 3-7 bps new-issue concession advantage from dedicated ESG funds." },
+                    { t: "Greenium Advantage", d: "Potential pricing benefit from access to dedicated sustainable-investment demand." },
                     { t: "Sole ESG Structurer", d: "ING leading SPO documentation, investor roadshow, and syndicate execution." }
                   ] : isRates ? [
                     { t: "Rate Risk Assessment", d: `Quantifying interest rate repricing risk across the ${maturityVal} debt horizon.` },
@@ -937,7 +937,7 @@ export default function App() {
                   </p>
                   <p className="text-[10px] text-gray-700 leading-relaxed">
                     {isFX ? `Customized rolling 12M–24M FX hedging corridor for ${clientName}. Protects operating margin floor while retaining upside participation up to cap limits without upfront option premium.` :
-                     isGreen ? (deckOverrides.green_asset_pool_status ? `Inaugural Green Financing Framework certified under EU Green Bond Standard (EuGBS). Entire €3,500M pool verified 100% EU Taxonomy aligned with Second-Party Opinion (SPO) by Sustainalytics/ISS to capture 3-7 bps greenium advantage.` : `Inaugural Green Financing Framework aligned with ICMA Green Bond Principles and EU Taxonomy. Supported by second-party opinion (SPO) provider to capture 3-7 bps ESG greenium pricing advantage.`) :
+                     isGreen ? (deckOverrides.green_asset_pool_status ? `Inaugural Green Financing Framework certified under EU Green Bond Standard (EuGBS). Entire €3,500M pool verified 100% EU Taxonomy aligned with Second-Party Opinion (SPO) by Sustainalytics/ISS to capture greenium advantage.` : `Inaugural Green Financing Framework aligned with ICMA Green Bond Principles and EU Taxonomy. Supported by second-party opinion (SPO) provider to capture ESG greenium pricing advantage.`) :
                      isRates ? `Upcoming maturities cluster in near-term windows. Locking in forward-starting swap rates eliminates repricing uncertainty ahead of primary debt issuance.` :
                      `Upcoming debt maturities of ${maturityVal} cluster in near-term windows. Proactive capital structuring and benchmark EMTN roadshows ensure optimal tenor extension and liquidity resilience.`}
                   </p>
@@ -965,11 +965,13 @@ export default function App() {
               "78"
             );
             const s6_spreadBps = parseInt(s6_rawSpread.match(/\d+/)?.[0] || "78", 10) || 78;
-            const s6_notionalEur = Number(deckOverrides?.target_notional_eur || (activeClient?.volume_eur_m ? activeClient.volume_eur_m * 1000000 : 750000000));
+            // Grounded in Slide 8 Dual-Tranche execution sizing (€600M Green / €400M SLB)
+            const s6_greenNotionalEur = Number(deckOverrides?.notional_green_eur || 600000000);
+            const s6_slbNotionalEur = Number(deckOverrides?.notional_slb_eur || 400000000);
             const s6_greenBps = Number(deckOverrides?.greenium_bps || 5);
             const s6_slbBps = 2;
-            const s6_greenSavingsStr = "€" + Math.round(s6_notionalEur * (s6_greenBps / 10000)).toLocaleString() + " / yr";
-            const s6_slbSavingsStr = "€" + Math.round(s6_notionalEur * (s6_slbBps / 10000)).toLocaleString() + " / yr";
+            const s6_greenSavingsStr = "€" + Math.round(s6_greenNotionalEur * (s6_greenBps / 10000)).toLocaleString() + " / yr";
+            const s6_slbSavingsStr = "€" + Math.round(s6_slbNotionalEur * (s6_slbBps / 10000)).toLocaleString() + " / yr";
           
           const s6_rawSwap = String(deckOverrides?.swap_5y || "2.62");
           const s6_swapRate = parseFloat(s6_rawSwap.match(/\d+(\.\d+)?/)?.[0] || "2.62") || 2.62;

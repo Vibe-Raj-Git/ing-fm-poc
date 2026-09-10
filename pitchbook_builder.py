@@ -240,7 +240,7 @@ def get_product_pillars(p_fam, ctx, ov):
         return [
             ("1", "Green Framework Alignment", "Alignment with ICMA Green Bond Principles and EU Taxonomy standards."),
             ("2", "Use of Proceeds Pool", pillar2_desc),
-            ("3", "Greenium Advantage", "Capturing 3-7 bps new-issue concession advantage from dedicated ESG funds."),
+            ("3", "Greenium Advantage", "Potential pricing benefit from access to dedicated sustainable-investment demand."),
             ("4", "Sole ESG Structurer", "ING leading SPO documentation, investor roadshow, and syndicate execution.")
         ]
     elif p_fam == "RATES_HEDGE":
@@ -748,8 +748,8 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         act_t = ov.get("action") or "Propose staged 12M–24M layered FX hedging programme with zero-cost collar overlays to close ~$8bn gap."
     elif p_fam == "GREEN_ESG":
         trig_t = ov.get("trigger") or "EU Taxonomy alignment: €3.5B eligible renewable & decarbonization CapEx pipeline ready for green financing."
-        win_t = ov.get("window") or "Strong ESG investor liquidity generating 3-7 bps greenium pricing concession across European green bonds."
-        act_t = ov.get("action") or "Establish inaugural Green Bond / Hybrid Framework with second-party SPO verification."
+        win_t = ov.get("window") or "Strong ESG investor liquidity generating 3-7 bps greenium pricing concession across European green bonds, subject to market conditions."
+        act_t = ov.get("action") or "Establish inaugural Green Bond with second-party SPO verification."
     elif p_fam == "RATES_HEDGE":
         trig_t = ov.get("trigger") or "Upcoming €3.2B debt maturities face repricing risk amid benchmark curve fluctuations."
         win_t = ov.get("window") or "Current 5Y EUR swap easing at 2.62% provides attractive entry window for forward-starting IRS."
@@ -1089,9 +1089,9 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         green_status = (overrides or {}).get("green_asset_pool_status") or (opp or {}).get("green_asset_pool_status")
         p_desc = tf_r.add_paragraph()
         if green_status:
-            p_desc.text = f"Inaugural Green Financing Framework certified under EU Green Bond Standard (EuGBS). Entire €3,500M pool verified 100% EU Taxonomy aligned with Second-Party Opinion (SPO) by Sustainalytics/ISS to capture 3-7 bps greenium advantage."
+            p_desc.text = f"Inaugural Green Financing Framework certified under EU Green Bond Standard (EuGBS). Entire €3,500M pool verified 100% EU Taxonomy aligned with Second-Party Opinion (SPO) by Sustainalytics/ISS to capture greenium advantage."
         else:
-            p_desc.text = f"Inaugural Green Financing Framework aligned with ICMA Green Bond Principles and EU Taxonomy. Supported by second-party opinion (SPO) provider to capture 3-7 bps ESG greenium pricing advantage."
+            p_desc.text = f"Inaugural Green Financing Framework aligned with ICMA Green Bond Principles and EU Taxonomy. Supported by second-party opinion (SPO) provider to capture ESG greenium pricing advantage."
         p_desc.font.size = Pt(10.5)
         p_desc.font.color.rgb = RGBColor(55, 65, 81)
         p_desc.space_before = Pt(8)
@@ -1241,13 +1241,14 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         s6_headers = ["Issuance Format", "Indicative Spread", "Annual Savings"]
         green_spread = calc["spread_bps"] - calc["greenium_bps"]
         
-        # Dynamic calculation based on deal notional volume
-        notional_eur = calc.get("target_notional_eur") or 750000000.0
+        # Sizing aligned to Slide 8 Dual-Tranche execution (€600M Green / €400M SLB)
+        green_notional_eur = float(calc.get("notional_green_eur") or 600000000.0)
+        slb_notional_eur = float(calc.get("notional_slb_eur") or 400000000.0)
         green_bps = calc.get("greenium_bps", 5)
         slb_bps = 2
         
-        green_savings = f"€{int(notional_eur * (green_bps / 10000)):,} / yr"
-        slb_savings = f"€{int(notional_eur * (slb_bps / 10000)):,} / yr"
+        green_savings = f"€{int(green_notional_eur * (green_bps / 10000)):,} / yr"
+        slb_savings = f"€{int(slb_notional_eur * (slb_bps / 10000)):,} / yr"
 
         s6_data = [
             ("Inaugural Green Bond (with Greenium)", f"Mid-Swap + {green_spread} bps (-{green_bps} bps)", green_savings),

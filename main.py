@@ -363,7 +363,7 @@ def get_live_signals():
     if not raw_signals:
         raw_signals = [
             {"id": "SIG-DF1", "client_id": "CLI103", "client_name": "BASF SE", "type": "REFINANCING", "text": "BASF SE: €2.0B 6Y EMTN & €1.2B Pre-Hedge", "headline": "€2.0B 6Y EMTN & €1.2B Pre-Hedge", "confidence": 94, "urgency": "HIGH", "trend": "up", "time_ago": "Just now"},
-            {"id": "SIG-DF2", "client_id": "CLI101", "client_name": "Enel S.p.A.", "type": "SUSTAINABLE", "text": "Enel S.p.A.: EUR 750M Green EMTN Pre-Hedge", "headline": "EUR 750M Green EMTN Pre-Hedge", "confidence": 94, "urgency": "HIGH", "trend": "up", "time_ago": "12m ago"},
+            {"id": "SIG-DF2", "client_id": "CLI101", "client_name": "Enel S.p.A.", "type": "SUSTAINABLE FUNDING", "text": "Enel S.p.A.: €1.0B Dual-Tranche Green & SLB Issuance", "headline": "€1.0B Dual-Tranche Green & SLB Issuance", "confidence": 94, "urgency": "HIGH", "trend": "up", "time_ago": "12m ago"},
             {"id": "SIG-DF3", "client_id": "CLI102", "client_name": "ASML Holding", "type": "HEDGING", "text": "ASML Holding: EUR 900M FX Collar Hedge", "headline": "EUR 900M FX Collar Hedge", "confidence": 92, "urgency": "HIGH", "trend": "up", "time_ago": "25m ago"}
         ]
 
@@ -443,7 +443,7 @@ def get_live_signals():
     if not signals:
         signals = [
             {"id": "SIG-DF1", "client_id": "CLI103", "client_name": "BASF SE", "type": "REFINANCING", "text": "BASF SE: €2.0B 6Y EMTN & €1.2B Pre-Hedge", "headline": "€2.0B 6Y EMTN & €1.2B Pre-Hedge", "confidence": 94, "urgency": "HIGH", "trend": "up", "time_ago": "Just now"},
-            {"id": "SIG-DF2", "client_id": "CLI101", "client_name": "Enel S.p.A.", "type": "SUSTAINABLE", "text": "Enel S.p.A.: EUR 750M Green EMTN Pre-Hedge", "headline": "EUR 750M Green EMTN Pre-Hedge", "confidence": 94, "urgency": "HIGH", "trend": "up", "time_ago": "12m ago"},
+            {"id": "SIG-DF2", "client_id": "CLI101", "client_name": "Enel S.p.A.", "type": "SUSTAINABLE FUNDING", "text": "Enel S.p.A.: €1.0B Dual-Tranche Green & SLB Issuance", "headline": "€1.0B Dual-Tranche Green & SLB Issuance", "confidence": 94, "urgency": "HIGH", "trend": "up", "time_ago": "12m ago"},
             {"id": "SIG-DF3", "client_id": "CLI102", "client_name": "ASML Holding", "type": "HEDGING", "text": "ASML Holding: EUR 900M FX Collar Hedge", "headline": "EUR 900M FX Collar Hedge", "confidence": 92, "urgency": "HIGH", "trend": "up", "time_ago": "25m ago"}
         ]
     return signals
@@ -1273,7 +1273,7 @@ Return ONLY a valid JSON object matching this exact schema:
       "issue": "Indicative pricing terms require mandatory non-binding pricing caveat for Professional Clients."
     }},
     {{
-      "slide_number": 10,
+      "slide_number": 11,
       "rule": "EMIR & MAR Art. 11",
       "issue": "Missing EMIR NFC+ classification and Market Sounding safe harbour legend."
     }}
@@ -1326,7 +1326,7 @@ Do not wrap in Markdown code blocks."""
                     "issue": "Mandatory non-binding pricing disclaimer required on indicative Green Bond term sheet."
                 },
                 {
-                    "slide_number": 10,
+                    "slide_number": 11,
                     "rule": "EMIR & MAR Art. 11",
                     "issue": "EMIR NFC+ active hedging entity and Market Sounding Safe Harbour legend missing."
                 }

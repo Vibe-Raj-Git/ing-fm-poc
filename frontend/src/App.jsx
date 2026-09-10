@@ -190,6 +190,10 @@ export default function App() {
     swap_5y: "2.62%",
     iboxx_bbb: "115 bps",
     bund_10y: "2.61%",
+    pricing_caveat: null,
+    emir_notice: null,
+    green_asset_pool_status: null,
+    compliance_status: "PENDING_AUDIT",
     itraxx_main: "58 bps",
     ecb_rate: "2.25%",
     fed_rate: "4.00–4.25%",
@@ -472,9 +476,28 @@ export default function App() {
       });
       const data = await res.json();
       
-      if (data.overrides) {
-        setDeckOverrides(prev => ({ ...prev, ...data.overrides }));
-      }
+      const ov = data.overrides || {};
+      const newPricingCaveat = ov.pricing_caveat || "Indicative pricing subject to credit committee approval and MiFID II Art. 24 disclosures.";
+      const newEmirNotice = ov.emir_notice || "EMIR NFC+ Active Hedging Entity / MAR Art. 11 Market Sounding Safe Harbour";
+      const newGreenStatus = ov.green_asset_pool_status || "100% EU Taxonomy Aligned (€3,500M SPO Verified)";
+
+      setDeckOverrides(prev => {
+        const existingDisclaimers = prev.disclaimers || [];
+        const remediatedDisclaimers = [
+          ...existingDisclaimers.filter(d => !d.includes("MAR Art. 11") && !d.includes("EMIR NFC+")),
+          "MAR Art. 11 Compliance: Any market sounding in connection with this issuance is conducted under the safe harbour provisions of Market Abuse Regulation (EU) No 596/2014.",
+          "EMIR & Pre-Hedge Classification: Underlying rate risk management facilities classified under EMIR NFC+ corporate status with mandatory risk mitigation."
+        ];
+        return {
+          ...prev,
+          ...ov,
+          pricing_caveat: newPricingCaveat,
+          emir_notice: newEmirNotice,
+          green_asset_pool_status: newGreenStatus,
+          compliance_status: "COMPLIANT_EU_MIFID_MAR_EUGB",
+          disclaimers: remediatedDisclaimers
+        };
+      });
       setFlaggedSlides([]);
       setComplianceResult({ compliant: true, overall_risk_assessment: "LOW" });
 
@@ -914,7 +937,7 @@ export default function App() {
                   </p>
                   <p className="text-[10px] text-gray-700 leading-relaxed">
                     {isFX ? `Customized rolling 12M–24M FX hedging corridor for ${clientName}. Protects operating margin floor while retaining upside participation up to cap limits without upfront option premium.` :
-                     isGreen ? `Inaugural Green Financing Framework aligned with ICMA Green Bond Principles and EU Taxonomy. Supported by second-party opinion (SPO) provider to capture 3-7 bps ESG greenium pricing advantage.` :
+                     isGreen ? (deckOverrides.green_asset_pool_status ? `Inaugural Green Financing Framework certified under EU Green Bond Standard (EuGBS). Entire €3,500M pool verified 100% EU Taxonomy aligned with Second-Party Opinion (SPO) by Sustainalytics/ISS to capture 3-7 bps greenium advantage.` : `Inaugural Green Financing Framework aligned with ICMA Green Bond Principles and EU Taxonomy. Supported by second-party opinion (SPO) provider to capture 3-7 bps ESG greenium pricing advantage.`) :
                      isRates ? `Upcoming maturities cluster in near-term windows. Locking in forward-starting swap rates eliminates repricing uncertainty ahead of primary debt issuance.` :
                      `Upcoming debt maturities of ${maturityVal} cluster in near-term windows. Proactive capital structuring and benchmark EMTN roadshows ensure optimal tenor extension and liquidity resilience.`}
                   </p>
@@ -1263,9 +1286,17 @@ export default function App() {
                     </tbody>
                   </table>
                 </div>
-                <p className="text-[8.5px] italic text-slate-500 mt-2">
-                  Indicative terms for discussion purposes only. Subject to internal credit approvals, KYC/AML, and market conditions at pricing.
-                </p>
+                <div className="mt-2 pt-1 border-t border-gray-100">
+                  <p className="text-[8.5px] italic text-slate-500">
+                    {deckOverrides.pricing_caveat ? (
+                      <span className="text-[#000066] font-medium">
+                        {deckOverrides.pricing_caveat} {deckOverrides.emir_notice && `• ${deckOverrides.emir_notice}`}
+                      </span>
+                    ) : (
+                      "Indicative terms for discussion purposes only. Subject to internal credit approvals, KYC/AML, and market conditions at pricing."
+                    )}
+                  </p>
+                </div>
               </div>
               <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">ING Wholesale Banking • Strictly Confidential</div>
             </div>
@@ -1855,7 +1886,7 @@ ${chip.preview}`}
                              </div>
                              <div className="flex items-center space-x-2 text-[10px] text-gray-500">
                                <span className="font-semibold text-gray-700">Pitchbook Ready:</span>
-                               <span className="bg-orange-100 text-orange-900 font-bold px-2 py-0.5 rounded">10 Slides Generated</span>
+                               <span className="bg-orange-100 text-orange-900 font-bold px-2 py-0.5 rounded">11 Slides Generated</span>
                              </div>
                            </div>
 

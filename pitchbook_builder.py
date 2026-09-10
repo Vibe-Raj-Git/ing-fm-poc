@@ -1086,8 +1086,12 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         p.font.size = Pt(13)
         p.font.color.rgb = ING_DARK_SLATE
 
+        green_status = (overrides or {}).get("green_asset_pool_status") or (opp or {}).get("green_asset_pool_status")
         p_desc = tf_r.add_paragraph()
-        p_desc.text = f"Inaugural Green Financing Framework aligned with ICMA Green Bond Principles and EU Taxonomy. Supported by second-party opinion (SPO) provider to capture 3-7 bps ESG greenium pricing advantage."
+        if green_status:
+            p_desc.text = f"Inaugural Green Financing Framework certified under EU Green Bond Standard (EuGBS). Entire €3,500M pool verified 100% EU Taxonomy aligned with Second-Party Opinion (SPO) by Sustainalytics/ISS to capture 3-7 bps greenium advantage."
+        else:
+            p_desc.text = f"Inaugural Green Financing Framework aligned with ICMA Green Bond Principles and EU Taxonomy. Supported by second-party opinion (SPO) provider to capture 3-7 bps ESG greenium pricing advantage."
         p_desc.font.size = Pt(10.5)
         p_desc.font.color.rgb = RGBColor(55, 65, 81)
         p_desc.space_before = Pt(8)
@@ -1619,14 +1623,21 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
             else:
                 p.font.color.rgb = ING_DARK_SLATE
 
-    # Disclaimer note beneath table
-    d_box = s8.shapes.add_textbox(Inches(0.8), Inches(6.15), Inches(11.7), Inches(0.4))
+    # Disclaimer note beneath table (Dynamic compliance override support)
+    pricing_caveat = (overrides or {}).get("pricing_caveat") or (opp or {}).get("pricing_caveat")
+    emir_notice = (overrides or {}).get("emir_notice") or (opp or {}).get("emir_notice")
+    d_box = s8.shapes.add_textbox(Inches(0.8), Inches(6.15), Inches(11.7), Inches(0.45))
     dp = d_box.text_frame.paragraphs[0]
-    dp.text = "Indicative terms for discussion purposes only. Subject to internal credit approvals, KYC/AML, and market conditions at pricing."
+    if pricing_caveat:
+        dp.text = f"{pricing_caveat}" + (f" • {emir_notice}" if emir_notice else "")
+        dp.font.bold = True
+        dp.font.color.rgb = ING_NAVY
+    else:
+        dp.text = "Indicative terms for discussion purposes only. Subject to internal credit approvals, KYC/AML, and market conditions at pricing."
+        dp.font.color.rgb = RGBColor(100, 116, 139)
     dp.font.name = "Arial"
     dp.font.size = Pt(8.5)
     dp.font.italic = True
-    dp.font.color.rgb = RGBColor(100, 116, 139)
 
 
 
@@ -1843,6 +1854,8 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     shp.fill.fore_color.rgb = BG_LIGHT
     shp.line.color.rgb = LINE_GRAY
 
+    # Dynamic disclaimers override support
+    custom_disclaimers = (overrides or {}).get("disclaimers") or (opp or {}).get("disclaimers")
     tb_disc = s11.shapes.add_textbox(Inches(1.1), Inches(1.8), Inches(11.1), Inches(4.4))
     tf_disc = tb_disc.text_frame
     tf_disc.word_wrap = True

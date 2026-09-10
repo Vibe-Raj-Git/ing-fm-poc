@@ -2,7 +2,7 @@
 
 set -u
 
-PROJECT_ID="teach-telecom-ai-sandbox"
+PROJECT_ID="dulcet-radar-508218-c5"
 REGION_ID="${REGION:-europe-west1}"
 SQL_INSTANCE_ID="${SQL_INSTANCE:-ing-postgres-db}"
 CLOUD_RUN_SERVICE="${CLOUD_RUN_SERVICE:-ing-fm-poc-service}"
@@ -10,18 +10,18 @@ CLOUD_RUN_SERVICE="${CLOUD_RUN_SERVICE:-ing-fm-poc-service}"
 echo
 echo "============================================================"
 echo " ING Financial Markets AI Agentic Platform"
-echo " Cloud Shell Session Initialization"
+echo " Workstation Session Initialization"
 echo "============================================================"
 echo
 
 # 1. GCP Authentication
-echo "[1/7] Checking GCP authentication..."
+echo "[1/6] Checking GCP authentication..."
 if ! gcloud auth print-access-token >/dev/null 2>&1; then
     gcloud auth login
 fi
 
 # 2. Set Project & Region
-echo "[2/7] Configuring GCP project and region..."
+echo "[2/6] Configuring GCP project and region..."
 gcloud config set project "$PROJECT_ID" >/dev/null
 gcloud config set run/region "$REGION_ID" >/dev/null
 
@@ -31,8 +31,8 @@ export SQL_INSTANCE="$SQL_INSTANCE_ID"
 export DB_USER="postgres"
 export DB_NAME="postgres"
 
-# 3. Auto-Retrieve DB Password (No manual typing required)
-echo "[3/7] Loading database credentials..."
+# 3. Auto-Retrieve DB Password from Secret Manager
+echo "[3/6] Loading database credentials..."
 RETRIEVED_PASS="$(gcloud secrets versions access latest --secret="db-postgres-pass" --project="$PROJECT_ID" 2>/dev/null)"
 
 if [ -n "$RETRIEVED_PASS" ]; then
@@ -44,20 +44,16 @@ elif [ -z "${DB_PASS:-}" ]; then
     export DB_PASS
 fi
 
-# 4. Retrieve Resource Identifiers
-echo "[4/7] Retrieving Cloud SQL connection string..."
+# 4. Retrieve Cloud SQL Connection Name
+echo "[4/6] Retrieving Cloud SQL connection string..."
 INSTANCE_CONN_RESULT="$(gcloud sql instances describe "$SQL_INSTANCE" --project="$GCP_PROJECT" --format="value(connectionName)" 2>/dev/null)"
 
 export INSTANCE_CONN="$INSTANCE_CONN_RESULT"
 export INSTANCE_CONNECTION_NAME="$INSTANCE_CONN_RESULT"
 export SQL_CONN="$INSTANCE_CONN_RESULT"
 
-# 5. Retrieve Cloud Run URL
-SERVICE_URL_RESULT="$(gcloud run services describe "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT" --region="$REGION" --format="value(status.url)" 2>/dev/null)"
-export SERVICE_URL="${SERVICE_URL_RESULT:-}"
-
-# 6. Auto-Start Cloud SQL Auth Proxy Daemon on Port 5432
-echo "[5/7] Checking local Cloud SQL Auth Proxy daemon..."
+# 5. Auto-Start Cloud SQL Auth Proxy Daemon on Port 5432
+echo "[5/6] Checking local Cloud SQL Auth Proxy daemon..."
 mkdir -p "$HOME/bin"
 if [ ! -f "$HOME/bin/cloud-sql-proxy" ]; then
     echo "  Downloading cloud-sql-proxy..."
@@ -68,15 +64,15 @@ fi
 if ! pgrep -f "cloud-sql-proxy" >/dev/null 2>&1; then
     if [ -n "$INSTANCE_CONN" ]; then
         "$HOME/bin/cloud-sql-proxy" --port 5432 "$INSTANCE_CONN" > /tmp/proxy.log 2>&1 &
-        sleep 1.5
+        sleep 2
         echo "  ✓ Cloud SQL Auth Proxy started on 127.0.0.1:5432 (PID: $!)."
     fi
 else
     echo "  ✓ Cloud SQL Auth Proxy is already active."
 fi
 
-# 7. Verification Summary
-echo "[6/7] Verifying database connectivity..."
+# 6. Database Connectivity Verification
+echo "[6/6] Verifying database connectivity..."
 python3 - << 'PYEOF' 2>/dev/null
 import os, pg8000.native
 try:
@@ -93,50 +89,15 @@ except Exception as e:
     print(f"  ✗ Database connection test failed: {e}")
 PYEOF
 
-# 8. Start FastAPI / React Application on Port 8080
-echo "[7/7] Ensuring FastAPI application server is running on port 8080..."
-if ! pgrep -f "uvicorn.*8080" >/dev/null 2>&1 && ! pgrep -f "python3.*main.py" >/dev/null 2>&1; then
-    nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8080 > /tmp/backend.log 2>&1 &
-    sleep 2
-    echo "  ✓ Backend & UI service started on port 8080 (PID: $!)."
-else
-    echo "  ✓ Backend service is already running on port 8080."
-fi
+# Check Cloud Run URL dynamically if deployed
+SERVICE_URL_RESULT="$(gcloud run services describe "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT" --region="$REGION" --format="value(status.url)" 2>/dev/null)"
+export SERVICE_URL="${SERVICE_URL_RESULT:-NOT DEPLOYED YET}"
 
-echo "[7/7] Session initialization complete."
+echo
 echo "============================================================"
 echo " Project      : $GCP_PROJECT"
 echo " SQL Conn     : $INSTANCE_CONN"
-echo " Service URL  : ${SERVICE_URL:-NOT DEPLOYED YET}"
+echo " Cloud Run URL: $SERVICE_URL"
 echo "============================================================"
-# 7. Verify Cloud Run Service Health
-echo "[7/8] Verifying Cloud Run backend configuration..."
-SERVICE_URL="https://ing-fm-poc-service-acsckzryzq-ew.a.run.app"
-CR_COUNT=$(curl -s "${SERVICE_URL}/api/opportunities" 2>/dev/null | python3 -c "import sys, json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
-
-if [ "$CR_COUNT" -eq 0 ]; then
-    echo "  ⚠️ Cloud Run API returned 0 opportunities. Re-binding Secret Manager credentials..."
-    gcloud run services update ing-fm-poc-service \
-      --project="teach-telecom-ai-sandbox" \
-      --region="europe-west1" \
-      --set-env-vars="INSTANCE_CONNECTION_NAME=teach-telecom-ai-sandbox:europe-west1:ing-postgres-db,DB_USER=postgres,DB_NAME=postgres,GCP_PROJECT=teach-telecom-ai-sandbox,REGION=europe-west1" \
-      --set-secrets="DB_PASS=db-postgres-pass:latest" \
-      --quiet >/dev/null 2>&1
-    echo "  ✓ Cloud Run environment refreshed with Secret Manager bindings."
-else
-    echo "  ✓ Cloud Run API verified: serving $CR_COUNT opportunities."
-fi
-
-# 8. Ensure Local Server Daemon is Available (Port 8080)
-echo "[8/8] Checking local FastAPI server on port 8080..."
-if ! pgrep -f "uvicorn.*8080" >/dev/null 2>&1; then
-    nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8080 > /tmp/backend.log 2>&1 &
-    sleep 2
-    echo "  ✓ Local backend service active on port 8080 (PID: $!)."
-else
-    echo "  ✓ Local backend service is already active on port 8080."
-fi
-
-echo "============================================================"
-echo "✓ POC Environment Fully Ready | Enel (CLI101) Parity Active"
+echo "✓ POC Environment Initialized | Ready to run deploy-poc"
 echo "============================================================"

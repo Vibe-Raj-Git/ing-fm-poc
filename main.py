@@ -498,7 +498,7 @@ def synthesize_mandate_catalyst(
         return {"why_now": fallback_why, "action": fallback_act}
 
     try:
-        project_id = os.getenv("GCP_PROJECT", "teach-telecom-ai-sandbox")
+        project_id = os.getenv("GCP_PROJECT", "dulcet-radar-508218-c5")
         region = os.getenv("REGION", "europe-west1")
         client_gcp = genai.Client(vertexai=True, project=project_id, location=region)
 
@@ -1074,7 +1074,7 @@ def ingest_text_signal(req: TextIngestRequest):
         channel = "WORKFABRIC_MEMO"
         sname = raw_sname if raw_sname else "Marta Nowak (ESG Structuring Lead)"
 
-    project_id = os.getenv("GCP_PROJECT", "teach-telecom-ai-sandbox")
+    project_id = os.getenv("GCP_PROJECT", "dulcet-radar-508218-c5")
     region = os.getenv("REGION", "europe-west1")
 
     extracted = {
@@ -1331,7 +1331,7 @@ Do not wrap in Markdown code blocks."""
     parsed_result = None
     if GENAI_AVAILABLE:
         try:
-            client_gcp = genai.Client(vertexai=True, project=os.getenv("GCP_PROJECT", "teach-telecom-ai-sandbox"), location=os.getenv("REGION", "europe-west1"))
+            client_gcp = genai.Client(vertexai=True, project=os.getenv("GCP_PROJECT", "dulcet-radar-508218-c5"), location=os.getenv("REGION", "europe-west1"))
             response = client_gcp.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=compliance_prompt,
@@ -1390,7 +1390,7 @@ def copilot_chat_endpoint(req: CopilotMessage):
     history = req.history or []
     now_stamp = datetime.now().strftime("%d %B %Y, %H:%M CET")
 
-    project_id = os.getenv("GCP_PROJECT", "teach-telecom-ai-sandbox")
+    project_id = os.getenv("GCP_PROJECT", "dulcet-radar-508218-c5")
     region = os.getenv("REGION", "europe-west1")
 
     bundle = fetch_pitchbook_bundle(cid, cid, get_db_connection)

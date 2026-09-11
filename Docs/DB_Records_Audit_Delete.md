@@ -1,9 +1,18 @@
+Markdown
 ## Database Operations Runbook
 
-# 1. Full Audit (Inspect All Tables & Counts)
-Use this command to review all document vector chunks, the top 10 digital twin signals, and opportunity scoring records for Enel (CLI101):
+> **Prerequisite:** Before running any section below on a workstation instance, ensure your environment variables and Cloud SQL Auth Proxy daemon are running:
+> ```bash
+> cd ~/ing-fm-poc
+> source ./session-init.sh
+> ```
 
-Bash
+---
+
+# 1. Full Audit (Inspect All Tables & Counts)
+Review all document vector chunks, the top 10 digital twin signals, and opportunity scoring records for Enel (`CLI101`):
+
+```bash
 cd ~/ing-fm-poc
 
 python3 - << 'EOF'
@@ -69,9 +78,8 @@ if conn:
         connector.close()
 print("=" * 85)
 EOF
-
-# 2. Quick Top-Record Checker (Post-Ingestion / Post-Deletion)
-Use this command to check what currently sits at the top of ca.document_vector_chunks and ca.digital_twin_signals:
+2. Quick Top-Record Checker (Post-Ingestion / Post-Deletion)
+Verify what currently sits at the top of ca.document_vector_chunks and ca.digital_twin_signals:
 
 Bash
 cd ~/ing-fm-poc
@@ -119,9 +127,8 @@ if conn:
     if connector:
         connector.close()
 EOF
-
-# 3. Single-Touchpoint Rollback (Delete Last Inserted & Reset Scoring)
-Use this command after running a UI test to remove the latest chunk and signal while resetting opportunity scoring back to the baseline:
+3. Single-Touchpoint Rollback (Delete Last Inserted & Reset Scoring)
+Remove test touchpoints and revert opportunity scoring to the baseline benchmark:
 
 Bash
 cd ~/ing-fm-poc

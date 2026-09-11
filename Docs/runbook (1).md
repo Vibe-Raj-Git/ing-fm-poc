@@ -7,6 +7,7 @@
 Bash
 gcloud run services remove-iam-policy-binding ing-fm-poc-service \
     --region=europe-west1 \
+    --project=dulcet-radar-508218-c5 \
     --member="allUsers" \
     --role="roles/run.invoker"
     
@@ -16,6 +17,7 @@ To restore full functionality so the backend API responds normally, run:
 Bash
 gcloud run services add-iam-policy-binding ing-fm-poc-service \
     --region=europe-west1 \
+    --project=dulcet-radar-508218-c5 \
     --member="allUsers" \
     --role="roles/run.invoker"
 

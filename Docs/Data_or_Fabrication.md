@@ -552,7 +552,7 @@ from sqlalchemy import text
 db_user = os.environ.get("DB_USER", "postgres")
 db_pass = os.environ.get("DB_PASS", "ing_fm_password_2026")
 db_name = os.environ.get("DB_NAME", "ing_fm_db")
-inst_conn = os.environ.get("INSTANCE_CONNECTION_NAME", "teach-telecom-ai-sandbox:europe-west1:ing-fm-db")
+inst_conn = os.environ.get("INSTANCE_CONNECTION_NAME", "dulcet-radar-508218-c5:europe-west1:ing-postgres-db")
 
 try:
     from google.cloud.sql.connector import Connector, IPTypes

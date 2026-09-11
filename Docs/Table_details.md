@@ -9,7 +9,7 @@ import os
 from google.cloud.sql.connector import Connector, IPTypes
 import pg8000.dbapi
 
-instance_conn = os.environ.get("INSTANCE_CONNECTION_NAME", "teach-telecom-ai-sandbox:europe-west1:ing-postgres-db")
+instance_conn = os.environ.get("INSTANCE_CONNECTION_NAME", "dulcet-radar-508218-c5:europe-west1:ing-postgres-db")
 db_user = os.environ.get("DB_USER", "postgres")
 db_pass = os.environ.get("DB_PASS", "postgres")
 db_name = os.environ.get("DB_NAME", "postgres")

@@ -153,3 +153,20 @@ To further test the model, here are more advanced prompts categorized by specifi
 ### Slide 9: Why Execute With Us
 - **Franchise Capabilities**: Global DCM presence, 24-hour follow-the-sun coverage (Amsterdam, London, Singapore, New York), strong investment-grade balance sheet.
 - **Execution Technology & Advisory**: Electronic syndicate platform with real-time allocation reporting, dedicated ratings/regulatory documentation support, and named coverage officers.
+
+
+Slide 6 Prompts:
+	In Slide 6, adjust the greenium concession to 7 bps
+
+Slide 7 Prompts:
+	Macro Backdrop Push: "Update Slide 7: set iTraxx Main to 60 bps, ECB refi rate to 2.50%, and Bund 10Y yield to 2.65%."
+	Pristine Reset: "Revert Slide 7 back to institutional baseline terms and restore original market rates."
+	
+	In Slide 7, update Bund yield to 2.65%
+	In Slide 7, update iTraxx Main to 60 bps
+	
+
+Slide 8 Prompts:-
+	Multi-Variant Override Test: "Update Slide 8: set Green Bond notional to EUR 900M and Sustainability Overlay notional to EUR 500M."
+	Post-Revert Sequential Test: "Revert Slide 8 back to baseline, then immediately update the Green Bond tenor to 8 Years."
+

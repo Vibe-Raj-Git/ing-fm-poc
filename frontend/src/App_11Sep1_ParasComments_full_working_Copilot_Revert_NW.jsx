@@ -390,7 +390,7 @@ export default function App() {
     setChatMessages([
       {
         sender: "bot",
-        text: `Hello! I am your ING Copilot for **${opp.name}**.\n\nYou can ask questions, run regulatory audits, or instruct me to adjust parameters:\n• **"Run MiFID II, MAR & EU Green Bond Standard compliance audit"**\n• **"In Slide 7, update Bund yield to 2.65%"**\n• **"In Slide 6, adjust the greenium concession to 7 bps"**`,
+        text: `Hello! I am your ING Copilot for **${opp.name}**.\n\nYou can ask questions, run regulatory audits, or instruct me to adjust parameters:\n• **"Run MiFID II, MAR & EU Green Bond Standard compliance audit"**\n• **"In Slide 7, update iTraxx Main to 60 bps"**\n• **"In Slide 6, change rate to 4.50% instead of 4.55%"**\n• **"Adjust bond sizing to €800M and tenor to 10Y"**`,
         time: new Date().toLocaleTimeString("en-GB", { timeZone: "Europe/Amsterdam", hour: "2-digit", minute: "2-digit", hour12: false })
       }
     ]);

@@ -1463,17 +1463,17 @@ def copilot_chat_endpoint(req: CopilotMessage):
             "framework": "ICMA Green Bond Principles & EU Taxonomy with Second-Party Opinion (SPO)"
         }
         s8_title = "08. Green Bond Term Sheet"
-        base_s8_leg1 = {
+        s8_leg1 = {
             "instrument": "Green Bond Tranche",
-            "notional": bundle.get("notional_bond", "EUR 600,000,000"),
-            "tenor": bundle.get("tenor", "7 Years (T + 7Y)"),
+            "notional": current_ov.get("notional_bond") or bundle.get("notional_bond", "EUR 600,000,000"),
+            "tenor": current_ov.get("tenor", "7 Years (T + 7Y)"),
             "benchmark": "7Y EUR mid-swap",
-            "spread": f"Mid-swap + {str(bundle.get('credit_spread_5y', '78')).replace(' bps', '')} bps (Greenium: -5 bps)",
+                "spread": str(current_ov.get("spread") or f"Mid-swap + {str(current_ov.get('credit_spread_5y') or bundle.get('credit_spread_5y', '78')).replace(' bps', '')} bps (Greenium: -5 bps)"),
             "documentation": "Green Bond Framework / EMTN Prospectus"
         }
-        base_s8_leg2 = {
+        s8_leg2 = {
             "instrument": "Sustainability Overlay",
-            "notional": bundle.get("notional_swap", "EUR 400,000,000"),
+            "notional": current_ov.get("notional_swap") or bundle.get("notional_swap", "EUR 400,000,000"),
             "tenor": "Annual SPT verification window",
             "benchmark": "Scope 1 & 2 Decarbonisation KPI",
             "spread": "+/- 5 bps SPT step-up / step-down",
@@ -1491,17 +1491,17 @@ def copilot_chat_endpoint(req: CopilotMessage):
             "strategic_recommendation": bundle.get("next_best_action") or "Implement structured zero-cost collar across 4 quarterly tranches."
         }
         s8_title = "08. FX Hedging Term Sheet"
-        base_s8_leg1 = {
+        s8_leg1 = {
             "instrument": "Zero-Cost Participating Collar",
-            "notional": bundle.get("notional_bond", "USD 500,000,000"),
-            "tenor": bundle.get("tenor", "12 Months (Layered Tranches)"),
+            "notional": current_ov.get("notional_bond", "USD 500,000,000"),
+            "tenor": current_ov.get("tenor", "12 Months (Layered Tranches)"),
             "protection_floor": "1.0850 EUR/USD",
             "cap_strike": "1.0450 EUR/USD",
             "documentation": "ISDA Master Agreement / CSA"
         }
-        base_s8_leg2 = {
+        s8_leg2 = {
             "instrument": "Layered Roll Programme",
-            "notional": bundle.get("notional_swap", "USD 250,000,000"),
+            "notional": current_ov.get("notional_swap", "USD 250,000,000"),
             "tenor": "Quarterly Roll Window",
             "benchmark": "ECB Fixing / Forward Points",
             "spread": "Zero Upfront Premium",
@@ -1518,17 +1518,17 @@ def copilot_chat_endpoint(req: CopilotMessage):
             "strategic_recommendation": bundle.get("next_best_action") or "Lock swap spreads ahead of upcoming benchmark refinancing."
         }
         s8_title = "08. Rates Pre-Hedge Term Sheet"
-        base_s8_leg1 = {
+        s8_leg1 = {
             "instrument": "Senior EMTN Benchmark",
-            "notional": bundle.get("notional_bond", "EUR 2,000,000,000"),
-            "tenor": bundle.get("tenor", "6 Years (T + 6Y)"),
+            "notional": current_ov.get("notional_bond", "EUR 2,000,000,000"),
+            "tenor": current_ov.get("tenor", "6 Years (T + 6Y)"),
             "benchmark": "6Y EUR mid-swap",
-            "spread": "Mid-Swap + 65 bps",
+            "spread": current_ov.get("spread", "Mid-Swap + 65 bps"),
             "documentation": "EMTN Programme Prospectus"
         }
-        base_s8_leg2 = {
+        s8_leg2 = {
             "instrument": "Pre-Hedge Fixed-to-Floating IRS",
-            "notional": bundle.get("notional_swap", "EUR 1,200,000,000"),
+            "notional": current_ov.get("notional_swap", "EUR 1,200,000,000"),
             "tenor": "6 Years Amortising",
             "benchmark": "EURIBOR 6M vs Fixed 2.58%",
             "spread": "Flat Mid-Market",
@@ -1543,40 +1543,24 @@ def copilot_chat_endpoint(req: CopilotMessage):
             "strategic_recommendation": bundle.get("next_best_action") or "Smooth debt maturity profile through dual-tranche benchmark issuance."
         }
         s8_title = "08. Indicative Term Sheet"
-        base_s8_leg1 = {
+        s8_leg1 = {
             "instrument": "Senior EMTN Tranche",
-            "notional": bundle.get("notional_bond", "EUR 600,000,000"),
-            "tenor": bundle.get("tenor", "7 Years (T + 7Y)"),
+            "notional": current_ov.get("notional_bond") or bundle.get("notional_bond", "EUR 600,000,000"),
+            "tenor": current_ov.get("tenor", "7 Years (T + 7Y)"),
             "benchmark": "7Y EUR mid-swap",
-            "spread": f"Mid-Swap + {bundle.get('credit_spread_5y', '78 bps')}",
+            "spread": current_ov.get("spread") or f"Mid-Swap + {current_ov.get('credit_spread_5y') or bundle.get('credit_spread_5y', '78 bps')}",
             "documentation": "EMTN Programme / Prospectus"
         }
-        base_s8_leg2 = {
+        s8_leg2 = {
             "instrument": "Liquidity RCF / CP",
-            "notional": bundle.get("notional_swap", "EUR 400,000,000"),
+            "notional": current_ov.get("notional_swap") or bundle.get("notional_swap", "EUR 400,000,000"),
             "tenor": "3–5 Years Revolving",
             "benchmark": "EURIBOR",
             "spread": "EURIBOR + 45 bps",
             "documentation": "LMA Standard Facility Agreement"
         }
 
-    # Derive dynamic active legs with multi-variant key support
-    s8_leg1 = {
-        **base_s8_leg1,
-        **{k: v for k, v in [
-            ("notional", current_ov.get("notional_bond") or current_ov.get("notional_green_eur") or current_ov.get("notional")),
-            ("tenor", current_ov.get("tenor")),
-            ("spread", current_ov.get("spread")),
-        ] if v is not None}
-    }
-    s8_leg2 = {
-        **base_s8_leg2,
-        **{k: v for k, v in [
-            ("notional", current_ov.get("notional_swap") or current_ov.get("notional_slb_eur")),
-        ] if v is not None}
-    }
-
-        # Dynamic Slide 6 data resolution (Zero-Hardcoding)
+    # Dynamic Slide 6 data resolution (Zero-Hardcoding)
     _raw_spr = current_ov.get("spread") or current_ov.get("credit_spread_5y") or bundle.get("credit_spread_5y", "78")
     _m_spr = re.search(r"(\d+)", str(_raw_spr))
     s6_calc_spread_bps = int(_m_spr.group(1)) if _m_spr else 78
@@ -1640,7 +1624,7 @@ def copilot_chat_endpoint(req: CopilotMessage):
             "credit_spread_5y": bundle.get("credit_spread_5y") or bundle.get("spread_5y_bps", "78 bps"),
             "all_in_benchmark_yield": bundle.get("all_in_yield", "3.40%")
         },
-        "slide_8": {"title": s8_title, "leg_1": base_s8_leg1, "leg_2": base_s8_leg2},
+        "slide_8": {"title": s8_title, "leg_1": s8_leg1, "leg_2": s8_leg2},
         "slide_9": {"title": "09. Why Execute With Us"},
         "slide_10": {"title": "10. Execution Roadmap" if not is_green else "10. SPO & Syndicate Plan"},
         "slide_11": {"title": "11. Regulatory Disclosures" if not is_green else "11. ICMA Disclosures"}
@@ -1736,18 +1720,7 @@ RESPONSE ARCHITECTURE & STYLE GUIDELINES:
        "green_asset_pool_status": "100% EU Taxonomy Aligned (€3,500M SPO Verified)"
      }}
 4. **Absolute Grounding**: Reference the active product family ({p_family}) and numbers from the active deck above.
-5. **Parameter Mutations & Canonical Key Contract**:
-   When updating or reverting parameters, explain the structuring rationale in "reply" and map user intent strictly to these canonical keys inside "overrides":
-   - "notional_bond": Tranche 1 / Green Bond / Senior EMTN / Collar Notional (e.g. "EUR 800,000,000", "USD 500,000,000")
-   - "notional_swap": Tranche 2 / SLB / Swap Overlay Notional (e.g. "EUR 400,000,000", "USD 250,000,000")
-   - "tenor": Tenor or maturity for Tranche 1 (e.g. "12 Years (T + 12Y)", "10 Years (T + 10Y)")
-   - "eur_green_spread": Indicative Green spread (e.g. "Mid-Swap + 70 bps")
-   - "greenium_bps": Greenium delta vs conventional baseline as an integer (e.g. 8)
-   - "itraxx_main": iTraxx Europe Main CDS spread (e.g. "65 bps")
-   - "ecb_rate": ECB refinancing / deposit rate (e.g. "2.50%")
-   - "protection_floor": FX collar floor strike (FX only)
-   - "cap_strike": FX collar cap strike (FX only)
-   Always emit exact formatted strings (e.g. write "EUR 800,000,000" rather than "EUR 800M"). Never invent non-standard keys like "notional", "green_notional", or "tranche_size".
+5. **Parameter Mutations**: If the user requests updates (e.g. changing notional, tenor, spread, or trigger), explain the structuring impact in "reply" and return the updated key-value pairs in "overrides".
 6. **Dynamic Revert & Reset Handling (Universal & Grounded)**:
    When the user asks to revert, reset, or restore any metrics, slides, or benchmarks to baseline or original:
    - Do NOT assume the current active slide values are baseline.
@@ -1813,34 +1786,6 @@ Do not include Markdown code fences around the JSON object."""
                             flat_ov["ecb_rate"] = flat_ov["ecb_refi_rate"]
                         if "green_spread" in flat_ov and "eur_green_spread" not in flat_ov:
                             flat_ov["eur_green_spread"] = flat_ov["green_spread"]
-
-                        # Dynamic Slide 6 Greenium & Spread parity normalization (Zero-Hardcoding)
-                        _base_spr_num = s6_calc_spread_bps
-                        if "greenium_bps" in flat_ov:
-                            try:
-                                g_m = re.search(r"(\d+)", str(flat_ov["greenium_bps"]))
-                                if g_m:
-                                    g_num = int(g_m.group(1))
-                                    flat_ov["greenium_bps"] = g_num
-                                    if "greenium_concession" not in flat_ov:
-                                        flat_ov["greenium_concession"] = f"-{g_num} bps"
-                                    if "eur_green_spread" not in flat_ov:
-                                        flat_ov["eur_green_spread"] = f"{_base_spr_num - g_num} bps"
-                            except Exception:
-                                pass
-                        elif any(k in flat_ov for k in ["green_spread", "eur_green_spread", "spread"]):
-                            spr_val = flat_ov.get("green_spread") or flat_ov.get("eur_green_spread") or flat_ov.get("spread")
-                            m_val = re.search(r"(\d+)", str(spr_val))
-                            if m_val:
-                                spr_int = int(m_val.group(1))
-                                if spr_int < _base_spr_num:
-                                    g_delta = _base_spr_num - spr_int
-                                    flat_ov["greenium_bps"] = g_delta
-                                    flat_ov["greenium_concession"] = f"-{g_delta} bps"
-                                elif spr_int <= 20:
-                                    flat_ov["greenium_bps"] = spr_int
-                                    flat_ov["greenium_concession"] = f"-{spr_int} bps"
-                                    flat_ov["eur_green_spread"] = f"{_base_spr_num - spr_int} bps"
                         if "liquidity" in flat_ov and "liquidity_str" not in flat_ov:
                             flat_ov["liquidity_str"] = flat_ov["liquidity"]
                         if "net_debt" in flat_ov and "net_debt_str" not in flat_ov:

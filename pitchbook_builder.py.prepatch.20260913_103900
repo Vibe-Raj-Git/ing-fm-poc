@@ -338,19 +338,7 @@ def fetch_pitchbook_bundle(canonical_id, client_id_raw, get_db_connection):
             actual_cid = cm_row[0]
             ctx["client_id"] = actual_cid
             if cm_row[1]: ctx["client_name"] = cm_row[1]
-            if cm_row[2]:
-                # Override with primary Relationship Manager from coverage_teams
-                try:
-                    cur.execute("""
-                        SELECT banker_name FROM ca.coverage_teams
-                        WHERE client_id = %s AND role_title ILIKE %s
-                        LIMIT 1;
-                    """, (actual_cid, '%Relationship Manager%'))
-                    rm_row = cur.fetchone()
-                    ctx["rm_name"] = rm_row[0] if (rm_row and rm_row[0]) else cm_row[2]
-                except Exception as e_rm:
-                    logger.warning(f"coverage_teams RM lookup failed for {actual_cid}: {e_rm}")
-                    ctx["rm_name"] = cm_row[2]
+            if cm_row[2]: ctx["rm_name"] = cm_row[2]
             if cm_row[3] and float(cm_row[3]) > 0:
                 ctx["revenue_str"] = f"€{float(cm_row[3]):,.0f}M"
             ctx["tier"] = cm_row[4] or "Tier 1"

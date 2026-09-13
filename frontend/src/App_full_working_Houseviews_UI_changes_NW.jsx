@@ -1827,7 +1827,7 @@ ${chip.preview}`}
                                <div className="flex flex-wrap gap-1 mb-2">
                                  <span 
                                    className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-purple-50 text-purple-900 border border-purple-200 cursor-help hover:bg-purple-100"
-                                   title={`Source: ${opp.hv_doc_title || "Ingested Document"}\n${(opp.hv_doc_summary || "").slice(0, 160)}${(opp.hv_doc_summary || "").length > 160 ? "..." : ""}`}
+                                   title="ING FM Strategy Publication: European Utilities Sector Outlook Q3 2026"
                                  >
                                    📄 {opp.hv_doc_title || "ING_Utilities_Strategy_Q3.pdf"}
                                  </span>

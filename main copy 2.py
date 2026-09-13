@@ -607,19 +607,6 @@ def get_opportunities():
                 cid_str = str(cid)
                 name_str = str(name)
 
-                # Resolve primary Relationship Manager from coverage_teams
-                try:
-                    cur.execute("""
-                        SELECT banker_name FROM ca.coverage_teams
-                        WHERE client_id = %s AND role_title ILIKE %s
-                        LIMIT 1;
-                    """, (cid_str, '%Relationship Manager%'))
-                    rm_team_row = cur.fetchone()
-                    if rm_team_row and rm_team_row[0]:
-                        rm = rm_team_row[0]
-                except Exception as e_rm:
-                    logger.warning(f"coverage_teams RM lookup failed for {cid_str}: {e_rm}")
-
                 # Client-specific credit spreads
                 credit_spreads = {}
                 first_word = name_str.split()[0].replace(',', '').strip() if name_str else ""
@@ -674,8 +661,8 @@ def get_opportunities():
                 cf_latent = "Pre-hedge interest rate swap window and bond issuance advisory."
                 cf_author = "Luca Moretti (DCM Origination)"
                 attrib_author = "Luca Moretti (DCM Origination)"
-                hv_doc_title = "ING FM Research"
-                hv_doc_summary = "No ING houseview published for this client in the current reporting cycle."
+                hv_doc_title = "ING_Utilities_Strategy_Q3.pdf"
+                hv_doc_summary = "ING Strategy Desk: Utilities sector debt wall favors pre-hedging 2026-2027 tenors at 2.62% 5Y EUR swap benchmark."
                 news_source = "Capital Market News / Bloomberg"
                 news_headline = f"{name_str} capital markets update: Monitoring debt maturity wall and rate pre-hedge window."
                 
@@ -780,24 +767,12 @@ def get_opportunities():
                     cur.execute("""
                         SELECT text_content, source_name, structured_metadata 
                         FROM ca.document_vector_chunks 
-                            WHERE client_id = %s AND source_channel IN ('PDF_REPORT', 'HOUSEVIEW')
+                            WHERE client_id = %s AND source_channel IN ('PDF_REPORT', 'ANALYST_NOTE', 'RESEARCH_NOTE', 'HOUSEVIEW')
                         ORDER BY created_at DESC, chunk_id DESC 
                         LIMIT 1;
                     """, (cid_str,))
                     hv_row = cur.fetchone()
                     if hv_row:
-                        # Populate chip label from the DB row's source_name
-                        if hv_row[1]:
-                            hv_doc_title = str(hv_row[1])
-                        # Prefer executive_summary from metadata; fall back to truncated text
-                        meta_pre = hv_row[2] if isinstance(hv_row[2], dict) else {}
-                        exec_sum = meta_pre.get("executive_summary") if meta_pre else None
-                        if exec_sum:
-                            hv_doc_summary = str(exec_sum).strip()
-                        elif hv_row[0]:
-                            raw_txt = str(hv_row[0]).strip()
-                            hv_doc_summary = raw_txt[:200] + ("..." if len(raw_txt) > 200 else "")
-
                         meta = hv_row[2]
                         if meta and isinstance(meta, dict) and meta.get("detected_signals"):
                             sigs = meta.get("detected_signals")
@@ -1112,18 +1087,7 @@ def ingest_text_signal(req: TextIngestRequest):
     cname = bundle.get("client_name", "Corporate Client")
 
     # Smart Channel & Author Normalization
-    # Documents uploaded through the Houseviews (PDF/PPTX) tab
-    _sname_lower = str(raw_sname or "").lower()
-    is_document_upload = (
-        _sname_lower.endswith(".pdf")
-        or _sname_lower.endswith(".pptx")
-        or raw_chan == "DOCUMENT UPLOAD"
-    )
-
-    if is_document_upload:
-        channel = "PDF_REPORT"
-        sname = raw_sname if raw_sname else "Ingested Document"
-    elif "TEAMS" in raw_chan or "TEAMS" in text.upper() or "LUCA MORETTI (DCM" in text.upper() or "GIULIA ROMANO (RM)" in text.upper():
+    if "TEAMS" in raw_chan or "TEAMS" in text.upper() or "LUCA MORETTI (DCM" in text.upper() or "GIULIA ROMANO (RM)" in text.upper():
         channel = "TEAMS_CHAT"
         sname = raw_sname if raw_sname and raw_sname != "Client Inbound Touchpoint" else "European Utilities Coverage (#deal-coverage-enel)"
     elif "EMAIL" in raw_chan or "FROM:" in text.upper() or "SUBJECT:" in text.upper() or "FABIO TAGLIAFERRI" in text.upper():
@@ -1530,14 +1494,13 @@ def copilot_chat_endpoint(req: CopilotMessage):
             "spread": f"Mid-swap + {str(bundle.get('credit_spread_5y', '78')).replace(' bps', '')} bps (Greenium: -5 bps)",
             "documentation": "Green Bond Framework / EMTN Prospectus"
         }
-        bund_10y_val = bundle.get("bund_10y_yield", "2.61%")
         base_s8_leg2 = {
-            "instrument": "Sustainability-Linked Tranche",
+            "instrument": "Sustainability Overlay",
             "notional": bundle.get("notional_swap", "EUR 400,000,000"),
-            "tenor": "10 Years (T + 10Y)",
-            "benchmark": f"10Y German Bund ({bund_10y_val}) / EUR mid-swap",
-            "spread": "Mid-swap + 80 bps (-2 bps vs baseline, +/- 25 bps SPT)",
-            "documentation": "Sustainability-Linked Framework / EMTN Prospectus"
+            "tenor": "Annual SPT verification window",
+            "benchmark": "Scope 1 & 2 Decarbonisation KPI",
+            "spread": "+/- 5 bps SPT step-up / step-down",
+            "documentation": "ICMA Green Bond Principles + SPO"
         }
     elif is_fx:
         s4_card3_label = "Unhedged FX Gap"
@@ -1633,7 +1596,6 @@ def copilot_chat_endpoint(req: CopilotMessage):
         **base_s8_leg2,
         **{k: v for k, v in [
             ("notional", current_ov.get("notional_swap") or current_ov.get("notional_slb_eur")),
-            ("tenor", current_ov.get("tenor_leg2")),
         ] if v is not None}
     }
 

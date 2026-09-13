@@ -1701,7 +1701,7 @@ export default function App() {
                                 </div>
                                 <div className="flex justify-between pt-1 border-t border-gray-100">
                                   <span className="text-gray-600 font-bold">Potential debt maturities within 24 months:</span>
-                                  <span className="font-extrabold text-[#FF6200]">{opp.id === 'CLI101' || opp.name?.includes('Enel') ? '€10.13bn' : (opp.debt_maturing_24m_str || '€10.13bn')}</span>
+                                  <span className="font-extrabold text-[#FF6200]">{opp.id === 'CLI101' || opp.name?.includes('Enel') ? '€10.127bn' : (opp.debt_maturing_24m_str || '€10.127bn')}</span>
                                 </div>
                               </div>
                             </div>
@@ -1827,7 +1827,7 @@ ${chip.preview}`}
                                <div className="flex flex-wrap gap-1 mb-2">
                                  <span 
                                    className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-purple-50 text-purple-900 border border-purple-200 cursor-help hover:bg-purple-100"
-                                   title={`Source: ${opp.hv_doc_title || "Ingested Document"}\n${(opp.hv_doc_summary || "").slice(0, 160)}${(opp.hv_doc_summary || "").length > 160 ? "..." : ""}`}
+                                   title="ING FM Strategy Publication: European Utilities Sector Outlook Q3 2026"
                                  >
                                    📄 {opp.hv_doc_title || "ING_Utilities_Strategy_Q3.pdf"}
                                  </span>
@@ -1913,7 +1913,7 @@ ${chip.preview}`}
                                </div>
                                <div className="bg-purple-50/60 border border-purple-200 rounded p-1.5" title="ca.document_vector_chunks">
                                  <span className="text-purple-700 block text-[8.5px] font-bold uppercase">4. Houseview / News</span>
-                                 <span className="font-bold text-purple-950 truncate block">{opp.houseview_label || "Loading DB..."}</span>
+                                 <span className="font-bold text-purple-950 truncate block">$2.5B Tranche + Pre-Hedge</span>
                                </div>
                              </div>
                            </div>

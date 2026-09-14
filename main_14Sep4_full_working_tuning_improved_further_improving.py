@@ -71,13 +71,6 @@ from pitchbook_builder import fetch_pitchbook_bundle, build_pitchbook
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ing_fm_backend")
 
-
-def _format_signal_type(raw_type) -> str:
-    """Normalise signal_type for display: underscores -> spaces, uppercase."""
-    if not raw_type:
-        return "CATALYST"
-    return str(raw_type).replace("_", " ").upper()
-
 # Module-level TTL cache for mandate synthesis.
 # Key: client_id  ->  Value: (expiry_epoch_seconds, why_now, action)
 # Entries refresh automatically once the TTL elapses.
@@ -94,12 +87,10 @@ _MANDATE_SYNTH_CACHE_TTL = 300  # seconds (5 minutes)
 # To add another client to the demo (e.g. BASF, Ørsted):
 #   1. Add its client_id to the set below, e.g.:
 #         _DEMO_CLIENT_IDS = {"CLI101", "CLI103"}
-#         _DEMO_CLIENT_IDS = {"CLI101"}
 #      (CLI103 = BASF SE, CLI001 = Ørsted A/S, CLI003 = Stellantis N.V.,
 #       CLI102 = ASML, etc. See ca.client_master for the full mapping.)
 #   2. Mirror the same ID in frontend/src/App.jsx:
-#         const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"]; 
-#         const ACTIVE_UI_CLIENT_IDS = {"CLI101"};
+#         const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"];
 #   3. Optionally ingest signals / houseviews for the new client so the
 #      synthesis has material to work with.
 #
@@ -325,36 +316,21 @@ def get_live_signals():
     if conn:
         try:
             cur = conn.cursor()
-            # Filter to demo clients only (see _DEMO_CLIENT_IDS).
-            _sig_demo_ids = list(_DEMO_CLIENT_IDS)
-            if not _sig_demo_ids:
-                _sig_demo_ids = ["__none__"]
-
             cur.execute("""
                 SELECT DISTINCT ON (s.signal_id)
                     s.signal_id,
                     s.client_id,
                     COALESCE(c.client_name, s.client_id) as client_name,
                     s.signal_type,
-                    COALESCE(
-                    CASE
-                        WHEN LENGTH(COALESCE(s.metric_identified, '')) < 20 THEN s.trigger_summary
-                        ELSE s.metric_identified
-                    END,
-                    s.metric_identified,
-                    s.trigger_summary,
-                    s.description,
-                    'Market Catalyst'
-                ) as headline,
+                    COALESCE(s.metric_identified, s.trigger_summary, s.description, 'Market Catalyst') as headline,
                     s.confidence_pct,
                     s.urgency,
                     s.created_at
                 FROM ca.digital_twin_signals s
                 LEFT JOIN ca.client_master c ON (s.client_id = c.client_id)
-                WHERE s.client_id = ANY(%s)
                 ORDER BY s.signal_id, s.created_at DESC
                 LIMIT 40;
-            """, (_sig_demo_ids,))
+            """)
             rows = cur.fetchall()
             now_dt = datetime.now()
             
@@ -396,7 +372,7 @@ def get_live_signals():
                     "id": str(sig_id),
                     "client_id": cid_str,
                     "client_name": cname_str,
-                    "type": _format_signal_type(stype),
+                    "type": str(stype or "CATALYST").upper(),
                     "text": f"{cname_str}: {headline}",
                     "headline": str(headline),
                     "confidence": int(conf or 90),
@@ -441,16 +417,7 @@ def get_live_signals():
                     s.client_id,
                     COALESCE(c.client_name, s.client_id) as client_name,
                     s.signal_type,
-                    COALESCE(
-                    CASE
-                        WHEN LENGTH(COALESCE(s.metric_identified, '')) < 20 THEN s.trigger_summary
-                        ELSE s.metric_identified
-                    END,
-                    s.metric_identified,
-                    s.trigger_summary,
-                    s.description,
-                    'Market Catalyst'
-                ) as headline,
+                    COALESCE(s.metric_identified, s.trigger_summary, s.description, 'Market Catalyst') as headline,
                     s.confidence_pct,
                     s.urgency,
                     s.created_at
@@ -486,7 +453,7 @@ def get_live_signals():
                     "id": str(sig_id),
                     "client_id": str(cid),
                     "client_name": str(cname),
-                    "type": _format_signal_type(stype),
+                    "type": str(stype or "CATALYST").upper(),
                     "text": f"{cname}: {headline}",
                     "headline": str(headline),
                     "confidence": int(conf or 90),
@@ -994,7 +961,7 @@ def get_opportunities():
                         # Drift guard: if the LLM output introduces tenors that conflict
                         # with the anchor's tenors, replace the LLM output with the anchor.
                         # -----------------------------------------------------------------
-                        _anchor_action = str(action or "").strip()
+                        _anchor_action = str(current_action or "").strip()
                         if _anchor_action and _anchor_action != "(not yet curated)":
                             _anchor_has_7Y = "7Y" in _anchor_action or "7 Years" in _anchor_action
                             _anchor_has_10Y = "10Y" in _anchor_action or "10 Years" in _anchor_action
@@ -1003,7 +970,7 @@ def get_opportunities():
                             if (_anchor_has_7Y and _out_has_8Y) or (_anchor_has_10Y and _out_has_12Y):
                                 logger.warning(f"Tenor drift detected for {cid_str}: LLM produced 8Y/12Y vs anchor 7Y/10Y. Overriding with anchor.")
                                 final_action = _anchor_action
-                            _anchor_why = str(why_now or "").strip()
+                            _anchor_why = str(current_why_now or "").strip()
                             if _anchor_why and _anchor_why != "(not yet curated)":
                                 final_why_now = final_why_now  # keep LLM's why_now (usually fine)
 

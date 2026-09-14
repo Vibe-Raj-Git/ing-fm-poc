@@ -137,8 +137,6 @@ class ErrorBoundary extends React.Component {
 // =============================================================================
 
 // Whitelisted Client IDs for UI presentation (Backend DB retains all clients)
-// const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
-// const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"];
 const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
 
 export default function App() {

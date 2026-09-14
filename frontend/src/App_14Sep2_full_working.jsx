@@ -137,8 +137,6 @@ class ErrorBoundary extends React.Component {
 // =============================================================================
 
 // Whitelisted Client IDs for UI presentation (Backend DB retains all clients)
-// const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
-// const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"];
 const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
 
 export default function App() {
@@ -1663,10 +1661,7 @@ export default function App() {
                         >
                           OPPORTUNITY: {opp.type}
                         </span>
-                        <div
-                          className="text-right cursor-help"
-                          title="LLM-generated priority estimate (0–100). High ≥ 85 · Medium 70–84 · Low < 70."
-                        >
+                        <div className="text-right">
                           <p className="text-[10px] text-gray-400 font-medium">Match confidence</p>
                           <p className="text-xs font-bold text-amber-800">{opp.score}</p>
                         </div>

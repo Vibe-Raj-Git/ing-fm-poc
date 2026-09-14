@@ -71,43 +71,6 @@ from pitchbook_builder import fetch_pitchbook_bundle, build_pitchbook
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ing_fm_backend")
 
-
-def _format_signal_type(raw_type) -> str:
-    """Normalise signal_type for display: underscores -> spaces, uppercase."""
-    if not raw_type:
-        return "CATALYST"
-    return str(raw_type).replace("_", " ").upper()
-
-# Module-level TTL cache for mandate synthesis.
-# Key: client_id  ->  Value: (expiry_epoch_seconds, why_now, action)
-# Entries refresh automatically once the TTL elapses.
-_MANDATE_SYNTH_CACHE = {}
-_MANDATE_SYNTH_CACHE_TTL = 300  # seconds (5 minutes)
-
-# ---------------------------------------------------------------------------
-# DEMO CLIENT WHITELIST
-# ---------------------------------------------------------------------------
-# Only clients listed here get LLM synthesis for the mandate narrative
-# (why_now / action). All other clients read their curated DB row directly
-# from ca.ca_opportunity_scoring — no Gemini call is made for them.
-#
-# To add another client to the demo (e.g. BASF, Ørsted):
-#   1. Add its client_id to the set below, e.g.:
-#         _DEMO_CLIENT_IDS = {"CLI101", "CLI103"}
-#         _DEMO_CLIENT_IDS = {"CLI101"}
-#      (CLI103 = BASF SE, CLI001 = Ørsted A/S, CLI003 = Stellantis N.V.,
-#       CLI102 = ASML, etc. See ca.client_master for the full mapping.)
-#   2. Mirror the same ID in frontend/src/App.jsx:
-#         const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"]; 
-#         const ACTIVE_UI_CLIENT_IDS = {"CLI101"};
-#   3. Optionally ingest signals / houseviews for the new client so the
-#      synthesis has material to work with.
-#
-# Both lists must stay in sync — the backend whitelist controls synthesis,
-# the frontend whitelist controls rendering.
-# ---------------------------------------------------------------------------
-_DEMO_CLIENT_IDS = {"CLI101"}
-
 app = FastAPI(title="ING FM Insights API", version="1.0.0")
 
 app.add_middleware(
@@ -325,36 +288,21 @@ def get_live_signals():
     if conn:
         try:
             cur = conn.cursor()
-            # Filter to demo clients only (see _DEMO_CLIENT_IDS).
-            _sig_demo_ids = list(_DEMO_CLIENT_IDS)
-            if not _sig_demo_ids:
-                _sig_demo_ids = ["__none__"]
-
             cur.execute("""
                 SELECT DISTINCT ON (s.signal_id)
                     s.signal_id,
                     s.client_id,
                     COALESCE(c.client_name, s.client_id) as client_name,
                     s.signal_type,
-                    COALESCE(
-                    CASE
-                        WHEN LENGTH(COALESCE(s.metric_identified, '')) < 20 THEN s.trigger_summary
-                        ELSE s.metric_identified
-                    END,
-                    s.metric_identified,
-                    s.trigger_summary,
-                    s.description,
-                    'Market Catalyst'
-                ) as headline,
+                    COALESCE(s.metric_identified, s.trigger_summary, s.description, 'Market Catalyst') as headline,
                     s.confidence_pct,
                     s.urgency,
                     s.created_at
                 FROM ca.digital_twin_signals s
                 LEFT JOIN ca.client_master c ON (s.client_id = c.client_id)
-                WHERE s.client_id = ANY(%s)
                 ORDER BY s.signal_id, s.created_at DESC
                 LIMIT 40;
-            """, (_sig_demo_ids,))
+            """)
             rows = cur.fetchall()
             now_dt = datetime.now()
             
@@ -396,7 +344,7 @@ def get_live_signals():
                     "id": str(sig_id),
                     "client_id": cid_str,
                     "client_name": cname_str,
-                    "type": _format_signal_type(stype),
+                    "type": str(stype or "CATALYST").upper(),
                     "text": f"{cname_str}: {headline}",
                     "headline": str(headline),
                     "confidence": int(conf or 90),
@@ -441,16 +389,7 @@ def get_live_signals():
                     s.client_id,
                     COALESCE(c.client_name, s.client_id) as client_name,
                     s.signal_type,
-                    COALESCE(
-                    CASE
-                        WHEN LENGTH(COALESCE(s.metric_identified, '')) < 20 THEN s.trigger_summary
-                        ELSE s.metric_identified
-                    END,
-                    s.metric_identified,
-                    s.trigger_summary,
-                    s.description,
-                    'Market Catalyst'
-                ) as headline,
+                    COALESCE(s.metric_identified, s.trigger_summary, s.description, 'Market Catalyst') as headline,
                     s.confidence_pct,
                     s.urgency,
                     s.created_at
@@ -486,7 +425,7 @@ def get_live_signals():
                     "id": str(sig_id),
                     "client_id": str(cid),
                     "client_name": str(cname),
-                    "type": _format_signal_type(stype),
+                    "type": str(stype or "CATALYST").upper(),
                     "text": f"{cname}: {headline}",
                     "headline": str(headline),
                     "confidence": int(conf or 90),
@@ -528,43 +467,24 @@ def synthesize_mandate_catalyst(
     news_headline: str,
     latent_opps: list = None,
     base_why_now: str = "",
-    base_action: str = "",
-    all_signals: list = None,
-    current_why_now: str = "",
-    current_action: str = ""
+    base_action: str = ""
 ) -> dict:
     latent_str = "; ".join(latent_opps) if latent_opps else "Capital structure optimization and hedging review"
-    current_why_now = (current_why_now or "").strip() or "(not yet curated)"
-    current_action = (current_action or "").strip() or "(not yet curated)"
-    if all_signals:
-        _signals_block = "\n".join([
-            f"- [{s.get('catalog_family', '')}] {s.get('signal_type', '')}: {s.get('trigger_summary', '')} (conf {s.get('confidence_pct', '')}%)"
-            for s in all_signals[:20]
-        ])
-    else:
-        _signals_block = "(no accumulated signals available)"
     liq_bn = f"{liquidity_eur_m / 1000.0:.1f}bn" if liquidity_eur_m >= 1000 else f"{liquidity_eur_m:,.0f}M"
     mat_bn = f"{debt_maturing_24m_eur_m / 1000.0:.2f}bn" if debt_maturing_24m_eur_m >= 1000 else f"{debt_maturing_24m_eur_m:,.0f}M"
     swap_5y = market_metrics.get("swap_5y", "2.62%")
     credit_spr = market_metrics.get("credit_spread", "78 bps")
 
     if "SUSTAINABLE" in product_family.upper() or "GREEN" in product_family.upper():
-        # Prefer the curated anchor if available; fall back to a generic template
-        if current_why_now and current_why_now.strip() and current_why_now.strip() != "(not yet curated)":
-            fallback_why = current_why_now.strip()
-        else:
-            fallback_why = (
-                f"{client_name} faces a concentrated €{mat_bn} debt maturity wall across 2026–2027 against a €{liq_bn} liquidity buffer. "
-                f"With 5Y euro swap benchmarks at {swap_5y} and spreads at {credit_spr}, "
-                f"an immediate refinancing window locks in multi-year duration before anticipated benchmark revisions."
-            )
-        if current_action and current_action.strip() and current_action.strip() != "(not yet curated)":
-            fallback_act = current_action.strip()
-        else:
-            fallback_act = (
-                f"Execute a €600M 7Y Green EMTN at Mid-swap + 73 bps (net of 5 bps greenium) and a €400M 10Y Sustainability-Linked Bond, "
-                f"leveraging their €3.5B eligible green asset pool under the €12.0bn Board authorization, paired with a €500M swap pre-hedge overlay."
-            )
+        fallback_why = (
+            f"{client_name} faces a concentrated €{mat_bn} debt maturity wall across 2026–2027 against a €{liq_bn} liquidity buffer. "
+            f"With 5Y euro swap benchmarks at {swap_5y} and spreads at {credit_spr}, "
+            f"an immediate refinancing window locks in multi-year duration before anticipated benchmark revisions."
+        )
+        fallback_act = (
+            f"Execute a €1.0B Dual-Tranche Senior Unsecured issuance (€600M 8Y Green at Mid-swap + 73 bps net of 5 bps greenium + €400M 12Y SLB), "
+            f"leveraging their €3.5B eligible green asset pool under the €12.0bn Board authorization, paired with a €500M swap pre-hedge overlay."
+        )
     else:
         fallback_why = (
             f"{client_name} is navigating a €{mat_bn} maturity profile against €{liq_bn} in available liquidity. "
@@ -588,22 +508,6 @@ Synthesize the provided database-grounded signals into two authoritative, desk-r
 CLIENT: {client_name}
 TARGET PRODUCT FAMILY: {product_family}
 
-=========================================================================
-MANDATORY STRUCTURE — READ THIS FIRST. THIS OVERRIDES ALL OTHER INPUTS.
-=========================================================================
-The following is ING's current proposal. Every number in it — tranche sizes,
-tenors, and structure — is a business decision already made by the desk.
-Your synthesis MUST preserve these exact values. Do not change them, even
-if the signals below reference different tenors or notionals.
-
-why_now (current): {current_why_now}
-action  (current): {current_action}
-
-If the signals below mention different tenors (e.g. 8Y or 12Y) or notionals
-(e.g. €750M), IGNORE those conflicting values. The proposal above is the
-single source of truth.
-=========================================================================
-
 GROUNDED INPUT SIGNALS (4 FEEDS):
 1. Balance Sheet & Liquidity: Available Liquidity €{liq_bn} | 2026–2027 Maturity Wall €{mat_bn}
 2. Market DB Benchmarks: 5Y EUR Swap: {swap_5y} | Credit Spread: {credit_spr} | Benchmark Spread: 78 bps | Indicative Greenium: -5 bps
@@ -613,8 +517,9 @@ GROUNDED INPUT SIGNALS (4 FEEDS):
 ACTIVE SIGNALS & LATENT OPPORTUNITIES:
 - {latent_str}
 
-ACCUMULATED SIGNALS FOR THIS CLIENT (most recent first):
-{_signals_block}
+PRODUCT BLUEPRINT CONTEXT:
+- For Sustainable Funding / Enel: Recommend €1.0B Dual-Tranche Senior Unsecured (€600M 8Y Green at Mid-swap + 73 bps net of -5 bps greenium + €400M 12Y SLB), backed by €3.5B green asset pool within €12.0bn Board envelope, paired with a €500M swap pre-hedge.
+- For other clients/products: Derive specific structuring, tenors, and derivative overlays directly from the client inputs and market metrics above.
 
 INSTRUCTIONS:
 Output a valid JSON object with exactly two keys:
@@ -940,33 +845,19 @@ def get_opportunities():
                 bund_10y = mkt_curves.get("10Y", {}).get("bund")
                 swap_7y = mkt_curves.get("7Y", {}).get("swap")
 
-                # Always-on synthesis from accumulated signals, cached per client with TTL
-                import time as _time_mod
-                _now_ts = _time_mod.time()
-                _cached_entry = _MANDATE_SYNTH_CACHE.get(cid_str)
+                # Universal LLM synthesis: Trigger Gemini if narration is missing, short, or flags stale keywords
+                is_stale = (
+                    not why_now or 
+                    not action or
+                    "planning window" in str(why_now).lower() or
+                    "holistic review" in str(action).lower() or
+                    "corporate treasury assesses" in str(why_now).lower() or 
+                    "active balance sheet review" in str(why_now).lower() or
+                    len(str(why_now).strip()) < 40
+                )
 
-                if _cached_entry and _cached_entry[0] > _now_ts:
-                    final_why_now, final_action = _cached_entry[1], _cached_entry[2]
-                    logger.info(f"Mandate synthesis cache HIT for {cid_str}")
-                elif GENAI_AVAILABLE and cid_str in _DEMO_CLIENT_IDS:
+                if is_stale and GENAI_AVAILABLE:
                     try:
-                        cur.execute("""
-                            SELECT signal_type, trigger_summary, metric_identified, catalog_family, confidence_pct
-                            FROM ca.digital_twin_signals
-                            WHERE client_id = %s
-                            ORDER BY created_at DESC
-                            LIMIT 20;
-                        """, (cid_str,))
-                        _all_signals = [
-                            {
-                                "signal_type": r[0],
-                                "trigger_summary": r[1],
-                                "metric_identified": r[2],
-                                "catalog_family": r[3],
-                                "confidence_pct": r[4]
-                            } for r in cur.fetchall()
-                        ]
-
                         synth_metrics = {
                             "swap_5y": swap_5y or "2.62%",
                             "bund_10y": bund_10y or "2.61%",
@@ -982,35 +873,12 @@ def get_opportunities():
                             news_headline=str(news_headline or ""),
                             latent_opps=cf_latent_list,
                             base_why_now=str(why_now or ""),
-                            base_action=str(action or ""),
-                            all_signals=_all_signals,
-                            current_why_now=str(why_now or ""),
-                            current_action=str(action or "")
+                            base_action=str(action or "")
                         )
-                        final_why_now = synth.get("why_now") or why_now or f"Active funding assessment for {name_str}."
-                        final_action = synth.get("action") or action or "Review opportunity and schedule coverage call."
+                        final_why_now = synth.get("why_now") or why_now
+                        final_action = synth.get("action") or action
 
-                        # -----------------------------------------------------------------
-                        # Drift guard: if the LLM output introduces tenors that conflict
-                        # with the anchor's tenors, replace the LLM output with the anchor.
-                        # -----------------------------------------------------------------
-                        _anchor_action = str(action or "").strip()
-                        if _anchor_action and _anchor_action != "(not yet curated)":
-                            _anchor_has_7Y = "7Y" in _anchor_action or "7 Years" in _anchor_action
-                            _anchor_has_10Y = "10Y" in _anchor_action or "10 Years" in _anchor_action
-                            _out_has_8Y = "8Y" in final_action or "8 Years" in final_action
-                            _out_has_12Y = "12Y" in final_action or "12 Years" in final_action
-                            if (_anchor_has_7Y and _out_has_8Y) or (_anchor_has_10Y and _out_has_12Y):
-                                logger.warning(f"Tenor drift detected for {cid_str}: LLM produced 8Y/12Y vs anchor 7Y/10Y. Overriding with anchor.")
-                                final_action = _anchor_action
-                            _anchor_why = str(why_now or "").strip()
-                            if _anchor_why and _anchor_why != "(not yet curated)":
-                                final_why_now = final_why_now  # keep LLM's why_now (usually fine)
-
-                        _MANDATE_SYNTH_CACHE[cid_str] = (_now_ts + _MANDATE_SYNTH_CACHE_TTL, final_why_now, final_action)
-                        logger.info(f"Mandate synthesis cache MISS for {cid_str}, refreshed (TTL {_MANDATE_SYNTH_CACHE_TTL}s)")
-
-                        # Persist fresh synthesis so pitchbook/copilot/compliance read the same value
+                        # Persist synthesized narrative back to ca_opportunity_scoring for high-speed subsequent requests
                         try:
                             cur.execute("""
                                 UPDATE ca.ca_opportunity_scoring
@@ -1018,12 +886,11 @@ def get_opportunities():
                                 WHERE client_id = %s;
                             """, (final_why_now, final_action, cid_str))
                             conn.commit()
-                            logger.info(f"Persisted fresh synthesis for {cid_str}")
                         except Exception as e_up:
                             logger.warning(f"Could not persist synthesis for {cid_str}: {e_up}")
                     except Exception as e_gen:
                         logger.warning(f"Dynamic synthesis skipped for {cid_str}: {e_gen}")
-                        final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
+                        final_why_now = why_now or f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M."
                         final_action = action or "Proactive capital markets advisory and rate hedging review."
                 else:
                     final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
@@ -1292,24 +1159,20 @@ Analyze the following touchpoint text for wholesale corporate client '{cname}' (
 TEXT CONTENT:
 {text}
 
-Extract ALL distinct structured signals from this text as STRICT JSON without markdown, using this schema:
+Extract structured signal parameters matching the database schema as STRICT JSON without markdown:
 {{
-  "detected_signals": [
-    {{
-      "signal_type": "SUSTAINABLE FUNDING | REFINANCING | LIQUIDITY | COVENANT | HEDGING | M&A",
-      "catalog_family": "Financing/Capital Markets | Interest Rate | Foreign Exchange | Sustainable Finance",
-      "metric_identified": "Short headline / metric identified (max 100 chars)",
-      "trigger_summary": "1-sentence executive trigger summary",
-      "metric_value": "Key value or spread (e.g. €750M or Mid-Swap +77bps)",
-      "description": "2-sentence detailed institutional description",
-      "confidence_pct": 94,
-      "urgency": "High | Medium | Low"
-    }}
-  ]
+  "signal_type": "SUSTAINABLE FUNDING | REFINANCING | LIQUIDITY | COVENANT | HEDGING | M&A",
+  "catalog_family": "Financing/Capital Markets | Interest Rate | Foreign Exchange | Sustainable Finance",
+  "metric_identified": "Short headline / metric identified (max 100 chars)",
+  "trigger_summary": "1-sentence executive trigger summary",
+  "metric_value": "Key value or spread (e.g. €750M or Mid-Swap +77bps)",
+  "description": "2-sentence detailed institutional description",
+  "confidence_pct": 94,
+  "urgency": "High | Medium | Low",
+  "suggested_action": "Specific deal recommendation (e.g. Execute EUR 750M 8Y Green EMTN with EUR 500M Pre-Hedge)",
+  "est_revenue_eur_000": 5500,
+  "priority_score": 94
 }}
-
-If the text contains only one signal, return an array with one element.
-If the text contains no extractable signals, return {{"detected_signals": []}}.
 """
             response = client_gcp.models.generate_content(
                 model='gemini-2.5-flash',
@@ -1342,53 +1205,53 @@ If the text contains no extractable signals, return {{"detected_signals": []}}.
             new_chunk_id = cur.fetchone()[0]
             logger.info(f"Inserted ca.document_vector_chunks #{new_chunk_id} for {cid}")
 
-            # 1. Insert one row per detected signal (with dedup on trigger_summary)
-            detected_signals = extracted.get("detected_signals") if isinstance(extracted, dict) else None
-            if not detected_signals:
-                # Backward-compatible fallback: treat the flattened extraction as a single signal
-                detected_signals = [{
-                    "signal_type": extracted.get("signal_type", "REFINANCING"),
-                    "catalog_family": extracted.get("catalog_family", "Financing/Capital Markets"),
-                    "metric_identified": extracted.get("metric_identified", "Catalyst"),
-                    "trigger_summary": extracted.get("trigger_summary", text[:200]),
-                    "metric_value": extracted.get("metric_value", "Live Trigger"),
-                    "description": extracted.get("description", text[:500]),
-                    "confidence_pct": extracted.get("confidence_pct", 94),
-                    "urgency": extracted.get("urgency", "High"),
-                }]
+            # 1. Insert into ca.digital_twin_signals
+            cur.execute("""
+                INSERT INTO ca.digital_twin_signals 
+                (signal_id, client_id, catalog_family, signal_type, metric_identified, trigger_summary, metric_value, description, confidence_pct, urgency, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
+            """, (
+                sig_id,
+                str(cid),
+                str(extracted.get("catalog_family", "Financing/Capital Markets")),
+                str(extracted.get("signal_type", "REFINANCING")),
+                str(extracted.get("metric_identified", "Catalyst"))[:100],
+                str(extracted.get("trigger_summary", text[:200])),
+                str(extracted.get("metric_value", "Live Trigger"))[:50],
+                str(extracted.get("description", text[:500])),
+                int(extracted.get("confidence_pct", 94)),
+                str(extracted.get("urgency", "High"))
+            ))
 
-            for sig_obj in detected_signals:
-                sig_id_new = f"SIG-{uuid.uuid4().hex[:8].upper()}"
-                trig_sum = str(sig_obj.get("trigger_summary", text[:200]))[:500]
+            # 2. Update ca.ca_opportunity_scoring
+            new_action = str(extracted.get("suggested_action", "Execute EUR 750M 8Y Green EMTN with EUR 500M Pre-Hedge"))
+            new_why_now = str(extracted.get("trigger_summary", text[:200]))
+            new_fee = float(extracted.get("est_revenue_eur_000", 5500))
+            new_score = int(extracted.get("priority_score", 94))
+            extracted_cat = str(extracted.get("catalog_family", "")).lower()
+            ext_sig = str(extracted.get("signal_type", "")).lower()
+            if "sustainable" in extracted_cat or "green" in ext_sig or "sustainable" in ext_sig:
+                new_type = "SUSTAINABLE FUNDING"
+            else:
+                new_type = str(extracted.get("signal_type", "REFINANCING")).upper()
 
-                # Dedup guard: skip if identical trigger_summary already exists for this client
-                cur.execute("""
-                    SELECT 1 FROM ca.digital_twin_signals
-                    WHERE client_id = %s AND trigger_summary = %s LIMIT 1;
-                """, (str(cid), trig_sum))
-                if cur.fetchone():
-                    logger.info(f"Skipping duplicate signal for {cid}: {trig_sum[:60]}")
-                    continue
-
-                cur.execute("""
-                    INSERT INTO ca.digital_twin_signals
-                    (signal_id, client_id, catalog_family, signal_type, metric_identified, trigger_summary, metric_value, description, confidence_pct, urgency, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
-                """, (
-                    sig_id_new,
-                    str(cid),
-                    str(sig_obj.get("catalog_family", "Financing/Capital Markets")),
-                    str(sig_obj.get("signal_type", "REFINANCING")),
-                    str(sig_obj.get("metric_identified", "Catalyst"))[:100],
-                    trig_sum,
-                    str(sig_obj.get("metric_value", "Live Trigger"))[:50],
-                    str(sig_obj.get("description", text[:500]))[:1000],
-                    int(sig_obj.get("confidence_pct", 94)),
-                    str(sig_obj.get("urgency", "High"))
-                ))
-
-            # 2. (Removed) Ingestion no longer writes to ca_opportunity_scoring.
-            #    Mandate text is synthesized in /api/opportunities from accumulated signals.
+            cur.execute("""
+                UPDATE ca.ca_opportunity_scoring
+                SET next_best_action = %s,
+                    why_now_nlg = %s,
+                    est_revenue_eur_000 = %s,
+                    priority_score = %s,
+                    opportunity_type = %s
+                WHERE client_id = %s OR client_id LIKE %s;
+            """, (
+                new_action,
+                new_why_now,
+                new_fee,
+                new_score,
+                new_type,
+                str(cid),
+                f"{str(cid)}%"
+            ))
 
             conn.commit()
             cur.close()

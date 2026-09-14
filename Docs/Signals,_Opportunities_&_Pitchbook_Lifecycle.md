@@ -1,19 +1,29 @@
 # Financial Markets Deal Origination Engine: Signals, Opportunities & Pitchbook Lifecycle
 
+**Version:** 14 September 2026
+**Status:** Authoritative
+**Supersedes:** Previous version (pre-14 Sep)
+**Audience:** Engineers, Business Analysts
+
+---
+
 ## 1. Executive Summary & Architectural Overview
 
-Modern Wholesale Banking and Financial Markets (FM) origination requires continuous monitoring of corporate balance sheets, dynamic macro market curves, and real-time qualitative touchpoints. This platform employs a **two-stage hybrid architecture** combining deterministic financial logic with large language model (LLM) semantic intelligence.
+Modern Wholesale Banking and Financial Markets origination requires continuous monitoring of
+corporate balance sheets, dynamic macro market curves, and real-time qualitative touchpoints.
+This platform employs a **two-stage hybrid architecture** combining deterministic financial
+logic with large language model semantic intelligence.
 
 ```
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                       HYBRID INGESTION & ORIGINATION ENGINE                            │
-├────────────────────────────────────────────────────┬───────────────────────────────────────────────────┤
-│          UNSTRUCTURED DATA SOURCES                 │              STRUCTURED DATA SOURCES              │
-│  • Google News RSS Feeds                           │  • Core Client Master (Ratings, Country, RM)      │
-│  • Treasury Emails & Inbound Inquiries             │  • Balance Sheet & Debt Schedules (Maturity Wall) │
-│  • MS Teams Coverage Transcripts                   │  • Live Market Fixings (EUR Swaps, Bunds, Spreads)│
-│  • House Views (PDF / PPTX Research)               │  • Historical Pricing & Pre-hedging Models        │
-└─────────────────────────┬──────────────────────────┴─────────────────────────┬─────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                       HYBRID INGESTION & ORIGINATION ENGINE            │
+├────────────────────────────────────────────────────┬───────────────────────────────────┤
+│          UNSTRUCTURED DATA SOURCES                 │              STRUCTURED DATA SOURCES│
+│  • Google News RSS Feeds                           │  • Core Client Master              │
+│  • Treasury Emails & Inbound Inquiries             │  • Balance Sheet & Debt Schedules  │
+│  • MS Teams Coverage Transcripts                   │  • Live Market Fixings             │
+│  • House Views (PDF / PPTX Research)               │  • Historical Pricing              │
+└─────────────────────────┬──────────────────────────┴─────────────────────────┬──────────┘
                           │                                                    │
                           ▼                                                    ▼
              [ LLM Extraction (Vertex AI) ]                      [ Deterministic SQL & Logic ]
@@ -23,6 +33,7 @@ Modern Wholesale Banking and Financial Markets (FM) origination requires continu
                                                     ▼
                                   [ PostgreSQL Storage & Calibration ]
                                   • ca.digital_twin_signals
+                                  • ca.document_vector_chunks
                                   • ca.ca_opportunity_scoring
                                                     │
                                                     ▼
@@ -30,35 +41,52 @@ Modern Wholesale Banking and Financial Markets (FM) origination requires continu
                              │       DOWNSTREAM PRESENTATION LAYER          │
                              ├──────────────────────────────────────────────┤
                              │ 1. Live Horizontal Signal Feed               │
-                             │ 2. Priority Today Flight-Deck (Top Mandates) │
-                             │ 3. 13-Client Cohort Opportunity Feed         │
-                             │ 4. Pitchbook Engine (Preview & Generated)    │
+                             │ 2. Priority Today Flight-Deck                │
+                             │ 3. Whitelisted Opportunity Cards             │
+                             │ 4. Pitchbook Engine (Preview & PPTX)         │
                              └──────────────────────────────────────────────┘
-
 ```
+
+**Current demo scope:** The UI whitelists to Enel S.p.A. (`CLI101`). The DB holds 13 client
+records; only the whitelisted client renders. See §3.4 for details.
 
 ---
 
 ## 2. Signal Identification Pipeline
 
-### Multi-Channel Ingestion Gateways
+### 2.1 Multi-Channel Ingestion Gateways
 
-Unstructured corporate touchpoints flow into a single unified entry point in the application layer:
+Unstructured corporate touchpoints flow into a single unified entry point:
 
-* **Live Google News RSS:** Real-time industry news feeds capturing corporate capex announcements, regulatory updates, or rating agency reviews.
-* **Coverage Transcripts (MS Teams / Notes):** Internal dialogue between syndicate desks, relationship managers, and sector coverage heads.
-* **Treasury Direct Inbound:** Formal requests, rollover dialogues, and funding intention notices from corporate CFOs or treasurers.
-* **Institutional House Views (PDF / PPTX):** Ingestion of research slides and syndicate summaries parsed via `pypdf` and `python-pptx`.
+| Channel | Endpoint | Source |
+|---|---|---|
+| Live Google News RSS | `/api/rss/feed` → `/api/ingest/text` | Google News |
+| Coverage transcripts | `/api/ingest/text` | MS Teams, internal notes |
+| Treasury direct inbound | `/api/ingest/text` | Client emails |
+| House views | `/api/ingest/file` | PDF / PPTX uploads |
+| WorkFabric memos | `/api/ingest/text` | Internal desk notes |
 
-### Semantic Extraction & Parameterization
+### 2.2 Semantic Extraction & Parameterization
 
-Unstructured inputs are processed by **Gemini 2.5 Flash** on Vertex AI under a strict JSON extraction schema. The model extracts:
+Unstructured inputs are processed by **`gemini-2.5-flash`** on Vertex AI under a strict JSON
+extraction schema.
 
-* **Catalog Family:** `Financing/Capital Markets`, `Interest Rate`, `Foreign Exchange`, or `Sustainable Finance`.
-* **Signal Type & Urgency:** Categorization into `REFINANCING`, `LIQUIDITY`, `HEDGING`, `COVENANT`, or `M&A`, with an urgency flag (`High`, `Medium`, `Low`).
-* **Metric Extraction:** Extraction of notional values (e.g., *€750M Green EMTN, €500M Pre-Hedge Overlay*), pricing concession spreads (e.g., *-5 bps Greenium*), and capex goals (*€4.0B capex*).
+**Multi-signal extraction:** A single ingestion produces **N signals**, not one. A PDF with six
+sections produces six rows in `ca.digital_twin_signals`.
 
-### Database Persistence
+The model extracts per signal:
+
+- `catalog_family` — `Financing/Capital Markets`, `Interest Rate`, `Foreign Exchange`,
+  `Sustainable Finance`, `Commodities`, `Credit`, `Cross-Asset & Discovery`
+- `signal_type` — free text (e.g., `SUSTAINABLE FUNDING`, `BOARD_AUTHORIZATION`, `REFINANCING`)
+- `urgency` — `High` / `Medium` / `Low`
+- `metric_identified` — short headline / metric (max 100 chars)
+- `trigger_summary` — 1-sentence description
+- `metric_value` — key value or spread
+- `description` — 2-sentence detail
+- `confidence_pct` — integer
+
+### 2.3 Database Persistence
 
 Extracted signals are committed to `ca.digital_twin_signals`:
 
@@ -68,111 +96,310 @@ INSERT INTO ca.digital_twin_signals (
     metric_identified, trigger_summary, metric_value,
     description, confidence_pct, urgency, created_at
 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
-
 ```
 
-This write updates the horizontal **Live Signal Feed** across the application.
+**Deduplication:** Before inserting, the pipeline checks whether `(client_id, trigger_summary)`
+already exists. If so, the insert is skipped.
+
+**Document chunk storage:** Each ingestion also writes one row to
+`ca.document_vector_chunks` with the raw text, source metadata, and structured metadata
+(containing the full `detected_signals` array).
+
+**Ingestion does NOT write to `ca.ca_opportunity_scoring`.** That table is populated or
+updated only by the mandate synthesis step. See §3.3.
 
 ---
 
 ## 3. Opportunity Discovery & Prioritization Engine
 
-### The Hybrid Discovery Method
+### 3.1 The Hybrid Discovery Method
 
-Opportunity formulation is governed by deterministic business logic rather than pure LLM generation, ensuring mathematical accuracy and full regulatory compliance:
+Opportunity formulation combines LLM-derived signals with deterministic SQL logic:
 
 | Dimension | LLM Functionality | Deterministic Code / DB Functionality |
-| --- | --- | --- |
-| **Data Ingestion** | Extracts qualitative triggers from unstructured text. | Ingests structured balance sheets, debt walls, and CSA limits. |
-| **Catalog Mapping** | Synthesizes deal narrative into "Why Now" rationales. | Matches verified debt schedules against approved FM products. |
-| **Financial Math** | *Bypassed to prevent hallucinations.* | Computes exact maturity walls, floating exposure, and fee pools. |
-| **Model Risk Governance** | Generates institutional text summaries. | Calculates auditable, deterministic priority scores ($0–100$). |
+|---|---|---|
+| **Data Ingestion** | Extracts triggers from unstructured text | Stores signals with dedup; stores document chunks |
+| **Catalog Mapping** | Synthesizes deal narrative into "Why Now" rationale | Uses product-family templates and slide structure |
+| **Financial Math** | *Bypassed to prevent hallucinations* | Computes maturity walls, liquidity ratios, and savings math |
+| **Model Risk Governance** | Generates institutional text summaries | Threshold classification, cache, drift guard |
 
-### Multi-Factor Priority Scoring
+### 3.2 Priority Score — Actual Implementation
 
-Each client opportunity is evaluated across three weighted dimensions to compute a single **Match Confidence Score**:
+**Important:** The Priority Score is not computed from a weighted formula. This was
+documented aspirationally in earlier versions of the platform docs but was never implemented
+in the code.
 
-$$\text{Priority Score} = w_1 \cdot \text{Propensity Score} + w_2 \cdot \text{Value Score} + w_3 \cdot \text{Signal Urgency}$$
+**What the score actually is:** `ca.ca_opportunity_scoring.priority_score` is a **single
+LLM-derived estimate**, produced during ingestion. When the old single-signal ingestion
+pipeline ran, Gemini returned a `priority_score` value in its structured output, and that
+value was written to the row.
 
-1. **Propensity Score ($0–100$):** Measures the structural likelihood of execution based on the proximity of debt maturity walls (e.g., $<24\text{ months}$ to rollover) or unhedged floating interest rate risk (e.g., hedge coverage $<60\%$).
-2. **Value / Commercial Score ($0–100$):** Sizes the gross bank revenue opportunity (`est_revenue_eur_000`), benchmark notional, and strategic relationship tier.
-3. **Signal Urgency & Market Window ($0–100$):** Incorporates real-time rate volatility, swap easing, credit spread compression (e.g., iTraxx Main at 58 bps), and new board approvals.
+**Current state:** the ingestion pipeline was refactored on 14 Sep 2026 to extract
+`detected_signals[]` arrays. The new prompt schema no longer includes `priority_score`. The
+values in the DB today are **legacy values** from the last time the old pipeline ran.
 
-### Score Calibration & Priority Today Ranking
+**Example — Enel (`CLI101`):**
 
-Scores update atomically in `ca.ca_opportunity_scoring`:
+| Field | Value |
+|---|---|
+| `opportunity_id` | `OPPCA104_CLI101` |
+| `priority_score` | 94 |
+| `est_revenue_eur_000` | 5500.0 (i.e., €5.5M) |
+| `next_best_action` | "We recommend a €1.0bn dual-tranche senior unsecured issuance, comprising a €600m 7Y Green bond at Mid-swap + 73 bps (net of -5 bps greenium) and a €400m 10Y Sustainability-Linked Bond..." |
 
-* **Score $\ge 85$ $\rightarrow$ High Priority** (e.g., **BASF SE at 92 | €4.2M Fee**, **Enel S.p.A. at 94 | €5.5M Fee**).
-* **Score $70–84$ $\rightarrow$ Medium Priority** (e.g., secondary refinancings or medium-term pre-hedges).
-* **Score $< 70$ $\rightarrow$ Low / Monitoring Priority**.
+**The other two scores:**
 
-The **Priority Today** flight-deck dynamically groups and displays the top 4 distinct mandates to direct coverage and trading desk resources to high-conviction transactions.
+| Column | Status |
+|---|---|
+| `propensity_score` | LLM output from earlier ingestion. Not read by any code path. |
+| `value_score` | Same. |
+
+Both are retained for a potential future ranking model.
+
+### 3.3 Mandate Synthesis (the anchor pattern)
+
+`/api/opportunities` runs a synthesis step anchored to the curated DB row.
+
+**Purpose:** the signals in `ca.digital_twin_signals` describe evidence and context, but they
+don't contain a specific deal structure. Left to synthesize freely, an LLM will invent a
+plausible structure that may not match ING's actual advisory proposal. The anchor prevents
+that.
+
+**Flow:**
+
+1. Read `why_now_nlg` and `next_best_action` from `ca.ca_opportunity_scoring` (the anchor)
+2. Check the TTL cache (`_MANDATE_SYNTH_CACHE`, 300-second expiry, keyed by `client_id`)
+3. On cache miss and client in `_DEMO_CLIENT_IDS`:
+   - Fetch the 20 most recent signals for the client
+   - Call `gemini-2.5-flash` with the anchor placed first in the prompt
+   - Apply the drift guard (tenor conflict check)
+   - Write the result to the cache and back to `ca.ca_opportunity_scoring`
+4. On cache hit or non-whitelisted client: use the DB row directly
+
+Full detail in `How_Signals_are_Converted_into_Opportunities.md` §5.
+
+### 3.4 Score Calibration & Priority Today Ranking
+
+**Threshold classification** (in `/api/opportunities`):
+
+```python
+score_level = "High" if int(score_num) >= 85 else ("Medium" if int(score_num) >= 70 else "Low")
+```
+
+| Range | Label |
+|---|---|
+| ≥ 85 | High |
+| 70 – 84 | Medium |
+| < 70 | Low |
+
+**Current cohort scores:**
+
+| Client | Score | Fee |
+|---|---|---|
+| Enel S.p.A. (`CLI101`) | 94 | €5.5M |
+| BASF SE (`CLI103`) | 94 | €5.8M |
+| Ørsted A/S (`CLI001`) | 98 | — |
+| Stellantis N.V. (`CLI003`) | 94 | — |
+
+**Priority Today ranking:**
+
+The `/api/metrics` endpoint sorts all clients by priority score descending and takes the top 4:
+
+```python
+sorted_rows = sorted(rows, key=lambda x: (int(x[2]), float(x[4])), reverse=True)[:4]
+```
+
+**Frontend whitelist:** the Priority Today sidebar in `App.jsx` filters the result to
+`ACTIVE_UI_CLIENT_IDS = ["CLI101"]`. Only Enel renders, even though the API returns four
+priorities. To render multiple clients in the demo, update both `ACTIVE_UI_CLIENT_IDS` and
+`_DEMO_CLIENT_IDS`.
 
 ---
 
 ## 4. Pitchbook Creation: UI Preview & Document Generation
 
-The platform bridges commercial opportunity discovery directly into client-ready presentation materials through two synchronized modalities:
+### 4.1 The 11-Slide Deck
+
+The pitchbook has **11 slides**. Slide titles vary by product family (FX / Green / Rates /
+DCM). The table below shows the Green/ESG variant (Enel's deck).
+
+| # | Green / ESG | Primary Data Source |
+|---|---|---|
+| 1 | Cover Slide | `ca.client_master.client_name` |
+| 2 | Decarbonization Catalyst | `ca.ca_opportunity_scoring.trigger_source` |
+| 3 | Executive Summary | `get_product_pillars()` + signals |
+| 4 | ESG Balance Sheet | `ca.ext_company_filings` |
+| 5 | Use of Proceeds Pool | Synthesis context + framework data |
+| 6 | Greenium Sensitivity | `ca.ext_credit_spreads` + greenium override |
+| 7 | ESG Market Backdrop | `ca.mkt_rates_curves` + `ca.ext_credit_spreads` |
+| 8 | Green Bond Term Sheet | Deal proposal + canonical calculation |
+| 9 | Why Execute With Us | Static capability cards (candidate for `ca.ext_deals`) |
+| 10 | SPO & Syndicate Plan | Template (SPO, roadmap) |
+| 11 | ICMA Disclosures | `ca.regulatory_notices` (in progress) |
+
+Full mapping of all four families in `architecture_flow_14Sep.md` §6.2.
+
+### 4.2 Synthesis of Structured & Unstructured Data
+
+**Structured grounding** — slide 4 and slide 5 render exact metrics from
+`ca.ext_company_filings` and `ca.debt_maturity_schedule`:
+
+| Metric | Value | Source |
+|---|---|---|
+| Net Debt | €58.5bn | `net_debt_eur_m = 58500` |
+| Available Liquidity | €14.2bn | `liquidity_eur_m = 14200` |
+| 24M Maturity Wall | €10.13bn | `debt_maturing_24m_eur_m = 10127` |
+
+**Unstructured grounding** — slides 1, 2, and 3 translate signal text into deal themes
+(e.g., from the Enel houseview: "Inaugural Green Bond with SPO verification, capturing 3-7
+bps greenium").
+
+**Sensitivity & term sheet** — slide 6 computes cost savings:
+
+| Tranche | Notional | Greenium | Annual Savings |
+|---|---|---|---|
+| Green Bond | €600M | -5 bps | €300,000 |
+| SLB | €400M | -2 bps | €80,000 |
+| **Total** | €1.0bn | — | **€380,000** |
+
+Slide 8 renders the two-leg term sheet with all notionals, tenors, and spreads sourced from
+`compute_canonical_bundle()` and any active overrides.
+
+### 4.3 Interactive UI Preview
+
+Clicking **Open draft pitchbook** launches the workspace:
+
+1. **Slide Navigation** — 11 structured slides with live previews
+2. **Origination Deal Copilot** — LLM assistant for restructuring tranches, updating spread
+   assumptions, and regenerating slide text
+3. **Compliance Audit** — inspects deck against MiFID II, MAR Art. 11, and (for green-family
+   decks) the EU Green Bond Standard / EU Taxonomy
+
+### 4.4 Production `.PPTX` Generation
+
+Clicking **Download .PPTX Deck** executes `/api/pitchbook/generate`:
+
+- Fetches the bundle via `fetch_pitchbook_bundle()`
+- Applies overrides via `build_pitchbook()`
+- Renders 11 slides with corporate styling (`python-pptx`)
+- Returns a binary `.pptx` stream
+
+The preview canvas and PPTX consume the same underlying bundle, ensuring 1:1 parity.
+
+---
+
+## 5. Compliance Checkpoints
+
+### 5.1 Where Compliance Runs
+
+Compliance is evaluated at two points in the lifecycle:
+
+| Point | Endpoint | What it does |
+|---|---|---|
+| On-demand audit | `POST /api/check-compliance` (alias: `/api/compliance/audit`) | Full-deck inspection |
+| During download | Implicit in `build_pitchbook` if overrides contain `disclaimers` | Applies active disclaimers |
+
+### 5.2 Regulatory Regimes
+
+The compliance check is **LLM-driven** today. The endpoint sends the full deck to Gemini
+with a system prompt that evaluates against:
+
+- **MiFID II** (Art. 24/54) — professional clients, non-binding pricing caveats
+- **MAR Art. 11** — market sounding safe harbour
+- **EU Green Bond Standard / EU Taxonomy** — for green-family decks
+- **EMIR** — derivative classification (NFC+ for pre-hedges)
+
+**Note:** A regex list (`PROMISSORY_PATTERNS`) exists in `main.py` but is not called. All
+screening is LLM-driven. See `Data_or_Fabrication.md` §9.3 for the post-demo improvement.
+
+### 5.3 Remediation
+
+If the user clicks **Apply Compliance Remediations**, the endpoint returns an `overrides`
+object containing `pricing_caveat`, `emir_notice`, `compliance_status`, and any additional
+disclaimers. These merge into `deckOverrides` and apply to both preview and export.
+
+---
+
+## 6. Lifecycle In One View
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        PITCHBOOK DATA AGGREGATION                      │
-├──────────────────────────────────┬─────────────────────────────────────┤
-│  Structured Balance Sheet Data   │  Unstructured Trigger Insights      │
-│  • Total Debt & Maturity Wall    │  • Board Approval Transcripts       │
-│  • Liquidity & Net Debt Profile  │  • ESG & Taxonomy Alignment Themes  │
-│  • Live Swaps, Bunds, Spreads    │  • "Why Now" Treasury Rationale     │
-└──────────────────────────────────┴─────────────────────────────────────┘
-                                   │
-                                   ▼
-        ┌──────────────────────────────────────────────────────┐
-        │ 1. Interactive UI Modal Preview (FastAPI + React)    │
-        │    • 10-Slide Navigation & Real-Time Slide Rendering │
-        │    • Deal Copilot Chat for Structuring Adjustments   │
-        │    • One-Click FINRA 2210 & MiFID II Compliance Audit│
-        ├──────────────────────────────────────────────────────┤
-        │ 2. Production PowerPoint (.PPTX) Export              │
-        │    • High-Fidelity Corporate Presentation Generation │
-        │    • Slide-by-Slide Sensitivity & Term Sheet Tables  │
-        │    • Embedded Regulatory Disclosures & Target Market │
-        └──────────────────────────────────────────────────────┘
-
+Stage 1: Signal Arrival
+    Ingestion → Gemini extraction → N signals written to DB
+    Endpoint: /api/ingest/text or /api/ingest/file
+    ↓
+Stage 2: Signal Accumulation
+    Signals deduped by (client_id, trigger_summary)
+    Query: SELECT * FROM ca.digital_twin_signals WHERE client_id = ?
+    ↓
+Stage 3: Opportunity Discovery
+    /api/opportunities joins client + filings + markets + signals
+    Synthesis (whitelisted clients) anchors to ca_opportunity_scoring
+    ↓
+Stage 4: Priority Ranking
+    /api/metrics sorts by priority_score, takes top 4
+    Frontend filters to ACTIVE_UI_CLIENT_IDS
+    ↓
+Stage 5: Pitchbook Preview
+    11-slide canvas rendered from same bundle
+    Copilot state mutations via /api/copilot/chat
+    ↓
+Stage 6: PPTX Export
+    /api/pitchbook/generate rebuilds from the same bundle + overrides
+    1:1 parity with preview
+    ↓
+Stage 7: Compliance Audit (on-demand)
+    /api/check-compliance evaluates the full deck
+    Remediations apply to preview and export
 ```
 
-### Synthesis of Structured & Unstructured Data
+---
 
-The pitchbook engine combines data across both operational domains:
+## 7. Current Constraints
 
-* **Structured Grounding:** Slide 4 (Balance Sheet Foundation) and Slide 5 (Debt Maturity Profile) render exact metrics directly from `ca.ext_company_filings` and `ca.debt_maturity_schedule` (e.g., *Net Debt: €58,500M*, *Available Liquidity: €14,200M*, *24M Maturity Wall: €10,127M*).
+Three constraints shape the current behavior:
 
+### 7.1 Whitelist scoping
 
-* **Unstructured Grounding:** Slide 1 (Title), Slide 2 (Sustainability Catalyst), and Slide 3 (Executive Summary) translate the ingested unstructured trigger text into institutional deal themes (e.g., *Inaugural Hybrid Green Bond capturing -5 bps Greenium concession for €4.0B capex*).
+Only clients in `_DEMO_CLIENT_IDS` (backend) and `ACTIVE_UI_CLIENT_IDS` (frontend) go through
+LLM synthesis and render in the UI. Currently scoped to Enel (`CLI101`).
 
+The DB holds 13 clients. The whitelist is a demo-scoped decision, not an architectural limit.
 
-* **Dynamic Sensitivity & Term Sheet Structuring:** Slide 6 computes cost savings based on live spread differentials (e.g., *€375,000/year annual savings on €750M notional at -5 bps Greenium*), while Slide 8 outputs the final execution term sheet.
+### 7.2 Single-instance deployment
 
+The mandate synthesis cache is in-memory. It requires `max-instances=1` on Cloud Run. If the
+service ever scales horizontally, the cache would need to move to a shared store.
 
+### 7.3 LLM-derived scores
 
-### Interactive UI Preview
+`priority_score` is not computed by a formula. It reflects the last ingestion that wrote it.
+A post-demo improvement is to compute it deterministically from the accumulated signal corpus
+plus balance-sheet data.
 
-Inside the web dashboard, clicking **Open draft pitchbook** launches an interactive workspace:
+---
 
-1. **Slide Navigation:** 10 structured slides displayed with live visual previews.
+## 8. Changelog — 14 Sep 2026
 
+Corrected from the pre-14-Sep version:
 
-2. **Origination Deal Copilot:** An interactive LLM assistant capable of restructuring tranches, updating spread assumptions, and regenerating specific slide texts on demand.
-3. **Automated Compliance Audit:** Inspects deck content against FINRA 2210, MiFID II, and ICMA guidelines to flag ungrounded performance claims or missing risk disclosures.
+- **Priority Score formula removed.** The doc previously described a three-factor weighted
+  formula. That formula does not exist in the code. §3.2 rewritten to describe the actual
+  mechanism.
+- **Score values corrected.** BASF is 94, not 92. All clients now show accurate current
+  values.
+- **Slide count corrected.** 10 → 11 slides throughout.
+- **Enel savings corrected.** The doc previously cited €375,000/year on €750M. Actual current
+  mandate is €600M Green (€300k/yr) + €400M SLB (€80k/yr) = €380k/yr total.
+- **Maturity format corrected.** The card and pitchbook show `€10.13bn`, not `€10,127M`.
+  Both refer to the same underlying value.
+- **Compliance regime clarified.** The active regimes are MiFID II, MAR, and EU Green Bond
+  Standard. FINRA is mentioned in code but is not the primary checks. The regex pre-filter is
+  dormant.
+- **Client cohort corrected.** The UI whitelists to Enel only. The 13-client cohort lives in
+  the DB but only the whitelisted client renders.
+- **§6 Lifecycle In One View added.**
+- **§7 Current Constraints added.**
 
+---
 
-
-### Production `.PPTX` Generation
-
-Clicking **Download .PPTX Deck** executes a server-side document generation script using `python-pptx`:
-
-* Renders the complete 10-slide deck using standard corporate styling, typography, and color schemes.
-
-
-* Formats institutional data tables, balance sheet callouts, execution roadmaps, and target market regulatory disclaimers.
-
-
-* Generates an editable `.PPTX` file ready for Relationship Managers to present directly to corporate treasury teams.
+*End of document.*

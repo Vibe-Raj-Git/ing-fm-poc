@@ -1,5 +1,12 @@
 Here is a battle-tested, production-ready **System Prompt Template** engineered specifically for grounding LLMs as real-time canvas copilots across Enterprise Tech, Telecom OSS/BSS, Banking, and FinTech domains.
 
+> **Note:** This is a domain-agnostic template for grounding LLMs as canvas copilots.
+> The ING FM Copilot's actual system prompt is generated in `main.py` (the
+> `system_instruction` block in `/api/copilot/chat`). This template illustrates the
+> design pattern for reuse across domains.
+
+---
+
 ---
 
 ### Master Copilot System Prompt Template

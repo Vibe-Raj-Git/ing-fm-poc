@@ -1904,19 +1904,19 @@ ${chip.preview}`}
                                <span className="text-emerald-700 font-bold">4 of 4 Feeds Grounded</span>
                              </div>
                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
-                               <div className="bg-gray-50 border border-gray-200 rounded p-1.5" title="Source: Company filings — reported liquidity position">
+                               <div className="bg-gray-50 border border-gray-200 rounded p-1.5" title="ca.ext_company_filings">
                                  <span className="text-gray-500 block text-[8.5px] font-bold uppercase">1. Balance Sheet: Liquidity Buffer</span>
                                  <span className="font-bold text-emerald-700 truncate block">{opp.liquidity_str || "—"}</span>
                                </div>
-                               <div className="bg-purple-50/60 border border-purple-200 rounded p-1.5" title="Source: Live market data feed — swap rates and credit spreads">
+                               <div className="bg-purple-50/60 border border-purple-200 rounded p-1.5" title="ca.mkt_rates_curves">
                                  <span className="text-purple-700 block text-[8.5px] font-bold uppercase">2. Market DB</span>
                                  <span className="font-bold text-purple-950 truncate block">5Y Swap {opp.eur_5y_swap || "2.62%"} / {opp.client_spread_bps || "78 bps"}</span>
                                </div>
-                               <div className="bg-blue-50/60 border border-blue-200 rounded p-1.5" title="Source: Debt maturity schedule and twin signals">
-                                 <span className="text-blue-700 block text-[8.5px] font-bold uppercase">3. CONTEXT FABRIC</span>
-                                 <span className="font-bold text-blue-950 truncate block">{opp.cf_tile_value || "—"}</span>
+                               <div className="bg-blue-50/60 border border-blue-200 rounded p-1.5" title="ca.digital_twin_signals">
+                                 <span className="text-blue-700 block text-[8.5px] font-bold uppercase">3. CONTEXT FABRIC (MATURITIES)</span>
+                                 <span className="font-bold text-blue-950 truncate block">{opp.debt_maturing_24m_bn || "—"}</span>
                                </div>
-                               <div className="bg-purple-50/60 border border-purple-200 rounded p-1.5" title="Source: Ingested houseviews and news">
+                               <div className="bg-purple-50/60 border border-purple-200 rounded p-1.5" title="ca.document_vector_chunks">
                                  <span className="text-purple-700 block text-[8.5px] font-bold uppercase">4. Houseview / News</span>
                                  <span className="font-bold text-purple-950 truncate block">{opp.houseview_label || "Loading DB..."}</span>
                                </div>

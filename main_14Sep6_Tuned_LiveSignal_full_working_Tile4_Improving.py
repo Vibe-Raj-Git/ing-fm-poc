@@ -870,28 +870,7 @@ def get_opportunities():
                 except Exception as e_sig:
                     logger.warning("Error querying signals: " + str(e_sig))
 
-                # Extract financing capacity metric for Tile 3 (Context Fabric)
-                cf_tile_value = "No capacity signal"
-                try:
-                    cur.execute("""
-                        SELECT metric_value FROM ca.digital_twin_signals
-                        WHERE client_id = %s
-                          AND signal_type IN ('BOARD_AUTHORIZATION', 'Funding Capacity Authorisation')
-                          AND metric_value IS NOT NULL
-                          AND metric_value != ''
-                        ORDER BY created_at DESC LIMIT 1;
-                    """, (cid_str,))
-                    _cap_row = cur.fetchone()
-                    if _cap_row and _cap_row[0]:
-                        _cap_raw = str(_cap_row[0]).strip()
-                        # Normalize: "€12.0bn" -> "€12bn"; "€12.0bn; 'March 2027'" -> "€12bn"
-                        _cap_num = _cap_raw.split(";")[0].strip()
-                        _cap_num = _cap_num.replace(".0bn", "bn").replace(".0B", "B")
-                        cf_tile_value = f"{_cap_num} financing capacity"
-                except Exception as e_cap:
-                    logger.warning(f"Error querying capacity for {cid_str}: {e_cap}")
-
-                houseview_label = "No houseview ingested"
+                houseview_label = "Refinancing Requirement"
                 try:
                     cur.execute("""
                         SELECT text_content, source_name, structured_metadata 
@@ -918,28 +897,9 @@ def get_opportunities():
                         if meta and isinstance(meta, dict) and meta.get("detected_signals"):
                             sigs = meta.get("detected_signals")
                             if sigs and len(sigs) > 0:
-                                first = sigs[0]
-                                s_type = str(first.get("signal_type") or "").strip()
-                                s_metric = str(first.get("metric_identified") or "").strip()
-
-                                # Abbreviate signal_type to first two words
-                                type_words = s_type.split()
-                                short_type = " ".join(type_words[:2]) if len(type_words) >= 2 else s_type
-
-                                # Trim metric at first semicolon
-                                if ";" in s_metric:
-                                    s_metric = s_metric.split(";")[0].strip()
-
-                                # Strip structured prefixes like "Amount: " and "Event: "
-                                if ":" in s_metric:
-                                    s_metric = s_metric.split(":", 1)[1].strip()
-
-                                if s_metric and s_metric.lower() != "n/a":
-                                    houseview_label = s_metric
-                                elif short_type:
-                                    houseview_label = short_type
-                                else:
-                                    houseview_label = "Signal detected"
+                                s_type = sigs[0].get("signal_type", "Refinancing Requirement")
+                                s_metric = sigs[0].get("metric_identified", "")
+                                houseview_label = f"{s_type}: {s_metric}" if s_metric else s_type
                         elif hv_row[1]:
                             houseview_label = hv_row[1].replace(".pdf", "").replace("_", " ")
                 except Exception as e_hv:
@@ -1098,7 +1058,6 @@ def get_opportunities():
                     "net_debt_str": (f"€{float(net_debt)/1000:,.1f}bn" if float(net_debt) >= 1000 else f"€{float(net_debt):,.0f}M") if float(net_debt) > 0 else "—",
                     "liquidity_str": (f"€{float(liq)/1000:,.1f}bn" if float(liq) >= 1000 else f"€{float(liq):,.0f}M") if float(liq) > 0 else "—",
                     "debt_maturing_24m_str": f"€{float(m24):,.0f}M" if float(m24) > 0 else "—",
-                    "cf_tile_value": cf_tile_value,
                     "debt_maturing_24m_bn": (f"€{float(m24)/1000:,.2f}bn" if float(m24) >= 1000 else f"€{float(m24):,.0f}M") if float(m24) > 0 else "—",
                     "rm_name": rm or "Coverage Director",
                     "eur_10y_bund": bund_10y or "—",

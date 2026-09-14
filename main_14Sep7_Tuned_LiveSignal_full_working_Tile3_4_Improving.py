@@ -870,27 +870,6 @@ def get_opportunities():
                 except Exception as e_sig:
                     logger.warning("Error querying signals: " + str(e_sig))
 
-                # Extract financing capacity metric for Tile 3 (Context Fabric)
-                cf_tile_value = "No capacity signal"
-                try:
-                    cur.execute("""
-                        SELECT metric_value FROM ca.digital_twin_signals
-                        WHERE client_id = %s
-                          AND signal_type IN ('BOARD_AUTHORIZATION', 'Funding Capacity Authorisation')
-                          AND metric_value IS NOT NULL
-                          AND metric_value != ''
-                        ORDER BY created_at DESC LIMIT 1;
-                    """, (cid_str,))
-                    _cap_row = cur.fetchone()
-                    if _cap_row and _cap_row[0]:
-                        _cap_raw = str(_cap_row[0]).strip()
-                        # Normalize: "€12.0bn" -> "€12bn"; "€12.0bn; 'March 2027'" -> "€12bn"
-                        _cap_num = _cap_raw.split(";")[0].strip()
-                        _cap_num = _cap_num.replace(".0bn", "bn").replace(".0B", "B")
-                        cf_tile_value = f"{_cap_num} financing capacity"
-                except Exception as e_cap:
-                    logger.warning(f"Error querying capacity for {cid_str}: {e_cap}")
-
                 houseview_label = "No houseview ingested"
                 try:
                     cur.execute("""
@@ -935,7 +914,10 @@ def get_opportunities():
                                     s_metric = s_metric.split(":", 1)[1].strip()
 
                                 if s_metric and s_metric.lower() != "n/a":
-                                    houseview_label = s_metric
+                                    combined = f"{short_type}: {s_metric}" if short_type else s_metric
+                                    if len(combined) > 45:
+                                        combined = combined[:45].rsplit(" ", 1)[0] + "..."
+                                    houseview_label = combined
                                 elif short_type:
                                     houseview_label = short_type
                                 else:
@@ -1098,7 +1080,6 @@ def get_opportunities():
                     "net_debt_str": (f"€{float(net_debt)/1000:,.1f}bn" if float(net_debt) >= 1000 else f"€{float(net_debt):,.0f}M") if float(net_debt) > 0 else "—",
                     "liquidity_str": (f"€{float(liq)/1000:,.1f}bn" if float(liq) >= 1000 else f"€{float(liq):,.0f}M") if float(liq) > 0 else "—",
                     "debt_maturing_24m_str": f"€{float(m24):,.0f}M" if float(m24) > 0 else "—",
-                    "cf_tile_value": cf_tile_value,
                     "debt_maturing_24m_bn": (f"€{float(m24)/1000:,.2f}bn" if float(m24) >= 1000 else f"€{float(m24):,.0f}M") if float(m24) > 0 else "—",
                     "rm_name": rm or "Coverage Director",
                     "eur_10y_bund": bund_10y or "—",

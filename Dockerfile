@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY main.py pitchbook_builder.py ./
+COPY main.py pitchbook_builder.py baseline_snapshots.json ./
 COPY assets/ ./assets/
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 

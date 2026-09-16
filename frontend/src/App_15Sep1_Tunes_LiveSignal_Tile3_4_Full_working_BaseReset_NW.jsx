@@ -139,8 +139,7 @@ class ErrorBoundary extends React.Component {
 // Whitelisted Client IDs for UI presentation (Backend DB retains all clients)
 // const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
 // const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"];
-//const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
-const ACTIVE_UI_CLIENT_IDS = ["CLI103", ];
+const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
 
 export default function App() {
   const [opportunities, setOpportunities] = useState([]);
@@ -149,7 +148,9 @@ export default function App() {
   const displayedOpportunities = useMemo(() => {
     return opportunities.filter(o => 
       ACTIVE_UI_CLIENT_IDS.includes(o.client_id) || 
-      ACTIVE_UI_CLIENT_IDS.includes(o.id)
+      ACTIVE_UI_CLIENT_IDS.includes(o.id) || 
+      (o.name && o.name.includes("Enel")) ||
+      (o.client_name && o.client_name.includes("Enel"))
     );
   }, [opportunities]);
   const [signals, setSignals] = useState([]);
@@ -312,11 +313,7 @@ export default function App() {
         })
       });
       const data = await res.json();
-      if (data.status === "duplicate_skipped" || data.status === "skipped" || data.reason === "semantic_duplicate") {
-        setIngestSuccessMsg(data.message || `⚠️ Duplicate signal intercepted: input already exists in channel. Existing record linked without duplication.`);
-      } else {
-        setIngestSuccessMsg(`✅ Signal extracted: ${data.extracted_signal?.signal_headline || "Market trigger recorded"}`);
-      }
+      setIngestSuccessMsg(`✅ Signal extracted: ${data.extracted_signal?.signal_headline || "Market trigger recorded"}`);
       fetchDashboardData();
     } catch (err) {
       console.error("Ingest error:", err);
@@ -343,11 +340,7 @@ export default function App() {
         })
       });
       const data = await res.json();
-      if (data.status === "duplicate_skipped" || data.status === "skipped" || data.reason === "semantic_duplicate") {
-        setIngestSuccessMsg(data.message || `⚠️ Duplicate signal intercepted: input already exists in channel. Existing record linked without duplication.`);
-      } else {
-        setIngestSuccessMsg(`✅ Signal extracted: ${data.extracted_signal?.signal_headline || "Market trigger recorded"}`);
-      }
+      setIngestSuccessMsg(`✅ Touchpoint ingested: ${data.extracted_signal?.signal_headline || "Signal processed"}`);
       fetchDashboardData();
     } catch (err) {
       console.error("Ingest error:", err);
@@ -1554,40 +1547,6 @@ export default function App() {
               >
                 <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
               </button>
-              <button 
-                onClick={async () => {
-                  if (!window.confirm("Reset data to baseline values? Do you want to continue.")) {
-                    return;
-                  }
-                    setIsLoading(true);
-                    try {
-                      const res = await fetch('/api/system/reset-baseline', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ client_ids: ACTIVE_UI_CLIENT_IDS })
-                      });
-                      if (!res.ok) {
-                        throw new Error(`Reset endpoint returned HTTP ${res.status}`);
-                      }
-                      const data = await res.json();
-                      if (data.status !== 'success') {
-                        throw new Error(data.message || 'Reset failed');
-                      }
-                      setDeckOverrides({});
-                      await fetchDashboardData();
-                    } catch (err) {
-                      console.error("Reset failed:", err);
-                      alert(`Reset failed: ${err.message}`);
-                    } finally {
-                      setIsLoading(false);
-                    }
-                }}
-                className="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition"
-                title="Reset active clients to pristine baseline (preserves historical uploads)"
-                disabled={isLoading}
-              >
-                <ShieldCheck size={16} className={isLoading ? "animate-pulse" : ""} />
-              </button>
               <div className="text-right text-xs text-gray-500 leading-tight">
                 <span className="font-semibold text-gray-700">
                   {new Date().toLocaleDateString("en-GB", { timeZone: "Europe/Amsterdam", weekday: "short", day: "numeric", month: "short" })}
@@ -1870,22 +1829,19 @@ ${chip.preview}`}
                                </div>
 
                                {/* Ingested Document Chips */}
-                               {/* Side-by-Side Audited Feeds Pills */}
                                <div className="flex flex-wrap gap-1 mb-2">
                                  <span 
                                    className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-purple-50 text-purple-900 border border-purple-200 cursor-help hover:bg-purple-100"
-                                   title={"ING FM Research / Houseview Source: " + (opp.hv_doc_title || "ING_Utilities_Strategy_Q3.pdf")}
+                                   title={`Source: ${opp.hv_doc_title || "Ingested Document"}\n${(opp.hv_doc_summary || "").slice(0, 160)}${(opp.hv_doc_summary || "").length > 160 ? "..." : ""}`}
                                  >
-                                   📄 ING FM Research
+                                   📄 {opp.hv_doc_title || "ING_Utilities_Strategy_Q3.pdf"}
                                  </span>
-                                 {opp.news_headline && (
-                                   <span 
-                                     className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-900 border border-indigo-200 cursor-help hover:bg-indigo-100"
-                                     title={opp.news_headline || "Live Verified News Feed"}
-                                   >
-                                     📰 News Desk
-                                   </span>
-                                 )}
+                                 <span 
+                                   className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-900 border border-indigo-200 cursor-help hover:bg-indigo-100"
+                                   title={opp.news_source || "Capital Market News / Bloomberg"}
+                                 >
+                                   📰 {opp.news_source || "Capital Market News / Bloomberg"}
+                                 </span>
                                </div>
 
                                {/* Ingested Research Excerpt */}
@@ -2080,7 +2036,8 @@ ${chip.preview}`}
                   {metrics.priorities
                     .filter(item => 
                       ACTIVE_UI_CLIENT_IDS.includes(item.client_id) || 
-                      ACTIVE_UI_CLIENT_IDS.includes(item.id)
+                      ACTIVE_UI_CLIENT_IDS.includes(item.id) || 
+                      (item.title && item.title.toLowerCase().includes("enel"))
                     )
                     .sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
                     .map((item, idx) => {

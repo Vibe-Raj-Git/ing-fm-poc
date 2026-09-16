@@ -347,8 +347,7 @@ def fetch_pitchbook_bundle(canonical_id, client_id_raw, get_db_connection):
                         LIMIT 1;
                     """, (actual_cid, '%Relationship Manager%'))
                     rm_row = cur.fetchone()
-                    # Prioritize client_master rm_name (Klaus Weber) over coverage_teams override
-                    ctx["rm_name"] = cm_row[2] if (cm_row and cm_row[2]) else (rm_row[0] if (rm_row and rm_row[0]) else "Senior Relationship Manager")
+                    ctx["rm_name"] = rm_row[0] if (rm_row and rm_row[0]) else cm_row[2]
                 except Exception as e_rm:
                     logger.warning(f"coverage_teams RM lookup failed for {actual_cid}: {e_rm}")
                     ctx["rm_name"] = cm_row[2]

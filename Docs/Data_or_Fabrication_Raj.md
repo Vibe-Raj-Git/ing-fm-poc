@@ -807,3 +807,115 @@ Text Snippet: Giulia Romano (RM): Public materials indicate an active funding cy
 Structured Metadata: {'signal_type': 'BOARD_AUTHORIZATION', 'evidence_type': 'Client-Validated', 'catalog_family': 'Financing/Capital Markets', 'confidence_pct': 92, 'metric_identified': '€12.0bn'}
 --------------------------------------------------
 user@ing-fm-dev-1:~/ing-fm-poc$ 
+
+
+
+### QUERY TO FETCH INGESTED LIVE RSS NEWS FEEDS
+cat << 'EOF' > check_db.py
+import sys
+import os
+
+sys.path.append(os.getcwd())
+try:
+    from main import get_db_connection
+    
+    conn, connector = get_db_connection()
+    if conn:
+        cur = conn.cursor()
+        
+        print("=== 1. LATEST INGESTED NEWS (ca.document_vector_chunks) ===")
+        cur.execute("""
+            SELECT chunk_id, client_id, source_channel, source_name, LEFT(text_content, 90), created_at
+            FROM ca.document_vector_chunks
+            WHERE source_channel IN ('NEWS_RSS', 'LIVE_RSS_NEWS')
+            ORDER BY created_at DESC
+            LIMIT 3;
+        """)
+        rows = cur.fetchall()
+        if rows:
+            for r in rows:
+                print(f"[Chunk #{r[0]}] Client: {r[1]} | Channel: {r[2]}")
+                print(f"  Source: {r[3]}")
+                print(f"  Preview: {r[4]}...")
+                print(f"  Created At: {r[5]}\n")
+        else:
+            print("No RSS news chunks found in ca.document_vector_chunks.\n")
+
+        print("=== 2. LATEST DIGITAL TWIN SIGNALS (ca.digital_twin_signals) ===")
+        cur.execute("""
+            SELECT signal_id, client_id, catalog_family, signal_type, metric_identified, LEFT(trigger_summary, 90), created_at
+            FROM ca.digital_twin_signals
+            ORDER BY created_at DESC
+            LIMIT 3;
+        """)
+        sig_rows = cur.fetchall()
+        if sig_rows:
+            for s in sig_rows:
+                print(f"[Signal ID: {s[0]}] Client: {s[1]} | Family: {s[2]} | Type: {s[3]}")
+                print(f"  Metric: {s[4]}")
+                print(f"  Summary: {s[5]}...")
+                print(f"  Created At: {s[6]}\n")
+        else:
+            print("No signals found in ca.digital_twin_signals.\n")
+
+        cur.close()
+        conn.close()
+    else:
+        print("Database connection returned None using environment configuration.")
+except Exception as e:
+    print(f"Database inspection error: {e}")
+
+import os
+if os.path.exists(__file__):
+    os.remove(__file__)
+EOF
+python3 check_db.py
+
+## Output:-
+user@ing-fm-dev-1:~/ing-fm-poc$ cat << 'EOF' > check_db.py
+import sys
+import os
+
+sys.path.append(os.getcwd())
+try:
+    from main import get_db_connection
+    
+    conn, connector = get_db_connection()
+    if conn:
+        cur = conn.cursor()
+        
+        print("=== 1. LATEST INGESTED NEWS (ca.document_vector_chunks) ===")
+        cur.execute("""
+python3 check_db.pye__)e__):ion error: {e}")None using environment configuration.") {s[3]}")T(trigger_summary, 90), created_at
+=== 1. LATEST INGESTED NEWS (ca.document_vector_chunks) ===
+[Chunk #6] Client: CLI103 | Channel: LIVE_RSS_NEWS
+  Source: BASF launches hybrid canola for arid regions - High Plains Journal
+  Preview: BASF launches hybrid canola for arid regions - High Plains Journal
+BASF launches hybrid ca...
+  Created At: 2026-09-15 18:29:23.474117
+
+[Chunk #5] Client: CLI103 | Channel: LIVE_RSS_NEWS
+  Source: BASF’s Geopolitics-Driven Earnings Upgrade and Debt Move Could Be A Game Changer For BASF (XTRA:BAS) - Yahoo Finance
+  Preview: BASF’s Geopolitics-Driven Earnings Upgrade and Debt Move Could Be A Game Changer For BASF ...
+  Created At: 2026-09-15 18:10:46.488269
+
+[Chunk #4] Client: CLI103 | Channel: LIVE_RSS_NEWS
+  Source: BASF’s Geopolitics-Driven Earnings Upgrade and Debt Move Could Be A Game Changer For BASF (XTRA:BAS) - Yahoo Finance
+  Preview: BASF’s Geopolitics-Driven Earnings Upgrade and Debt Move Could Be A Game Changer For BASF ...
+  Created At: 2026-09-15 18:10:12.067351
+
+=== 2. LATEST DIGITAL TWIN SIGNALS (ca.digital_twin_signals) ===
+[Signal ID: SIG-215990AE] Client: CLI103 | Family: Financing/Capital Markets | Type: REFINANCING
+  Metric: BASF's Debt Move
+  Summary: BASF has undertaken a significant debt move, which could be a strategic change to its capi...
+  Created At: 2026-09-15 18:10:46.488269
+
+[Signal ID: SIG-0B994C0F] Client: CLI103 | Family: Financing/Capital Markets | Type: LIQUIDITY
+  Metric: Geopolitics-Driven Earnings Upgrade
+  Summary: BASF's earnings have been upgraded due to geopolitical factors, indicating improved financ...
+  Created At: 2026-09-15 18:10:46.488269
+
+[Signal ID: SIG-C9949425] Client: CLI103 | Family: Financing/Capital Markets | Type: REFINANCING
+  Metric: BASF's debt move could be a game changer
+  Summary: BASF's strategic debt move, coupled with an earnings upgrade, is anticipated to be a signi...
+  Created At: 2026-09-15 18:10:12.067351

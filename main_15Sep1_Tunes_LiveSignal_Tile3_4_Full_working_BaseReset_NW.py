@@ -106,8 +106,7 @@ _MANDATE_SYNTH_CACHE_TTL = 300  # seconds (5 minutes)
 # Both lists must stay in sync — the backend whitelist controls synthesis,
 # the frontend whitelist controls rendering.
 # ---------------------------------------------------------------------------
-#_DEMO_CLIENT_IDS = {"CLI101"}
-_DEMO_CLIENT_IDS = {"CLI103"}
+_DEMO_CLIENT_IDS = {"CLI101"}
 
 app = FastAPI(title="ING FM Insights API", version="1.0.0")
 
@@ -797,7 +796,7 @@ def get_opportunities():
                             preview_str = (str(c_text or "").strip())[:150]
                             if len(str(c_text or "").strip()) > 150:
                                 preview_str += "..."
-
+                            
                             if std_chan == "WORKFABRIC_MEMO":
                                 chip_label = "🧠 WorkFabric Memo"
                                 color_cls = "bg-blue-50 text-blue-800 border-blue-200"
@@ -862,7 +861,7 @@ def get_opportunities():
                         if wf_memo_row[1]:
                             cf_author = wf_memo_row[1]
                     else:
-                        cur.execute("""SELECT description, trigger_summary FROM ca.digital_twin_signals WHERE client_id = %s AND (signal_type IS NULL OR signal_type != 'LATENT_OPPORTUNITY') ORDER BY created_at DESC LIMIT 1;""", (cid_str,))
+                        cur.execute("""SELECT description, trigger_summary FROM ca.digital_twin_signals WHERE client_id = %s AND catalog_family IN ('Financing/Capital Markets', 'Interest Rate') AND (signal_type IS NULL OR signal_type != 'LATENT_OPPORTUNITY') ORDER BY confidence_pct DESC, signal_id ASC LIMIT 1;""", (cid_str,))
                         sig_row = cur.fetchone()
                         if sig_row:
                             if sig_row[0]: cf_desc = sig_row[0]
@@ -898,7 +897,6 @@ def get_opportunities():
                         SELECT text_content, source_name, structured_metadata 
                         FROM ca.document_vector_chunks 
                             WHERE client_id = %s AND source_channel IN ('PDF_REPORT', 'HOUSEVIEW')
-                              AND source_channel NOT IN ('NEWS_RSS', 'LIVE_RSS_NEWS')
                         ORDER BY created_at DESC, chunk_id DESC 
                         LIMIT 1;
                     """, (cid_str,))
@@ -948,12 +946,11 @@ def get_opportunities():
                     logger.warning(f"Error querying houseview for {cid_str}: {e_hv}")
                 # 3. Query ca.document_vector_chunks for Segment 4 Houseviews & News (Dynamic per-client)
                 try:
-                    # Absolute latest single row filtered by client ID and source channels
                     cur.execute("""
                         SELECT text_content, source_name
                         FROM ca.document_vector_chunks
                         WHERE client_id = %s
-                          AND source_channel IN ('NEWS_RSS', 'LIVE_RSS_NEWS', 'LIVE RSS News', 'News RSS')
+                          AND source_channel = 'NEWS_RSS'
                         ORDER BY created_at DESC, chunk_id DESC
                         LIMIT 1;
                     """, (cid_str,))
@@ -966,7 +963,7 @@ def get_opportunities():
                                 for line in raw_txt.splitlines():
                                     if "[1] HEADLINE:" in line:
                                         hl_part = line.strip()
-                                        news_headline = hl_part
+                                        news_headline = f"LIVE RSS INTELLIGENCE WIRE: {hl_part}"
                                         break
                             else:
                                 news_headline = raw_txt
@@ -994,7 +991,11 @@ def get_opportunities():
                 elif GENAI_AVAILABLE and cid_str in _DEMO_CLIENT_IDS:
                     try:
                         cur.execute("""
-                            SELECT DISTINCT ON (trigger_summary) signal_type, trigger_summary, metric_identified, catalog_family, confidence_pct, created_at FROM ca.digital_twin_signals WHERE client_id = %s ORDER BY trigger_summary, created_at DESC LIMIT 20;
+                            SELECT signal_type, trigger_summary, metric_identified, catalog_family, confidence_pct
+                            FROM ca.digital_twin_signals
+                            WHERE client_id = %s
+                            ORDER BY created_at DESC
+                            LIMIT 20;
                         """, (cid_str,))
                         _all_signals = [
                             {
@@ -1293,10 +1294,7 @@ def ingest_text_signal(req: TextIngestRequest):
         or raw_chan == "DOCUMENT UPLOAD"
     )
 
-    if "RSS" in raw_chan or "NEWS" in raw_chan:
-        channel = "LIVE_RSS_NEWS"
-        sname = raw_sname if raw_sname else "Live Verified News"
-    elif is_document_upload:
+    if is_document_upload:
         channel = "PDF_REPORT"
         sname = raw_sname if raw_sname else "Ingested Document"
     elif "TEAMS" in raw_chan or "TEAMS" in text.upper() or "LUCA MORETTI (DCM" in text.upper() or "GIULIA ROMANO (RM)" in text.upper():
@@ -1374,103 +1372,19 @@ If the text contains no extractable signals, return {{"detected_signals": []}}.
             cur = conn.cursor()
             sig_id = f"SIG-{uuid.uuid4().hex[:8].upper()}"
             
-            # 0. Insert into ca.document_vector_chunks with strict deduplication guard
+            # 0. Insert into ca.document_vector_chunks for Dynamic Context Fabric chips & hover tooltips
             std_channel = "WORKFABRIC_MEMO" if any(k in str(channel).upper() for k in ("MEMO", "NOTE", "FABRIC", "CONTEXT")) else str(channel)
-            
-            # Channel-scoped semantic deduplication guard
-            std_channel = "WORKFABRIC_MEMO" if any(k in str(channel).upper() for k in ("MEMO", "NOTE", "FABRIC", "CONTEXT")) else str(channel)
-            
             cur.execute("""
-                SELECT source_name, text_content 
-                FROM ca.document_vector_chunks
-                WHERE client_id = %s
-                ORDER BY created_at DESC 
-                LIMIT 15;
-            """, (str(cid),))
-            channel_history = cur.fetchall()
-            
-            existing_chunk_id = None
-            # Deterministic exact-match pre-check
-            if channel_history:
-                for r in channel_history:
-                    if str(r[0]).strip().lower() == str(sname).strip().lower() or (text and str(r[1]).strip()[:200] == str(text).strip()[:200]):
-                        # Find the matching chunk_id
-                        cur.execute("""
-                            SELECT chunk_id FROM ca.document_vector_chunks
-                            WHERE client_id = %s AND source_name = %s
-                            ORDER BY created_at DESC 
-                            LIMIT 1;
-                        """, (str(cid), r[0]))
-                        match_row = cur.fetchone()
-                        if match_row:
-                            existing_chunk_id = match_row[0]
-                            break
-
-            if not existing_chunk_id and channel_history:
-                history_snippets = [f"Title: {r[0]} | Content: {r[1][:250]}" for r in channel_history]
-                eval_prompt = f"""
-                You are a senior institutional banking intelligence auditor.
-                Compare this incoming ingestion item against the recent history for this specific channel ({std_channel}).
-                
-                Incoming Source/Title: {sname}
-                Incoming Content Snippet: {text[:350]}
-                
-                Recent Channel History:
-                {chr(10).join(history_snippets)}
-                
-                Does this incoming item convey the exact same core corporate event, news headline, or memo as any existing record in THIS channel? 
-                Answer strictly with 'DUPLICATE' or 'UNIQUE'.
-                """
-                try:
-                    eval_res = call_gemini_pro_evaluation(eval_prompt) if 'call_gemini_pro_evaluation' in globals() else ""
-                    # Fallback lightweight LLM evaluation if helper isn't globally scoped
-                    if not eval_res and 'model' in globals():
-                        resp = model.generate_content(eval_prompt)
-                        eval_res = resp.text
-                    
-                    if "DUPLICATE" in str(eval_res).upper():
-                        # Find the matching chunk_id to link
-                        cur.execute("""
-                            SELECT chunk_id FROM ca.document_vector_chunks
-                            WHERE client_id = %s
-                            ORDER BY created_at DESC 
-                            LIMIT 1;
-                        """, (str(cid),))
-                        match_row = cur.fetchone()
-                        if match_row:
-                            existing_chunk_id = match_row[0]
-                except Exception as e_sem:
-                    logger.warning(f"Semantic deduplication evaluation fallback error: {e_sem}")
-            
-            if existing_chunk_id:
-                new_chunk_id = existing_chunk_id
-                logger.info(f"Skipping semantically duplicate chunk for {cid} in channel {std_channel}: {str(sname)[:50]}")
-                if conn:
-                    conn.commit()
-                    cur.close()
-                    conn.close()
-                return {
-                    "status": "duplicate_skipped",
-                    "message": f"⚠️ Duplicate signal intercepted: '{str(sname)[:60]}' already exists in channel {std_channel}.",
-                    "chunk_id": existing_chunk_id
-                }
-            else:
-                cur.execute("""
-                    INSERT INTO ca.document_vector_chunks (
-                        client_id, source_channel, source_name, text_content, created_at
-                    ) VALUES (%s, %s, %s, %s, NOW())
-                    RETURNING chunk_id;
-                """, (str(cid), std_channel, str(sname), str(text)))
-                new_chunk_id = cur.fetchone()[0]
-                logger.info(f"Inserted ca.document_vector_chunks #{new_chunk_id} for {cid}")
+                INSERT INTO ca.document_vector_chunks (
+                    client_id, source_channel, source_name, text_content, created_at
+                ) VALUES (%s, %s, %s, %s, NOW())
+                RETURNING chunk_id;
+            """, (str(cid), std_channel, str(sname), str(text)))
+            new_chunk_id = cur.fetchone()[0]
+            logger.info(f"Inserted ca.document_vector_chunks #{new_chunk_id} for {cid}")
 
             # 1. Insert one row per detected signal (with dedup on trigger_summary)
             detected_signals = extracted.get("detected_signals") if isinstance(extracted, dict) else None
-            
-            # If this is a semantic duplicate, skip inserting redundant digital twin signals entirely
-            if existing_chunk_id:
-                logger.info(f"Skipping digital_twin_signals insert for semantic duplicate chunk #{existing_chunk_id}")
-                detected_signals = []
             if not detected_signals:
                 # Backward-compatible fallback: treat the flattened extraction as a single signal
                 detected_signals = [{
@@ -2262,316 +2176,6 @@ else:
     def index():
         return {"status": "Backend running, frontend build not found."}
 
-@app.post("/api/system/reset-baseline")
-def reset_baseline(payload: dict = None):
-    """
-    Restores whitelisted clients to their pristine baseline state.
-
-    Reads baseline_snapshots.json and inserts pristine rows into every
-    client-scoped table. Rows with a primary key use ON CONFLICT DO UPDATE
-    so the endpoint is idempotent. Rows without a primary key
-    (debt_maturity_schedule, coverage_teams) are scoped by client_id: any
-    prior rows for the client are removed, then pristine rows are inserted.
-    That deletion only ever touches rows the reset itself previously inserted,
-    because the ingestion pipeline does not write to those two tables.
-
-    For the two timestamp-bearing tables (digital_twin_signals and
-    document_vector_chunks), created_at is set to NOW() on both insert and
-    update so the pristine rows become the newest rows in the table and win
-    the ORDER BY created_at DESC reads that drive the UI.
-
-    Global market tables (mkt_rates_curves, ext_credit_spreads) are not
-    touched — they are not client-scoped, and the ingestion pipeline cannot
-    modify them.
-    """
-    # 1. Resolve target client IDs (whitelist by default)
-    if payload and isinstance(payload, dict) and payload.get("client_ids"):
-        client_ids = [str(c).strip() for c in payload["client_ids"] if c]
-    else:
-        client_ids = list(_DEMO_CLIENT_IDS)
-
-    # 2. Invalidate mandate synthesis cache for those clients
-    for cid in client_ids:
-        _MANDATE_SYNTH_CACHE.pop(cid, None)
-
-    # 3. Load the snapshot file
-    snapshot_path = os.path.join(os.path.dirname(__file__), "baseline_snapshots.json")
-    if not os.path.exists(snapshot_path):
-        return {"status": "error", "message": "baseline_snapshots.json not found."}
-
-    try:
-        with open(snapshot_path, "r", encoding="utf-8") as f:
-            snapshots = json.load(f)
-    except Exception as e:
-        logger.exception("Failed to load baseline_snapshots.json")
-        return {"status": "error", "message": f"Could not read snapshot file: {e}"}
-
-    clients_block = snapshots.get("clients", {})
-
-    # 4. Open DB connection
-    conn, connector = get_db_connection()
-    if not conn:
-        return {"status": "error", "message": "Database connection failed."}
-
-    summary = {}
-    skipped = []
-    cur = None
-
-    try:
-        cur = conn.cursor()
-
-        for cid in client_ids:
-            if cid not in clients_block:
-                skipped.append(cid)
-                logger.warning(f"Reset skipped: {cid} not in snapshot")
-                continue
-
-            data = clients_block[cid]
-            counts = {
-                "client_master": 0,
-                "ext_company_filings": 0,
-                "ca_opportunity_scoring": 0,
-                "digital_twin_signals": 0,
-                "document_vector_chunks": 0,
-                "debt_maturity_schedule": 0,
-                "coverage_teams": 0,
-                "ext_deals": 0,
-            }
-
-            # client_master
-            for row in data.get("client_master", []):
-                cur.execute("""
-                    INSERT INTO ca.client_master (
-                        client_id, client_name, group_parent, legal_entity,
-                        industry_sector, country, region, ownership_type,
-                        tier, hq_country, revenue_eur_m, rm_name, base_ccy
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (client_id) DO UPDATE SET
-                        client_name = EXCLUDED.client_name,
-                        group_parent = EXCLUDED.group_parent,
-                        legal_entity = EXCLUDED.legal_entity,
-                        industry_sector = EXCLUDED.industry_sector,
-                        country = EXCLUDED.country,
-                        region = EXCLUDED.region,
-                        ownership_type = EXCLUDED.ownership_type,
-                        tier = EXCLUDED.tier,
-                        hq_country = EXCLUDED.hq_country,
-                        revenue_eur_m = EXCLUDED.revenue_eur_m,
-                        rm_name = EXCLUDED.rm_name,
-                        base_ccy = EXCLUDED.base_ccy;
-                """, (
-                    row.get("client_id"), row.get("client_name"),
-                    row.get("group_parent"), row.get("legal_entity"),
-                    row.get("industry_sector"), row.get("country"),
-                    row.get("region"), row.get("ownership_type"),
-                    row.get("tier"), row.get("hq_country"),
-                    row.get("revenue_eur_m"), row.get("rm_name"),
-                    row.get("base_ccy"),
-                ))
-                counts["client_master"] += 1
-
-            # ext_company_filings
-            for row in data.get("ext_company_filings", []):
-                cur.execute("""
-                    INSERT INTO ca.ext_company_filings (
-                        filing_id, client_id, reporting_period, net_debt_eur_m,
-                        liquidity_eur_m, ebitda_eur_m, reported_revenue_eur_m,
-                        debt_maturing_24m_eur_m, notes
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (filing_id) DO UPDATE SET
-                        client_id = EXCLUDED.client_id,
-                        reporting_period = EXCLUDED.reporting_period,
-                        net_debt_eur_m = EXCLUDED.net_debt_eur_m,
-                        liquidity_eur_m = EXCLUDED.liquidity_eur_m,
-                        ebitda_eur_m = EXCLUDED.ebitda_eur_m,
-                        reported_revenue_eur_m = EXCLUDED.reported_revenue_eur_m,
-                        debt_maturing_24m_eur_m = EXCLUDED.debt_maturing_24m_eur_m,
-                        notes = EXCLUDED.notes;
-                """, (
-                    row.get("filing_id"), row.get("client_id"),
-                    row.get("reporting_period"), row.get("net_debt_eur_m"),
-                    row.get("liquidity_eur_m"), row.get("ebitda_eur_m"),
-                    row.get("reported_revenue_eur_m"),
-                    row.get("debt_maturing_24m_eur_m"), row.get("notes"),
-                ))
-                counts["ext_company_filings"] += 1
-
-            # ca_opportunity_scoring
-            for row in data.get("ca_opportunity_scoring", []):
-                cur.execute("""
-                    INSERT INTO ca.ca_opportunity_scoring (
-                        opportunity_id, client_id, opportunity_type, trigger_source,
-                        est_revenue_eur_000, propensity_score, value_score,
-                        priority_score, rank, next_best_action, why_now_nlg
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (opportunity_id) DO UPDATE SET
-                        client_id = EXCLUDED.client_id,
-                        opportunity_type = EXCLUDED.opportunity_type,
-                        trigger_source = EXCLUDED.trigger_source,
-                        est_revenue_eur_000 = EXCLUDED.est_revenue_eur_000,
-                        propensity_score = EXCLUDED.propensity_score,
-                        value_score = EXCLUDED.value_score,
-                        priority_score = EXCLUDED.priority_score,
-                        rank = EXCLUDED.rank,
-                        next_best_action = EXCLUDED.next_best_action,
-                        why_now_nlg = EXCLUDED.why_now_nlg;
-                """, (
-                    row.get("opportunity_id"), row.get("client_id"),
-                    row.get("opportunity_type"), row.get("trigger_source"),
-                    row.get("est_revenue_eur_000"), row.get("propensity_score"),
-                    row.get("value_score"), row.get("priority_score"),
-                    row.get("rank"), row.get("next_best_action"),
-                    row.get("why_now_nlg"),
-                ))
-                counts["ca_opportunity_scoring"] += 1
-
-            # digital_twin_signals — created_at = NOW()
-            for row in data.get("digital_twin_signals", []):
-                cur.execute("""
-                    INSERT INTO ca.digital_twin_signals (
-                        signal_id, client_id, catalog_family, signal_type,
-                        metric_identified, trigger_summary, metric_value,
-                        description, confidence_pct, urgency, created_at
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                    ON CONFLICT (signal_id) DO UPDATE SET
-                        client_id = EXCLUDED.client_id,
-                        catalog_family = EXCLUDED.catalog_family,
-                        signal_type = EXCLUDED.signal_type,
-                        metric_identified = EXCLUDED.metric_identified,
-                        trigger_summary = EXCLUDED.trigger_summary,
-                        metric_value = EXCLUDED.metric_value,
-                        description = EXCLUDED.description,
-                        confidence_pct = EXCLUDED.confidence_pct,
-                        urgency = EXCLUDED.urgency,
-                        created_at = NOW();
-                """, (
-                    row.get("signal_id"), row.get("client_id"),
-                    row.get("catalog_family"), row.get("signal_type"),
-                    row.get("metric_identified"), row.get("trigger_summary"),
-                    row.get("metric_value"), row.get("description"),
-                    row.get("confidence_pct"), row.get("urgency"),
-                ))
-                counts["digital_twin_signals"] += 1
-
-            # document_vector_chunks — created_at = NOW(), structured_metadata preserved
-            for row in data.get("document_vector_chunks", []):
-                meta = row.get("structured_metadata")
-                if isinstance(meta, (dict, list)):
-                    meta_payload = json.dumps(meta)
-                else:
-                    meta_payload = meta
-
-                cur.execute("""
-                    INSERT INTO ca.document_vector_chunks (
-                        chunk_id, client_id, source_channel, source_name,
-                        text_content, structured_metadata, created_at
-                    ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
-                    ON CONFLICT (chunk_id) DO UPDATE SET
-                        client_id = EXCLUDED.client_id,
-                        source_channel = EXCLUDED.source_channel,
-                        source_name = EXCLUDED.source_name,
-                        text_content = EXCLUDED.text_content,
-                        structured_metadata = EXCLUDED.structured_metadata,
-                        created_at = NOW();
-                """, (
-                    row.get("chunk_id"), row.get("client_id"),
-                    row.get("source_channel"), row.get("source_name"),
-                    row.get("text_content"), meta_payload,
-                ))
-                counts["document_vector_chunks"] += 1
-
-            # debt_maturity_schedule — no PK, delete+insert scoped by client_id
-            maturities = data.get("debt_maturity_schedule", [])
-            if maturities:
-                cur.execute(
-                    "DELETE FROM ca.debt_maturity_schedule WHERE client_id = %s",
-                    (cid,),
-                )
-                for row in maturities:
-                    cur.execute("""
-                        INSERT INTO ca.debt_maturity_schedule (
-                            isin, client_id, instrument_type, amount_eur_m,
-                            maturity_year, coupon_rate_pct, currency
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """, (
-                        row.get("isin"), row.get("client_id"),
-                        row.get("instrument_type"), row.get("amount_eur_m"),
-                        row.get("maturity_year"), row.get("coupon_rate_pct"),
-                        row.get("currency"),
-                    ))
-                    counts["debt_maturity_schedule"] += 1
-
-            # coverage_teams — no PK, delete+insert scoped by client_id
-            coverage = data.get("coverage_teams", [])
-            if coverage:
-                cur.execute(
-                    "DELETE FROM ca.coverage_teams WHERE client_id = %s",
-                    (cid,),
-                )
-                for row in coverage:
-                    cur.execute("""
-                        INSERT INTO ca.coverage_teams (
-                            client_id, role_title, banker_name, location
-                        ) VALUES (%s, %s, %s, %s)
-                    """, (
-                        row.get("client_id"), row.get("role_title"),
-                        row.get("banker_name"), row.get("location"),
-                    ))
-                    counts["coverage_teams"] += 1
-
-            # ext_deals
-            for row in data.get("ext_deals", []):
-                cur.execute("""
-                    INSERT INTO ca.ext_deals (
-                        deal_id, client_id, deal_type, volume_eur_m,
-                        role, deal_date
-                    ) VALUES (%s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (deal_id) DO UPDATE SET
-                        client_id = EXCLUDED.client_id,
-                        deal_type = EXCLUDED.deal_type,
-                        volume_eur_m = EXCLUDED.volume_eur_m,
-                        role = EXCLUDED.role,
-                        deal_date = EXCLUDED.deal_date;
-                """, (
-                    row.get("deal_id"), row.get("client_id"),
-                    row.get("deal_type"), row.get("volume_eur_m"),
-                    row.get("role"), row.get("deal_date"),
-                ))
-                counts["ext_deals"] += 1
-
-            summary[cid] = counts
-            logger.info(f"Reset baseline applied for {cid}: {counts}")
-
-        conn.commit()
-
-        return {
-            "status": "success",
-            "restored_clients": [c for c in client_ids if c in summary],
-            "skipped_clients": skipped,
-            "summary": summary,
-            "timestamp": datetime.now().isoformat(),
-        }
-
-    except Exception as e:
-        try:
-            conn.rollback()
-        except Exception:
-            pass
-        logger.exception("Reset baseline failed")
-        return {"status": "error", "message": str(e)}
-
-    finally:
-        try:
-            if cur: cur.close()
-        except Exception:
-            pass
-        try:
-            conn.close()
-        except Exception:
-            pass
-        if connector:
-            try: connector.close()
-            except Exception: pass
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)

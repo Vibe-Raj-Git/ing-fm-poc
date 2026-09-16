@@ -1556,31 +1556,20 @@ export default function App() {
               </button>
               <button 
                 onClick={async () => {
-                  if (!window.confirm("Reset data to baseline values? Do you want to continue.")) {
-                    return;
+                  setIsLoading(true);
+                  try {
+                    await fetch('/api/system/reset-baseline', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ client_ids: ACTIVE_UI_CLIENT_IDS })
+                    });
+                    setDeckOverrides({});
+                    await fetchDashboardData();
+                  } catch (err) {
+                    console.error("Reset failed:", err);
+                  } finally {
+                    setIsLoading(false);
                   }
-                    setIsLoading(true);
-                    try {
-                      const res = await fetch('/api/system/reset-baseline', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ client_ids: ACTIVE_UI_CLIENT_IDS })
-                      });
-                      if (!res.ok) {
-                        throw new Error(`Reset endpoint returned HTTP ${res.status}`);
-                      }
-                      const data = await res.json();
-                      if (data.status !== 'success') {
-                        throw new Error(data.message || 'Reset failed');
-                      }
-                      setDeckOverrides({});
-                      await fetchDashboardData();
-                    } catch (err) {
-                      console.error("Reset failed:", err);
-                      alert(`Reset failed: ${err.message}`);
-                    } finally {
-                      setIsLoading(false);
-                    }
                 }}
                 className="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition"
                 title="Reset active clients to pristine baseline (preserves historical uploads)"

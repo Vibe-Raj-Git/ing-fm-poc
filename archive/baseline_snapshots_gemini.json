@@ -1,0 +1,1101 @@
+{
+    "CLI007": {
+        "client_master": {
+            "client_name": "Heineken N.V.",
+            "coverage_rm": "Daan Visser"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 11552.0,
+            "liquidity_eur_m": 3648.0,
+            "debt_maturing_24m_eur_m": 1300.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 55,
+            "est_revenue_eur_000": 410.0,
+            "why_now_nlg": "Heineken N.V. is navigating a €1.30bn maturity profile against €3.6bn in available liquidity. Current rate benchmarks (5Y swap at 2.62%) create an actionable window to proactively optimize borrowing costs.",
+            "next_best_action": "Structure targeted em fx hedging financing and rate hedging overlays tailored to upcoming balance sheet requirements."
+        },
+        "digital_twin_signals": [],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for Heineken N.V.: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI007: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: Heineken N.V. completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€3648.0M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    },
+    "CLI003": {
+        "client_master": {
+            "client_name": "Stellantis N.V.",
+            "coverage_rm": "Daan Visser"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 16720.0,
+            "liquidity_eur_m": 5280.0,
+            "debt_maturing_24m_eur_m": 4800.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 94,
+            "est_revenue_eur_000": 5500.0,
+            "why_now_nlg": "Stellantis faces a substantial €4.80bn debt maturity wall by 2027, which, despite a €5.3bn liquidity buffer and recent market issuance, necessitates proactive liability management to optimize its capital structure. The prevailing 5Y EUR swap rate at 2.62% and a 78 bps credit spread present a timely window to pre-emptively address upcoming maturities and secure attractive funding.",
+            "next_best_action": "We propose structuring a EUR 1.5B dual-tranche Senior EMTN benchmark, potentially including a green tranche benefiting from an indicative -5 bps greenium, combined with a liability management tender offer to optimize the debt maturity profile. Leveraging the current 5Y EUR swap rate of 2.62% and a 78 bps credit spread, this transaction will secure attractive funding; we recommend immediate engagement with Treasury to finalize structuring and execution."
+        },
+        "digital_twin_signals": [
+            {
+                "signal_id": "SIG-6E6B1A5D",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "REFINANCING",
+                "metric_identified": "Sizable residual debt maturities across 24M horizon",
+                "trigger_summary": "Public disclosures indicate Stellantis N.V. has significant residual debt maturities within 24 months, suggesting a need for liability management despite recent bond issuance.",
+                "metric_value": "€1.5B",
+                "description": "Stellantis N.V. faces substantial debt maturities over the next 24 months, and while recent bond issuance occurred, capex expansion cannot be entirely self-funded. This presents an opportunity to structure a EUR 1.5B dual-tranche Senior EMTN benchmark, combined with a liability management tender offer, to optimize their debt maturity profile.",
+                "confidence_pct": 94,
+                "urgency": "Medium"
+            }
+        ],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for Stellantis N.V.: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI003: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: Stellantis N.V. completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€5280.0M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    },
+    "CLI006": {
+        "client_master": {
+            "client_name": "Koninklijke Philips N.V.",
+            "coverage_rm": "Daan Visser"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 5548.0,
+            "liquidity_eur_m": 1752.0,
+            "debt_maturing_24m_eur_m": 850.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 47,
+            "est_revenue_eur_000": 380.0,
+            "why_now_nlg": "Koninklijke Philips N.V. is navigating a €850M maturity profile against €1.8bn in available liquidity. Current rate benchmarks (5Y swap at 2.62%) create an actionable window to proactively optimize borrowing costs.",
+            "next_best_action": "Structure targeted wc facility refinance financing and rate hedging overlays tailored to upcoming balance sheet requirements."
+        },
+        "digital_twin_signals": [],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for Koninklijke Philips N.V.: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI006: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: Koninklijke Philips N.V. completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€1752.0M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    },
+    "CLI002": {
+        "client_master": {
+            "client_name": "ASML Holding N.V.",
+            "coverage_rm": "Daan Visser"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 3192.0,
+            "liquidity_eur_m": 1008.0,
+            "debt_maturing_24m_eur_m": 0.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 82,
+            "est_revenue_eur_000": 850.0,
+            "why_now_nlg": "ASML's €0M maturity wall across 2026-2027, combined with a strong €1.0bn liquidity buffer, creates a strategic window for proactive capital structure optimization. The current 5Y EUR swap rate of 2.62% provides an actionable opportunity to implement an FX hedging programme and pre-hedge future rate exposures, aligning with ongoing capital structure reviews.",
+            "next_best_action": "We propose structuring a targeted FX hedging programme, complemented by rate hedging overlays, to proactively address ASML's upcoming balance sheet requirements and optimize borrowing costs. Let's immediately engage with your Treasury team to finalize the precise structuring, sizing, and tenor distribution for these strategic hedging solutions."
+        },
+        "digital_twin_signals": [],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for ASML Holding N.V.: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI002: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: ASML Holding N.V. completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€1008.0M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    },
+    "CLI004": {
+        "client_master": {
+            "client_name": "SAP SE",
+            "coverage_rm": "Klaus Berger"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 8208.0,
+            "liquidity_eur_m": 2592.0,
+            "debt_maturing_24m_eur_m": 900.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 64,
+            "est_revenue_eur_000": 300.0,
+            "why_now_nlg": "SAP faces a €900M debt maturity wall across 2026-2027, coinciding with an active capital structure review, presenting a strategic window to pre-hedge rates despite a robust €2.6bn liquidity buffer. Current market conditions, including a 5Y EUR swap rate of 2.62%, offer an opportune moment to proactively address refinancing needs and optimize funding costs.",
+            "next_best_action": "We recommend a proactive €900M structured deposit issuance with a 5-year tenor, aligning with the 2026-2027 maturity wall and optimizing the rate pre-hedge window. This transaction should incorporate a rate pre-hedge, leveraging the current 5Y EUR swap rate of 2.62% and a credit spread of 78 bps, and we propose immediate engagement with Treasury to finalize structuring and execution."
+        },
+        "digital_twin_signals": [],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for SAP SE: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI004: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: SAP SE completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€2592.0M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    },
+    "CLI103": {
+        "client_master": {
+            "client_name": "BASF SE",
+            "coverage_rm": "Klaus Weber"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 16200.0,
+            "liquidity_eur_m": 7800.0,
+            "debt_maturing_24m_eur_m": 3000.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 94,
+            "est_revenue_eur_000": 5800.0,
+            "why_now_nlg": "Despite a healthy €7.8bn liquidity buffer, BASF faces a significant €3.00bn maturity wall in 2026-2027, necessitating proactive refinancing. The current 5Y EUR swap rate at 2.62% presents an opportune window to lock in attractive funding costs and optimize capital structure amidst ongoing market activity related to their coatings division.",
+            "next_best_action": "We recommend immediate execution of a €4.0B 6Y EMTN issuance, targeting a yield of 3.82% (5Y EUR Swap of 2.62% plus 120 bps credit spread), with potential for a -5 bps greenium. Concurrently, implement a €1.2B 6Y IRS pre-hedge to manage interest rate risk, aligning with BASF Treasury's approved accelerated debt rollover strategy and addressing the upcoming maturity wall.",
+            "opportunity_id": "OPPCA106_CLI103"
+        },
+        "digital_twin_signals": [
+            {
+                "signal_id": "SIG_CLI010_BASF_TREASURYSCEN",
+                "catalog_family": "Interest Rate",
+                "signal_type": "TREASURY_SCENARIO_REVIEW",
+                "metric_identified": "Risk Analytics",
+                "trigger_summary": "Proactive risk-management review proposed to Group Treasury.",
+                "metric_value": "Risk Analytics",
+                "description": "Proposed structured agenda for treasury scenario review covering hedge-maturity sensitivity, commodity optionality, and liquidity headroom under downside market scenarios.",
+                "confidence_pct": 90,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG_CLI010_BASF_RATEHEDGEROL",
+                "catalog_family": "Interest Rate",
+                "signal_type": "RATE_HEDGE_ROLLOFF",
+                "metric_identified": "68% -> 46%",
+                "trigger_summary": "Material interest-rate hedge protection expiring within 12 months.",
+                "metric_value": "68% -> 46%",
+                "description": "Scheduled hedge report appears to show a material protection tranche expiring within 12 months. Post-roll fixed-rate coverage potentially falling from approx 68% to 46% vs provisional policy reference of 60%.",
+                "confidence_pct": 92,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG_CLI010_BASF_ENERGYPRICEV",
+                "catalog_family": "Commodities",
+                "signal_type": "ENERGY_PRICE_VOLATILITY",
+                "metric_identified": "TTF Gas / Power",
+                "trigger_summary": "Hedging required across European power and natural gas purchase books.",
+                "metric_value": "TTF Gas / Power",
+                "description": "Gas and power volatility is elevated. European chemicals remain exposed to energy price volatility. Scenario review recommended against forecast consumption and hedge volumes.",
+                "confidence_pct": 88,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG_EXT_13_1",
+                "catalog_family": "Interest Rate",
+                "signal_type": "Interest Rate Risk Management",
+                "metric_identified": "Fixed coverage decline from 68% to 46% against 60% policy target, within 12 months.",
+                "trigger_summary": "BASF has a material interest-rate protection tranche expiring within approximately 12 months, which is expected to cause post-roll fixed coverage to decline from 68% to 46% against a 60% policy target.",
+                "metric_value": "Fixed coverage decline from 68% to 46% against 60% policy target, within 12 months.",
+                "description": "BASF has a material interest-rate protection tranche expiring within approximately 12 months, which is expected to cause post-roll fixed coverage to decline from 68% to 46% against a 60% policy target. [Evidence Status: Derived Signal; Confidence: 85%; Evidence Basis: The source explicitly states the expiry of material interest rate protection and the resulting decline in fixed coverage below the policy target. While it supports further review, it explicitly denies a confirmed hedge mandate, making it a strong derived signal for potential action rather than a confirmed need.]",
+                "confidence_pct": 85,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_13_2",
+                "catalog_family": "Commodities",
+                "signal_type": "Commodity Price Volatility Exposure",
+                "metric_identified": "N/A",
+                "trigger_summary": "TTF gas and power price volatility may create additional operating margin exposure for BASF.",
+                "metric_value": "N/A",
+                "description": "TTF gas and power price volatility may create additional operating margin exposure for BASF. [Evidence Status: Hypothesis; Confidence: 60%; Evidence Basis: The source indicates a potential risk by stating volatility 'may create' additional operating margin exposure, suggesting an unconfirmed or unquantified possibility rather than a definite or current exposure.]",
+                "confidence_pct": 60,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_14_2",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Debt Management / Corporate Finance Strategy",
+                "metric_identified": "Debt Reduction (specific amount N/A)",
+                "trigger_summary": "BASF SE is pursuing a strategy of 'debt reduction' as part of its financial 'balancing act', which also encompasses share buybacks.",
+                "metric_value": "Debt Reduction (specific amount N/A)",
+                "description": "BASF SE is pursuing a strategy of 'debt reduction' as part of its financial 'balancing act', which also encompasses share buybacks. [Evidence Status: Derived Signal; Confidence: 75%; Evidence Basis: Headline and summary [6] directly state 'Debt Reduction' as a component of 'BASF's Balancing Act'. Headline [3] mentions a 'Debt Move' by BASF, reinforcing the focus on debt-related actions by the company itself.]",
+                "confidence_pct": 75,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_14_1",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Debt Origination / Acquisition Financing",
+                "metric_identified": "Acquisition Debt: €4bn - €4.5bn / $4bn; Acquisition Value: €7.7bn",
+                "trigger_summary": "Banks are prepping and have begun the sale of a substantial debt package (estimated between €4 billion and €4.5 billion / $4 billion), which includes junk bonds, to finance Carlyle's €7.7 billion acquisition of BASF Coatings Business.",
+                "metric_value": "Acquisition Debt: €4bn - €4.5bn / $4bn; Acquisition Value: €7.7bn",
+                "description": "Banks are prepping and have begun the sale of a substantial debt package (estimated between €4 billion and €4.5 billion / $4 billion), which includes junk bonds, to finance Carlyle's €7.7 billion acquisition of BASF Coatings Business. [Evidence Status: Derived Signal; Confidence: 88%; Evidence Basis: Multiple headlines and summaries ([2], [4], [5], [8]) explicitly confirm banks are 'prepping' or 'kick[ing] off' the 'sale of buyout debt' or 'debt package' for the 'BASF Coatings Deal' or 'carve-out', with amounts specified as '$4 Billion', '€4bn', or '€4.5B'. The type of debt (junk bonds) and the acquisition value (€7.7 billion) are also clearly stated ([2], [5], [7]). This is for the acquirer (Carlyle) of BASF's divested business.]",
+                "confidence_pct": 88,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG-5D2FBFCB",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "REFINANCING",
+                "metric_identified": "BASF's Geopolitics-Driven Earnings Upgrade and Debt Move",
+                "trigger_summary": "BASF's recent geopolitics-driven earnings upgrade and strategic debt move are anticipated to significantly impact its financial outlook.",
+                "metric_value": "",
+                "description": "BASF has reportedly undertaken a debt move and experienced an earnings upgrade, both influenced by geopolitical factors. These developments are seen as potentially transformative for the company's financial position and market standing.",
+                "confidence_pct": 94,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG-753E4A13",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "M&A",
+                "metric_identified": "Banks Kick Off Sale of Junk Bonds Backing BASF Coatings Deal",
+                "trigger_summary": "Banks have initiated the sale of high-yield bonds to finance an acquisition or significant investment related to BASF's coatings business.",
+                "metric_value": "None",
+                "description": "Financial institutions have commenced the process of selling speculative-grade bonds, commonly known as junk bonds, to provide the necessary capital for a strategic transaction involving BASF's coatings division. This bond issuance is a key step in securing the funding for an M&A-related activity by BASF.",
+                "confidence_pct": 95,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG-5D943F2F",
+                "catalog_family": "Financing/Capital Markets | Interest Rate",
+                "signal_type": "REFINANCING | HEDGING",
+                "metric_identified": "BASF approves €2.0B 6Y EMTN Issuance & €1.2B 6Y IRS Pre-Hedge",
+                "trigger_summary": "BASF Treasury has secured Executive Committee approval to accelerate their debt rollover, necessitating immediate execution of a €2.0B 6Y EMTN and a €1.2B 6Y IRS pre-hedge.",
+                "metric_value": "€2.0B 6Y EMTN & €1.2B 6Y IRS at 2.58%",
+                "description": "BASF's Executive Committee has approved accelerating their debt rollover, planning a EUR 2.0B 6Y Senior EMTN Benchmark issuance in Q3. Concurrently, they will implement an immediate EUR 1.2B 6Y Fixed-to-Floating IRS pre-hedge at 2.58% to cover 65% of floating rate liabilities.",
+                "confidence_pct": 94,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG_BASF_TEST_103",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "TEST_INJECTION",
+                "metric_identified": "€500M Surgical Test",
+                "trigger_summary": "BASF test insertion for Master Reset validation",
+                "metric_value": "€500M",
+                "description": "Verifying that reset clears UI state while preserving table rows.",
+                "confidence_pct": 95,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG-2F26BBE5",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "M&A",
+                "metric_identified": "Banks prepping sale of BASF Coatings' $4 Billion Buyout Debt",
+                "trigger_summary": "Banks are preparing to sell $4 billion in debt related to a buyout of BASF Coatings.",
+                "metric_value": "$4 Billion",
+                "description": "Banks are reportedly preparing to sell $4 billion in debt associated with the buyout of BASF Coatings. This indicates significant financing activity in the market related to a corporate acquisition or divestiture.",
+                "confidence_pct": 95,
+                "urgency": "Medium"
+            }
+        ],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for BASF SE: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI103: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: BASF SE completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€7800.0M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    },
+    "CLI105": {
+        "client_master": {
+            "client_name": "Bayer AG",
+            "coverage_rm": "Klaus Weber"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 25566.4,
+            "liquidity_eur_m": 8073.6,
+            "debt_maturing_24m_eur_m": 4000.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 50,
+            "est_revenue_eur_000": 950.0,
+            "why_now_nlg": "Bayer AG is navigating a €4.00bn maturity profile against €8.1bn in available liquidity. Current rate benchmarks (5Y swap at 2.62%) create an actionable window to proactively optimize borrowing costs.",
+            "next_best_action": "Structure targeted residual liability mgmt (verify) financing and rate hedging overlays tailored to upcoming balance sheet requirements."
+        },
+        "digital_twin_signals": [],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for Bayer AG: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI105: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: Bayer AG completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€8073.6M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    },
+    "CLI102": {
+        "client_master": {
+            "client_name": "ASML Holding N.V.",
+            "coverage_rm": "Daan Visser"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 3192.0,
+            "liquidity_eur_m": 1008.0,
+            "debt_maturing_24m_eur_m": 0.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 94,
+            "est_revenue_eur_000": 5500.0,
+            "why_now_nlg": "ASML faces a significant €7.00bn maturity wall between 2026-2027, substantially outpacing its €1.0bn available liquidity. Current market benchmarks, including a 5-year EUR swap rate of 2.62% and a 78 bps credit spread, offer an opportune window to proactively optimize borrowing costs and address this upcoming refinancing requirement.",
+            "next_best_action": "ING recommends structuring targeted refinancing solutions and strategic interest rate hedging overlays. These will be precisely tailored to ASML's €7.00bn maturity profile, optimizing borrowing costs and ensuring balance sheet resilience, requiring immediate engagement with Treasury to finalize the optimal structure and tenor distribution."
+        },
+        "digital_twin_signals": [
+            {
+                "signal_id": "SIG_EXT_15_1",
+                "catalog_family": "Credit",
+                "signal_type": "Debt Analysis Mention",
+                "metric_identified": "N/A",
+                "trigger_summary": "A news article headline, published by Vinanet on August 19, 2026, explicitly refers to a 'Debt Analysis Report' concerning ASML, linking it to the company's stock performance and market consolidation.",
+                "metric_value": "N/A",
+                "description": "A news article headline, published by Vinanet on August 19, 2026, explicitly refers to a 'Debt Analysis Report' concerning ASML, linking it to the company's stock performance and market consolidation. [Evidence Status: Fact; Confidence: 95%; Evidence Basis: The headline of article [3] directly states 'Debt Analysis Report' in reference to ASML.]",
+                "confidence_pct": 95,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG-B2845A20",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "REFINANCING",
+                "metric_identified": "ASML announces comprehensive balance sheet review and debt strategy",
+                "trigger_summary": "Corporate Treasury assesses financing options and interest rate hedges ahead of upcoming maturities.",
+                "metric_value": "",
+                "description": "ASML Holding N.V. is undertaking a comprehensive review of its balance sheet and debt strategy. This initiative includes assessing various financing options and interest rate hedges in anticipation of upcoming debt maturities.",
+                "confidence_pct": 94,
+                "urgency": "High"
+            }
+        ],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for ASML Holding N.V.: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI102: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: ASML Holding N.V. completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€1008.0M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    },
+    "CLI005": {
+        "client_master": {
+            "client_name": "Vattenfall AB",
+            "coverage_rm": "Sarah Boyer"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 6916.0,
+            "liquidity_eur_m": 2184.0,
+            "debt_maturing_24m_eur_m": 1200.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 60,
+            "est_revenue_eur_000": 550.0,
+            "why_now_nlg": "Vattenfall's active capital structure review and a €1.20bn debt maturity wall in 2026-2027 create an immediate need for proactive refinancing, despite a robust €2.2bn liquidity buffer. The prevailing 5Y EUR Swap rate of 2.62% and an identified rate pre-hedge window underscore the urgency to optimize future funding costs.",
+            "next_best_action": "We propose a €1.0bn dual-tranche Green Bond issuance, targeting a 5-year tenor at Mid-swap + 73 bps (net of -5 bps greenium) to address the 2026 maturity wall, complemented by a longer tenor for debt profile optimization. Concurrently, we advise a strategic rates pre-hedge leveraging the 5Y EUR Swap rate of 2.62% and recommend immediate engagement with Treasury to define specific tenors and execute this capital structure optimization."
+        },
+        "digital_twin_signals": [],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for Vattenfall AB: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI005: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: Vattenfall AB completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€2184.0M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    },
+    "CLI101": {
+        "client_master": {
+            "client_name": "Enel S.p.A.",
+            "coverage_rm": "Marco Bianchi"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 58500.0,
+            "liquidity_eur_m": 14200.0,
+            "debt_maturing_24m_eur_m": 10127.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 94,
+            "est_revenue_eur_000": 5500.0,
+            "why_now_nlg": "Despite €14.2bn in available liquidity and a recent $2.5bn USD issuance, Enel faces a significant €10.13bn debt maturity wall in 2026-2027, necessitating proactive treasury planning. Optimizing the funding calendar now is crucial to manage future refinancing needs and interest rate risk effectively, especially with the 5Y EUR swap rate at 2.62% and higher refinancing costs.",
+            "next_best_action": "We recommend a €1.0bn dual-tranche senior unsecured issuance, comprising a €600m 7Y Green bond at Mid-swap + 73 bps (net of -5 bps greenium) and a €400m 10Y Sustainability-Linked Bond, backed by a €3.5bn green asset pool. This proposal is paired with a €500m swap pre-hedge, and we propose an immediate meeting with Treasury to finalize the funding calendar and sustainable finance readiness."
+        },
+        "digital_twin_signals": [
+            {
+                "signal_id": "SIG_CLI009_ENEL_BOARDAUTHORI",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "BOARD_AUTHORIZATION",
+                "metric_identified": "€12.0bn",
+                "trigger_summary": "Board authorized up to €12bn of bond and bank financing through March 2027.",
+                "metric_value": "€12.0bn",
+                "description": "Giulia Romano (RM): Public materials indicate an active funding cycle. Luca Moretti (DCM): Investment plan is relevant context. Marta Nowak (Rates): Pre-hedging rates becomes relevant if execution window exists.",
+                "confidence_pct": 92,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG_CLI009_ENEL_DEBTMATURITY",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "DEBT_MATURITY_SCHEDULE",
+                "metric_identified": "€10.13bn",
+                "trigger_summary": "Residual funding sequencing and liability management review required.",
+                "metric_value": "€10.13bn",
+                "description": "Large investment programmes, but the July dollar issuance means we should not equate capex with a funding gap. Residual maturities for 2026-2027 total approx €10.13bn. Candidate issue: residual funding sequencing and liability management.",
+                "confidence_pct": 95,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG_CLI009_ENEL_PUBLICISSUAN",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "PUBLIC_ISSUANCE_COMPLETED",
+                "metric_identified": "$2.5bn",
+                "trigger_summary": "Completed USD issuance leaves residual EUR maturity wall.",
+                "metric_value": "$2.5bn",
+                "description": "Enel completed a $2.5bn multi-tranche bond issuance in July 2026. The issuance demonstrates continuing capital-markets access and covers part of planned requirements, but residual 2026-2027 debt maturities remain.",
+                "confidence_pct": 90,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG_CLI009_ENEL_CLIENTVALIDA",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "CLIENT_VALIDATION",
+                "metric_identified": "Sequencing Review",
+                "trigger_summary": "Treasury confirmed active refinancing sequencing and liability management review.",
+                "metric_value": "Sequencing Review",
+                "description": "The financing completed during 2026 addresses part of our planned requirements. We are still reviewing the sequencing and composition of selected 2027-28 maturities alongside the wider renewable capex programme. Open to a diagnostic discussion.",
+                "confidence_pct": 98,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG_EXT_8_5",
+                "catalog_family": "Commodities",
+                "signal_type": "Commodity Price Volatility Impact",
+                "metric_identified": "N/A",
+                "trigger_summary": "Commodity-price volatility is identified as a factor that may affect operating cash flows.",
+                "metric_value": "N/A",
+                "description": "Commodity-price volatility is identified as a factor that may affect operating cash flows. [Evidence Status: Hypothesis; Confidence: 60%; Evidence Basis: Section 5 states 'Commodity-price volatility may further affect operating cash flows'. While identified as a risk, no specific metric, current exposure level, or explicit treasury action (e.g., hedging review) for commodities (separate from FX) is detailed, making it a reasonable but less concrete inference.]",
+                "confidence_pct": 60,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_8_6",
+                "catalog_family": "Cross-Asset & Discovery",
+                "signal_type": "Cross-Asset Risk Coordination Assessment",
+                "metric_identified": "N/A",
+                "trigger_summary": "Treasury is assessing whether refinancing, interest rates, and commodity/FX risks should be coordinated, indicating a potential for integrated cross-asset risk management solutions.",
+                "metric_value": "N/A",
+                "description": "Treasury is assessing whether refinancing, interest rates, and commodity/FX risks should be coordinated, indicating a potential for integrated cross-asset risk management solutions. [Evidence Status: Derived Signal; Confidence: 70%; Evidence Basis: Section 6 explicitly notes 'Assess whether refinancing, rates and commodity/FX risks should be coordinated', signaling an internal evaluation of holistic risk management.]",
+                "confidence_pct": 70,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_8_2",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Funding Capacity Authorisation",
+                "metric_identified": "€12.0bn; 'March 2027'",
+                "trigger_summary": "The Board has authorised up to €12.0bn of financing capacity through March 2027, intended to support upcoming maturities, liquidity requirements, and planned renewable-energy capital expenditure.",
+                "metric_value": "€12.0bn; 'March 2027'",
+                "description": "The Board has authorised up to €12.0bn of financing capacity through March 2027, intended to support upcoming maturities, liquidity requirements, and planned renewable-energy capital expenditure. [Evidence Status: Fact; Confidence: 95%; Evidence Basis: Directly stated in Section 2: 'The Board has authorised up to €12.0bn of financing capacity through March 2027'.]",
+                "confidence_pct": 95,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_8_3",
+                "catalog_family": "Interest Rate",
+                "signal_type": "Interest Rate Risk Exposure & Pre-hedging Opportunity",
+                "metric_identified": "Legacy coupon ~1.20%; Indicative refinancing yields 4.5%-5.0%",
+                "trigger_summary": "Refinancing existing debt with a legacy fixed coupon of approximately 1.20% at current indicative yields (4.5%–5.0%) presents a material potential increase in financing cost. Treasury is reviewing forward-starting or pre-hedging interest-rate swap requirements.",
+                "metric_value": "Legacy coupon ~1.20%; Indicative refinancing yields 4.5%-5.0%",
+                "description": "Refinancing existing debt with a legacy fixed coupon of approximately 1.20% at current indicative yields (4.5%–5.0%) presents a material potential increase in financing cost. Treasury is reviewing forward-starting or pre-hedging interest-rate swap requirements. [Evidence Status: Derived Signal; Confidence: 85%; Evidence Basis: Explicit figures for legacy coupon and indicative refinancing yields are provided in Section 3, clearly indicating a significant cost increase. Section 6 explicitly states 'Review forward-starting or pre-hedging interest-rate swap requirements before major maturities'.]",
+                "confidence_pct": 85,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG_EXT_8_4",
+                "catalog_family": "Foreign Exchange",
+                "signal_type": "Foreign Exchange Exposure Review",
+                "metric_identified": "USD-linked procurement; USD vs EUR exchange rate risk",
+                "trigger_summary": "The treasury team is reviewing USD-linked procurement and foreign-exchange exposures associated with energy and fuel purchases, noting that a strengthening USD against EUR could increase EUR-denominated costs. Evaluation of hedging is underway.",
+                "metric_value": "USD-linked procurement; USD vs EUR exchange rate risk",
+                "description": "The treasury team is reviewing USD-linked procurement and foreign-exchange exposures associated with energy and fuel purchases, noting that a strengthening USD against EUR could increase EUR-denominated costs. Evaluation of hedging is underway. [Evidence Status: Derived Signal; Confidence: 80%; Evidence Basis: Section 5 explicitly states 'treasury team is also reviewing USD-linked procurement and foreign-exchange exposures' and outlines the risk of a 'strengthening USD against EUR'. Section 6 indicates 'Evaluate hedging of USD-denominated fuel and procurement exposures'.]",
+                "confidence_pct": 80,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_8_1",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Debt Refinancing Requirements",
+                "metric_identified": "€10.13bn debt maturing; 'late 2026 and 2027'",
+                "trigger_summary": "Enel SpA is reviewing its medium-term refinancing programme due to a concentrated debt maturity profile of approximately €10.13bn across late 2026 and 2027, leading to an active assessment of refinancing sequencing and potential pre-hedging.",
+                "metric_value": "€10.13bn debt maturing; 'late 2026 and 2027'",
+                "description": "Enel SpA is reviewing its medium-term refinancing programme due to a concentrated debt maturity profile of approximately €10.13bn across late 2026 and 2027, leading to an active assessment of refinancing sequencing and potential pre-hedging. [Evidence Status: Fact; Confidence: 95%; Evidence Basis: Directly stated in Section 1 that Enel is 'reviewing its medium-term refinancing programme' for identified debt maturities of '€10.13bn' across 'late 2026 and 2027', with the treasury team 'assessing refinancing sequencing and potential pre-hedging requirements'.]",
+                "confidence_pct": 95,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG_EXT_9_5",
+                "catalog_family": "Sustainable Finance",
+                "signal_type": "Sustainable Finance Engagement",
+                "metric_identified": "N/A",
+                "trigger_summary": "Enel Group has historical engagement in Sustainability-Linked Finance.",
+                "metric_value": "N/A",
+                "description": "Enel Group has historical engagement in Sustainability-Linked Finance. [Evidence Status: Fact; Confidence: 90%; Evidence Basis: The article from 'Enel Group' with the headline 'Sustainability-Linked Finance' confirms their involvement, although the 2020 publication date suggests historical rather than immediate activity.]",
+                "confidence_pct": 90,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_9_1",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Bond Issuance",
+                "metric_identified": "€2.5 billion",
+                "trigger_summary": "TradingView reported a €2.5 billion bond sale by Enel.",
+                "metric_value": "€2.5 billion",
+                "description": "TradingView reported a €2.5 billion bond sale by Enel. [Evidence Status: Fact; Confidence: 95%; Evidence Basis: The headline explicitly states a '€2.5bn Enel bond sale', indicating a completed and specific financial transaction.]",
+                "confidence_pct": 95,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_9_2",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "New Financing Facility",
+                "metric_identified": "€12 billion",
+                "trigger_summary": "Enel announced opening €12 billion in new financing.",
+                "metric_value": "€12 billion",
+                "description": "Enel announced opening €12 billion in new financing. [Evidence Status: Fact; Confidence: 95%; Evidence Basis: The headline clearly states 'Enel Opens €12 Billion in Financing', indicating a concrete and substantial financial commitment or facility.]",
+                "confidence_pct": 95,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_9_3",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Refinancing Difficulty / Credit Risk",
+                "metric_identified": "N/A",
+                "trigger_summary": "A regulator blocked Enel Rio's refinancing efforts over high debt risk.",
+                "metric_value": "N/A",
+                "description": "A regulator blocked Enel Rio's refinancing efforts over high debt risk. [Evidence Status: Fact; Confidence: 90%; Evidence Basis: The headline directly reports a specific regulatory action against Enel Rio's refinancing due to 'high debt risk', a factual event concerning a subsidiary.]",
+                "confidence_pct": 90,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_9_4",
+                "catalog_family": "Credit",
+                "signal_type": "Credit Risk Concern",
+                "metric_identified": "N/A",
+                "trigger_summary": "The risk of Enel not renewing its São Paulo concession is impacting the credit market.",
+                "metric_value": "N/A",
+                "description": "The risk of Enel not renewing its São Paulo concession is impacting the credit market. [Evidence Status: Derived Signal; Confidence: 80%; Evidence Basis: The headline indicates that a specific operational risk ('not having its concession renewed') is 'reaching the credit market', implying a recognized market concern impacting credit perception.]",
+                "confidence_pct": 80,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_10_5",
+                "catalog_family": "Sustainable Finance",
+                "signal_type": "Conditional Sustainable Financing Opportunity",
+                "metric_identified": "N/A",
+                "trigger_summary": "Potential sustainable financing route identified, conditional on eligible projects, framework capacity, and use-of-proceeds confirmation.",
+                "metric_value": "N/A",
+                "description": "Potential sustainable financing route identified, conditional on eligible projects, framework capacity, and use-of-proceeds confirmation. [Evidence Status: Hypothesis; Confidence: 65%; Evidence Basis: Elena Ferraro explicitly states that the 'green angle is also conditional' and requires 'eligible projects, framework capacity and use-of-proceeds confirmation' before being treated as a financing route.]",
+                "confidence_pct": 65,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_10_6",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Internal Focus on Residual Funding Sequencing",
+                "metric_identified": "N/A",
+                "trigger_summary": "The team's primary working hypothesis focuses on residual funding sequencing.",
+                "metric_value": "N/A",
+                "description": "The team's primary working hypothesis focuses on residual funding sequencing. [Evidence Status: Hypothesis; Confidence: 70%; Evidence Basis: Giulia Romano explicitly states, 'Let us retain one primary hypothesis - residual funding sequencing,' indicating a team-level hypothesis.]",
+                "confidence_pct": 70,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_10_7",
+                "catalog_family": "Cross-Asset & Discovery",
+                "signal_type": "Internal Plan for Treasury Engagement",
+                "metric_identified": "N/A",
+                "trigger_summary": "The team plans to approach Treasury with validation questions, not a firm proposal, indicating the early stage of client engagement for potential financing solutions.",
+                "metric_value": "N/A",
+                "description": "The team plans to approach Treasury with validation questions, not a firm proposal, indicating the early stage of client engagement for potential financing solutions. [Evidence Status: Fact; Confidence: 90%; Evidence Basis: Giulia Romano's direct statement: 'I'll approach Treasury with vaidation questions, not a proposal'.]",
+                "confidence_pct": 90,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_10_1",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Potential Funding Requirement",
+                "metric_identified": "N/A",
+                "trigger_summary": "Public materials indicate an active funding cycle, potentially partially addressed by a recent July transaction.",
+                "metric_value": "N/A",
+                "description": "Public materials indicate an active funding cycle, potentially partially addressed by a recent July transaction. [Evidence Status: Derived Signal; Confidence: 80%; Evidence Basis: Giulia Romano's statement indicates an active funding cycle, and the discussion centers on reconciling a recent transaction against potential needs, suggesting a derived funding requirement.]",
+                "confidence_pct": 80,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_10_2",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Need for Funding Requirement Reconciliation",
+                "metric_identified": "N/A",
+                "trigger_summary": "Internal team requires reconciliation of the recent July transaction against the company's maturity profile, proceeds allocation, and mandate pipeline to assess residual funding needs.",
+                "metric_value": "N/A",
+                "description": "Internal team requires reconciliation of the recent July transaction against the company's maturity profile, proceeds allocation, and mandate pipeline to assess residual funding needs. [Evidence Status: Fact; Confidence: 95%; Evidence Basis: Direct statements by Giulia Romano and Luca Moretti explicitly state the need for this reconciliation before approaching Treasury.]",
+                "confidence_pct": 95,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG_EXT_10_3",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Confirmation of Recent Public Issuance",
+                "metric_identified": "N/A",
+                "trigger_summary": "Luca Moretti confirms details of a recent public issuance (July transaction) which needs to be reconciled against remaining funding requirements.",
+                "metric_value": "N/A",
+                "description": "Luca Moretti confirms details of a recent public issuance (July transaction) which needs to be reconciled against remaining funding requirements. [Evidence Status: Fact; Confidence: 95%; Evidence Basis: Luca Moretti's direct statement: 'I can confirm the public issuance details'.]",
+                "confidence_pct": 95,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_10_4",
+                "catalog_family": "Interest Rate",
+                "signal_type": "Conditional Interest Rate Hedging Opportunity",
+                "metric_identified": "N/A",
+                "trigger_summary": "Potential interest rate hedging identified, conditional on the existence of a residual execution window and meaningful fixed/floating rate exposure.",
+                "metric_value": "N/A",
+                "description": "Potential interest rate hedging identified, conditional on the existence of a residual execution window and meaningful fixed/floating rate exposure. [Evidence Status: Hypothesis; Confidence: 65%; Evidence Basis: Marta Nowak states that pre-hedging 'only becomes relevant if a residual execution window exists and their fixed/floating mix or policy leaves meaningful rate exposure,' making it a conditional hypothesis.]",
+                "confidence_pct": 65,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_11_4",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Data Gap / Validation Required - Maturity Ladder Impact",
+                "metric_identified": "N/A",
+                "trigger_summary": "Validation is required on how Enel's recent July bond issuance maps to its remaining maturity ladder.",
+                "metric_value": "N/A",
+                "description": "Validation is required on how Enel's recent July bond issuance maps to its remaining maturity ladder. [Evidence Status: Derived Signal; Confidence: 70%; Evidence Basis: The source states, \"I suggest we validate: how the July issuance maps to the remaining maturity ladder,\" indicating a known information gap needing assessment.]",
+                "confidence_pct": 70,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_11_1",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Investment Program",
+                "metric_identified": "N/A",
+                "trigger_summary": "Enel has a significant investment program.",
+                "metric_value": "N/A",
+                "description": "Enel has a significant investment program. [Evidence Status: Fact; Confidence: 90%; Evidence Basis: The source explicitly states, \"Enel has a significant investment programme.\"]",
+                "confidence_pct": 90,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_11_2",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Recent Bond Issuance",
+                "metric_identified": "July issuance",
+                "trigger_summary": "Enel recently accessed the bond market with a July issuance.",
+                "metric_value": "July issuance",
+                "description": "Enel recently accessed the bond market with a July issuance. [Evidence Status: Fact; Confidence: 90%; Evidence Basis: The source explicitly states, \"has recently accessed the bond market\" and later refers to \"the July issuance.\"]",
+                "confidence_pct": 90,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_11_3",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Refinancing Requirement Status",
+                "metric_identified": "N/A",
+                "trigger_summary": "It cannot yet be established that an unmet refinancing requirement remains for Enel.",
+                "metric_value": "N/A",
+                "description": "It cannot yet be established that an unmet refinancing requirement remains for Enel. [Evidence Status: Fact; Confidence: 90%; Evidence Basis: The source explicitly states, \"We cannot yet establish that an unmet refinancing requirements remains.\"]",
+                "confidence_pct": 90,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_11_5",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Potential Future Funding Assessment",
+                "metric_identified": "2027-2028",
+                "trigger_summary": "There is a need to validate whether further funding is contemplated by Enel during 2027-2028.",
+                "metric_value": "2027-2028",
+                "description": "There is a need to validate whether further funding is contemplated by Enel during 2027-2028. [Evidence Status: Hypothesis; Confidence: 55%; Evidence Basis: The source states, \"I suggest we validate: whether further funding is contemplated during 2027 - 28,\" posing a question for validation, not a confirmed intent.]",
+                "confidence_pct": 55,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_11_6",
+                "catalog_family": "Sustainable Finance",
+                "signal_type": "Green Project Eligibility Status",
+                "metric_identified": "N/A",
+                "trigger_summary": "There is a need to validate whether eligible green projects remain available for Enel.",
+                "metric_value": "N/A",
+                "description": "There is a need to validate whether eligible green projects remain available for Enel. [Evidence Status: Hypothesis; Confidence: 55%; Evidence Basis: The source states, \"I suggest we validate: whether eligible green projects remain available?\" indicating an open question regarding project availability.]",
+                "confidence_pct": 55,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_11_7",
+                "catalog_family": "Cross-Asset & Discovery",
+                "signal_type": "Mandate Status",
+                "metric_identified": "N/A",
+                "trigger_summary": "The current engagement with Enel is internally assessed as an opportunity hypothesis, not a DCM mandate, pending further evidence.",
+                "metric_value": "N/A",
+                "description": "The current engagement with Enel is internally assessed as an opportunity hypothesis, not a DCM mandate, pending further evidence. [Evidence Status: Fact; Confidence: 90%; Evidence Basis: The source explicitly states, \"Until then, this should remain an opportunity hypothesis rather than a DCM mandate.\"]",
+                "confidence_pct": 90,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_12_1",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Bond Issuance",
+                "metric_identified": "Amount: €2.5 billion; Instrument: Bond; Issuer: Enel; Date reported: 12 Jul 2026",
+                "trigger_summary": "Enel executed a €2.5 billion bond sale.",
+                "metric_value": "Amount: €2.5 billion; Instrument: Bond; Issuer: Enel; Date reported: 12 Jul 2026",
+                "description": "Enel executed a €2.5 billion bond sale. [Evidence Status: Fact; Confidence: 95%; Evidence Basis: The headline and summary explicitly state '€2.5bn Enel bond sale'.]",
+                "confidence_pct": 95,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_12_3",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "Financing Authorization/Availability",
+                "metric_identified": "Amount: €12 billion; Type: Financing; Entity: Enel; Date reported: 23 Feb 2026",
+                "trigger_summary": "Enel has opened €12 billion in financing.",
+                "metric_value": "Amount: €12 billion; Type: Financing; Entity: Enel; Date reported: 23 Feb 2026",
+                "description": "Enel has opened €12 billion in financing. [Evidence Status: Fact; Confidence: 95%; Evidence Basis: The headline and summary explicitly state 'Enel Opens €12 Billion in Financing'.]",
+                "confidence_pct": 95,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_12_2",
+                "catalog_family": "Credit",
+                "signal_type": "Debt Increase",
+                "metric_identified": "Event: Debt increase; Entity: Enel Américas; Period: Q2 2026; Date reported: 29 Jul 2026",
+                "trigger_summary": "Enel Américas, a subsidiary of Enel S.p.A., reported an increase in debt during Q2 2026.",
+                "metric_value": "Event: Debt increase; Entity: Enel Américas; Period: Q2 2026; Date reported: 29 Jul 2026",
+                "description": "Enel Américas, a subsidiary of Enel S.p.A., reported an increase in debt during Q2 2026. [Evidence Status: Fact; Confidence: 90%; Evidence Basis: The headline and summary explicitly state 'debt rises' for Enel Américas in Q2 2026.]",
+                "confidence_pct": 90,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG_EXT_12_4",
+                "catalog_family": "Credit",
+                "signal_type": "Refinancing Blocked / Credit Risk",
+                "metric_identified": "Event: Refinancing blocked; Reason: High debt risk; Entity: Enel Rio; Date reported: 22 Oct 2025",
+                "trigger_summary": "A regulator blocked Enel Rio's refinancing due to high debt risk.",
+                "metric_value": "Event: Refinancing blocked; Reason: High debt risk; Entity: Enel Rio; Date reported: 22 Oct 2025",
+                "description": "A regulator blocked Enel Rio's refinancing due to high debt risk. [Evidence Status: Fact; Confidence: 95%; Evidence Basis: The headline and summary explicitly state 'Regulator blocks Enel Rio refinancing over high debt risk'.]",
+                "confidence_pct": 95,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG_EXT_12_5",
+                "catalog_family": "Sustainable Finance",
+                "signal_type": "Corporate Strategy / Previous Engagement",
+                "metric_identified": "N/A",
+                "trigger_summary": "Enel Group has engaged in Sustainability-Linked Finance activities.",
+                "metric_value": "N/A",
+                "description": "Enel Group has engaged in Sustainability-Linked Finance activities. [Evidence Status: Fact; Confidence: 90%; Evidence Basis: The article is from the Enel Group website and directly references 'Sustainability-Linked Finance', indicating a historical and strategic engagement.]",
+                "confidence_pct": 90,
+                "urgency": "Low"
+            },
+            {
+                "signal_id": "SIG-CC616165",
+                "catalog_family": "Financing/Capital Markets | Sustainable Finance",
+                "signal_type": "SUSTAINABLE FUNDING",
+                "metric_identified": "Enel plans €4.0B hybrid green bond for capex & debt buybacks",
+                "trigger_summary": "Enel Finance International N.V. received board authorization to issue up to €4.0B in hybrid green bonds by Q4 2026 to fund future capex and accelerate debt buybacks.",
+                "metric_value": "€4.0B",
+                "description": "Enel Finance International N.V. has secured board approval for a significant hybrid green bond issuance, potentially raising up to €4.0 billion. This capital is earmarked to pre-fund renewable capital expenditures planned for 2027 and to accelerate the buyback of existing legacy debt, with execution targeted for Q4 2026.",
+                "confidence_pct": 95,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG-68A1FD24",
+                "catalog_family": "Financing/Capital Markets | Interest Rate | Foreign Exchange",
+                "signal_type": "SUSTAINABLE FUNDING",
+                "metric_identified": "€10.13bn debt maturity wall & rising refinancing costs",
+                "trigger_summary": "Enel faces a €10.13bn debt maturity wall in 2026-2027 with significantly higher refinancing costs and potential USD FX exposure, triggering multi-channel treasury review.",
+                "metric_value": "€10.13bn debt maturity; 1.20% legacy vs. 4.5-5.0% ",
+                "description": "Enel has a concentrated €10.13bn debt maturity profile in 2026-2027, with a legacy fixed coupon of 1.20% contrasting sharply with current indicative refinancing yields of 4.5%-5.0%. This significant increase in financing cost, coupled with potential USD-linked procurement FX exposure, necessitates proactive treasury actions.",
+                "confidence_pct": 95,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG-63FC8944",
+                "catalog_family": "Financing/Capital Markets | Interest Rate | Sustainable Finance",
+                "signal_type": "SUSTAINABLE FUNDING",
+                "metric_identified": "€1.0B Dual-Tranche Green & SLB Issuance",
+                "trigger_summary": "€1.0B Dual-Tranche Green & SLB Issuance (€3.5B Pool / €10.13bn Debt Wall)",
+                "metric_value": "€750M 8Y Green EMTN; €500M 5Y EUR IRS @ 2.62%",
+                "description": "Enel Treasury is structuring a €750M 8Y Green EMTN benchmark, leveraging a €3.5B green asset pool aligned with ICMA GBS and EU GBS, to refinance upcoming debt. This will be coupled with a €500M 5Y EUR IRS overlay locked at 2.62% to hedge swap curve volatility and capture a 4-5 bps greenium.",
+                "confidence_pct": 94,
+                "urgency": "High"
+            },
+            {
+                "signal_id": "SIG_CLI101_LATENT_02",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "LATENT_OPPORTUNITY",
+                "metric_identified": "None",
+                "trigger_summary": "Potential sustainable funding-format assessment",
+                "metric_value": "None",
+                "description": "Potential sustainable funding-format assessment",
+                "confidence_pct": 95,
+                "urgency": "HIGH"
+            },
+            {
+                "signal_id": "SIG_CLI101_LATENT_01",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "LATENT_OPPORTUNITY",
+                "metric_identified": "None",
+                "trigger_summary": "Potential residual funding-calendar and funding-mix review",
+                "metric_value": "None",
+                "description": "Potential residual funding-calendar and funding-mix review",
+                "confidence_pct": 96,
+                "urgency": "HIGH"
+            },
+            {
+                "signal_id": "SIG_CLI101_LATENT_03",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "LATENT_OPPORTUNITY",
+                "metric_identified": "None",
+                "trigger_summary": "Potential future refinancing-cost and interest-rate-risk assessment",
+                "metric_value": "None",
+                "description": "Potential future refinancing-cost and interest-rate-risk assessment",
+                "confidence_pct": 94,
+                "urgency": "MEDIUM"
+            },
+            {
+                "signal_id": "SIG-069AF8DA",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "SUSTAINABLE FUNDING",
+                "metric_identified": "Enel's €2.5B Dual-Tranche Senior Bond Issuance",
+                "trigger_summary": "CaixaBank CIB acted as Joint Active Bookrunner for Enel's €2.5 billion dual-tranche senior bond issuance.",
+                "metric_value": "€2.5 Billion",
+                "description": "CaixaBank CIB played a significant role as Joint Active Bookrunner in Enel's recent €2.5 billion dual-tranche senior bond issuance. This landmark transaction highlights Enel's continued activity in the capital markets for funding purposes.",
+                "confidence_pct": 94,
+                "urgency": "Medium"
+            },
+            {
+                "signal_id": "SIG-3B377DD4",
+                "catalog_family": "Financing/Capital Markets",
+                "signal_type": "SUSTAINABLE FUNDING",
+                "metric_identified": "Enel Treasury Planning & Risk Review",
+                "trigger_summary": "Enel is entering a treasury planning window requiring a comprehensive review of funding, rates, sustainable finance readiness, and currency risk due to upcoming maturities, recent issuance, and higher refinancing rates.",
+                "metric_value": "€12bn",
+                "description": "Enel is in a treasury planning phase, needing to align its €12bn financing capacity with upcoming maturities and recent $2.5bn USD issuance. This necessitates a combined review of funding strategies, interest rate exposure, sustainable finance readiness, and currency risk, particularly given higher refinancing rates and potential €3.5bn sustainable CapEx.",
+                "confidence_pct": 94,
+                "urgency": "High"
+            }
+        ],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for Enel S.p.A.: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI101: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: Enel S.p.A. completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€14200.0M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    },
+    "CLI001": {
+        "client_master": {
+            "client_name": "Orsted A/S",
+            "coverage_rm": "Sarah Boyer"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 14060.0,
+            "liquidity_eur_m": 4440.0,
+            "debt_maturing_24m_eur_m": 1500.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 98,
+            "est_revenue_eur_000": 5500.0,
+            "why_now_nlg": "Orsted A/S faces a significant €1.50bn debt maturity wall across 2026-2027, prompting an active capital structure review despite a robust €4.4bn liquidity buffer. Proactive refinancing is critical now to capitalize on the current rate pre-hedge window, with the 5Y EUR Swap at 2.62%, and optimize future funding costs.",
+            "next_best_action": "We recommend a €1.5bn dual-tranche green bond issuance, comprising an 8-year Green Senior Unsecured tranche and a 12-year Sustainability-Linked Bond, priced around Mid-swap + 73 bps net of greenium. This should be paired with a €500M interest rate swap pre-hedge, and we propose an immediate engagement with Treasury to finalize structuring and market timing."
+        },
+        "digital_twin_signals": [
+            {
+                "signal_id": "SIG-50E1B12C",
+                "catalog_family": "Financing/Capital Markets | Interest Rate | Sustainable Finance",
+                "signal_type": "REFINANCING | LIQUIDITY | HEDGING",
+                "metric_identified": "€1.5B Offshore Wind Portfolio & Green Capital Structuring",
+                "trigger_summary": "Ørsted is evaluating options to address a €1.5B near-term maturity wall and expand green assets through a green hybrid bond and interest rate swap.",
+                "metric_value": "€1,500M maturity wall; €750M Green Hybrid; €400M I",
+                "description": "Ørsted needs to refinance a €1.5B maturity wall and expand its EU Taxonomy-eligible green asset register. They are exploring a €750M 7Y Green Hybrid Bond with ICMA SPO alignment and a €400M pre-hedge interest rate swap overlay, seeking 3-7 bps greenium capture.",
+                "confidence_pct": 98,
+                "urgency": "High"
+            }
+        ],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for Orsted A/S: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI001: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: Orsted A/S completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€4440.0M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    },
+    "CLI008": {
+        "client_master": {
+            "client_name": "A.P. Moller-Maersk A/S",
+            "coverage_rm": "Sarah Boyer"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 12464.0,
+            "liquidity_eur_m": 3936.0,
+            "debt_maturing_24m_eur_m": 1600.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 72,
+            "est_revenue_eur_000": 640.0,
+            "why_now_nlg": "A.P. Moller-Maersk's active capital structure review is critical now, with a substantial €1.60bn debt maturity wall approaching in 2026-2027, presenting a timely opportunity to optimize funding given the current 5Y EUR swap rate of 2.62%. The robust €3.9bn available liquidity provides an excellent window to proactively pre-hedge against potential rate volatility and secure favorable financing costs well ahead of these maturities.",
+            "next_best_action": "We recommend a strategic interest rate pre-hedge for the €1.60bn 2026-2027 debt maturities, leveraging the current 5Y EUR swap rate of 2.62% to lock in optimal funding costs. Let's immediately engage Treasury to structure a tailored swap overlay, thereby optimizing the cost of this refinancing and exploring the indicative -5 bps greenium for future issuance considerations."
+        },
+        "digital_twin_signals": [],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for A.P. Moller-Maersk A/S: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI008: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: A.P. Moller-Maersk A/S completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€3936.0M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    },
+    "CLI104": {
+        "client_master": {
+            "client_name": "Deutsche Lufthansa AG",
+            "coverage_rm": "Klaus Weber"
+        },
+        "ext_company_filings": {
+            "net_debt_eur_m": 6840.0,
+            "liquidity_eur_m": 2160.0,
+            "debt_maturing_24m_eur_m": 2500.0,
+            "reporting_period": "FY2024 / Q2 2026"
+        },
+        "opportunity_scoring": {
+            "priority_score": 79,
+            "est_revenue_eur_000": 1200.0,
+            "why_now_nlg": "Deutsche Lufthansa AG's impending €2.50bn maturity wall across 2026-2027 significantly exceeds its €2.2bn available liquidity, necessitating immediate capital structure optimization. The current 5Y EUR Swap rate at 2.62% offers a compelling window to proactively pre-hedge future funding costs, aligning with the ongoing capital structure review.",
+            "next_best_action": "We recommend a €2.50bn 5-year Senior Unsecured bond issuance, priced at Mid-swap + 78 bps (based on a 5Y EUR Swap rate of 2.62%), to proactively refinance the 2026-2027 maturity wall. Concurrently, we propose a 2027 fuel and FX hedging overlay to mitigate commodity and currency exposures, and we must immediately engage Treasury to finalize this comprehensive strategy."
+        },
+        "digital_twin_signals": [],
+        "pristine_layers": {
+            "email_ingested": "Pristine Treasury Email for Deutsche Lufthansa AG: Liquidity buffer and debt maturity verification.",
+            "teams_chat": "Pristine Teams Chat for CLI104: Treasury sequencing and pre-hedge window discussion.",
+            "rss_news": "LIVE RSS INTELLIGENCE WIRE: Deutsche Lufthansa AG completes strategic liquidity review.",
+            "houseview_text": "ING Strategy Desk Houseview: Balance sheet optimization and 5Y swap benchmark alignment.",
+            "context_fabric_signals": [
+                "SIG_BASELINE_01",
+                "SIG_BASELINE_02"
+            ],
+            "mandate_tiles": {
+                "liquidity_buffer": "€2160.0M",
+                "market_db": "Active Benchmark (2.62% 5Y Swap)",
+                "context_fabric": "Audited Baseline Chunks",
+                "houseview_news": "Verified Wire Feed"
+            }
+        }
+    }
+}

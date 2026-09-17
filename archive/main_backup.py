@@ -576,26 +576,12 @@ def synthesize_mandate_catalyst(
         )
 
     if not GENAI_AVAILABLE:
-        return {"why_now": fallback_why, "action": fallback_act, "why_now_summary": "", "action_summary": ""}
+        return {"why_now": fallback_why, "action": fallback_act}
 
     try:
         project_id = os.getenv("GCP_PROJECT", "dulcet-radar-508218-c5")
         region = os.getenv("REGION", "europe-west1")
         client_gcp = genai.Client(vertexai=True, project=project_id, location=region)
-
-        # Dynamic product-aware driver injection with rich keyword contexts
-        p_fam_upper = str(product_family).upper()
-        latent_context = str(latent_str).upper() if 'latent_str' in locals() else ''
-        combined_context = f"{p_fam_upper} {latent_context}"
-
-        if any(k in combined_context for k in ['GREEN', 'SUSTAINABLE', 'ESG', 'SLB', 'SUSTAINABILITY-LINKED']):
-            product_specific_driver = '5. Sustainable Financing Catalyst: Eligible green asset pool utilization and 3–7 bps greenium pricing concession.'
-        elif any(k in combined_context for k in ['FX', 'CURRENCY', 'COLLAR', 'HEDGING GAP', 'USD']):
-            product_specific_driver = '5. FX Risk Catalyst: Foreign currency revenue exposure and unhedged cash flow gap.'
-        elif any(k in combined_context for k in ['RATES', 'IRS', 'PRE-HEDGE', 'SWAP', 'RATE SENSITIVITY']):
-            product_specific_driver = '5. Rate Risk Catalyst: Benchmark yield curve volatility and pre-hedge lock windows.'
-        else:
-            product_specific_driver = '5. Refinancing Catalyst: Standard institutional debt capital markets distribution.'
 
         prompt = f"""You are an Executive Director in ING Wholesale Banking Capital Markets & Advisory.
 Synthesize the provided database-grounded signals into two authoritative, desk-ready sentences for an executive pitchbook.
@@ -624,7 +610,6 @@ GROUNDED INPUT SIGNALS (4 FEEDS):
 2. Market DB Benchmarks: 5Y EUR Swap: {swap_5y} | Credit Spread: {credit_spr} | Benchmark Spread: 78 bps | Indicative Greenium: -5 bps
 3. Context Fabric Tacit Knowledge: {context_memo[:400]}
 4. Houseviews & News Intelligence: {news_headline[:300]}
-{product_specific_driver}
 
 ACTIVE SIGNALS & LATENT OPPORTUNITIES:
 - {latent_str}
@@ -633,17 +618,15 @@ ACCUMULATED SIGNALS FOR THIS CLIENT (most recent first):
 {_signals_block}
 
 INSTRUCTIONS:
-Output a valid JSON object with exactly four keys:
-1. "why_now": Exactly 2 sentences. Connect the debt maturity wall (€{mat_bn}), liquidity buffer (€{liq_bn}), prevailing 5Y swap rate ({swap_5y}), and available sustainable pricing concessions or greenium drivers to explain why this transaction is critical now.
+Output a valid JSON object with exactly two keys:
+1. "why_now": Exactly 2 sentences. Connect the debt maturity wall (€{mat_bn}), liquidity buffer (€{liq_bn}), recent market issuance, and the prevailing 5Y swap rate ({swap_5y}) to explain why this transaction is critical now.
 2. "action": Exactly 2 sentences. Specify the exact transaction structuring, tenor distribution, pricing/hedging overlay, and immediate operational next steps with Treasury.
-3. "why_now_summary": Exactly 1 sentence, maximum 160 characters. A condensed, punchy version of "why_now" suitable for a summary card on Slide 2. Must NOT copy the "why_now" text verbatim — rephrase for brevity while preserving the key numbers (maturity wall, liquidity buffer, swap rate).
-4. "action_summary": Exactly 1 sentence, maximum 160 characters. A condensed, punchy version of "action" suitable for a summary card on Slide 2. Must NOT copy the "action" text verbatim — rephrase for brevity while preserving the key structural terms (notional, tenor, instrument).
 
 CONSTRAINTS:
 - Professional CIB pitchbook language. Active voice.
 - Strictly adhere to the numbers provided. Do not hallucinate tenors or spreads.
 - JSON output ONLY:
-{{"why_now": "...", "action": "...", "why_now_summary": "...", "action_summary": "..."}}"""
+{{"why_now": "...", "action": "..."}}"""
 
         response = client_gcp.models.generate_content(
             model="gemini-2.5-flash",
@@ -656,13 +639,11 @@ CONSTRAINTS:
         res_data = json.loads(response.text)
         return {
             "why_now": res_data.get("why_now") or res_data.get("catalyst_rationale") or fallback_why,
-            "action": res_data.get("action") or res_data.get("proposed_execution") or fallback_act,
-            "why_now_summary": res_data.get("why_now_summary") or "",
-            "action_summary": res_data.get("action_summary") or ""
+            "action": res_data.get("action") or res_data.get("proposed_execution") or fallback_act
         }
     except Exception as e:
         logger.warning(f"Error generating mandate synthesis for {client_name}: {e}")
-        return {"why_now": fallback_why, "action": fallback_act, "why_now_summary": "", "action_summary": ""}
+        return {"why_now": fallback_why, "action": fallback_act}
 
 @app.get("/api/opportunities")
 def get_opportunities():
@@ -687,8 +668,7 @@ def get_opportunities():
                     COALESCE(os.opportunity_type, 'DEBT REFINANCING'),
                     COALESCE(os.next_best_action, 'Capital structure review and proactive balance sheet advisory.'),
                     COALESCE(os.why_now_nlg, 'Upcoming maturity window and active market rate dynamics.'),
-                    COALESCE(os.est_revenue_eur_000, 0),
-                    os.trigger_source
+                    COALESCE(os.est_revenue_eur_000, 0)
                 FROM ca.client_master cm
                 LEFT JOIN LATERAL (
                     SELECT net_debt_eur_m, liquidity_eur_m, debt_maturing_24m_eur_m
@@ -697,7 +677,7 @@ def get_opportunities():
                     ORDER BY reporting_period DESC LIMIT 1
                 ) fl ON true
                 LEFT JOIN LATERAL (
-                    SELECT priority_score, opportunity_type, next_best_action, why_now_nlg, est_revenue_eur_000, trigger_source
+                    SELECT priority_score, opportunity_type, next_best_action, why_now_nlg, est_revenue_eur_000
                     FROM ca.ca_opportunity_scoring
                     WHERE client_id = cm.client_id OR client_id LIKE cm.client_id || '%%'
                     ORDER BY priority_score DESC LIMIT 1
@@ -719,7 +699,7 @@ def get_opportunities():
                 logger.warning(f"Error fetching market curves for opportunities: {e_mkt}")
 
             for r in client_rows:
-                cid, name, tier, hq, rm, sector, net_debt, liq, m24, score_num, opp_type, action, why_now, est_fee, trigger_source_val = r
+                cid, name, tier, hq, rm, sector, net_debt, liq, m24, score_num, opp_type, action, why_now, est_fee = r
                 cid_str = str(cid)
                 name_str = str(name)
 
@@ -1009,10 +989,7 @@ def get_opportunities():
                 _cached_entry = _MANDATE_SYNTH_CACHE.get(cid_str)
 
                 if _cached_entry and _cached_entry[0] > _now_ts:
-                    final_why_now = _cached_entry[1]
-                    final_action = _cached_entry[2]
-                    final_why_now_summary = _cached_entry[3] if len(_cached_entry) > 3 else ""
-                    final_action_summary = _cached_entry[4] if len(_cached_entry) > 4 else ""
+                    final_why_now, final_action = _cached_entry[1], _cached_entry[2]
                     logger.info(f"Mandate synthesis cache HIT for {cid_str}")
                 elif GENAI_AVAILABLE and cid_str in _DEMO_CLIENT_IDS:
                     try:
@@ -1051,8 +1028,6 @@ def get_opportunities():
                         )
                         final_why_now = synth.get("why_now") or why_now or f"Active funding assessment for {name_str}."
                         final_action = synth.get("action") or action or "Review opportunity and schedule coverage call."
-                        final_why_now_summary = synth.get("why_now_summary") or ""
-                        final_action_summary = synth.get("action_summary") or ""
 
                         # -----------------------------------------------------------------
                         # Drift guard: if the LLM output introduces tenors that conflict
@@ -1071,7 +1046,7 @@ def get_opportunities():
                             if _anchor_why and _anchor_why != "(not yet curated)":
                                 final_why_now = final_why_now  # keep LLM's why_now (usually fine)
 
-                        _MANDATE_SYNTH_CACHE[cid_str] = (_now_ts + _MANDATE_SYNTH_CACHE_TTL, final_why_now, final_action, final_why_now_summary, final_action_summary)
+                        _MANDATE_SYNTH_CACHE[cid_str] = (_now_ts + _MANDATE_SYNTH_CACHE_TTL, final_why_now, final_action)
                         logger.info(f"Mandate synthesis cache MISS for {cid_str}, refreshed (TTL {_MANDATE_SYNTH_CACHE_TTL}s)")
 
                         # Persist fresh synthesis so pitchbook/copilot/compliance read the same value
@@ -1089,13 +1064,9 @@ def get_opportunities():
                         logger.warning(f"Dynamic synthesis skipped for {cid_str}: {e_gen}")
                         final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
                         final_action = action or "Proactive capital markets advisory and rate hedging review."
-                        final_why_now_summary = ""
-                        final_action_summary = ""
                 else:
                     final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
                     final_action = action or "Proactive capital markets advisory and rate hedging review."
-                    final_why_now_summary = ""
-                    final_action_summary = ""
 
                 opps.append({
                     "id": cid_str,
@@ -1110,9 +1081,6 @@ def get_opportunities():
                     "callout": f"{final_why_now} {final_action}".strip(),
                     "why_now": final_why_now,
                     "action": final_action,
-                    "why_now_summary": final_why_now_summary,
-                    "action_summary": final_action_summary,
-                    "trigger_source": str(trigger_source_val or ""),
                     "cf_description": cf_desc,
                     "cf_latent": cf_latent,
                     "cf_latent_list": cf_latent_list,
@@ -1975,8 +1943,8 @@ def copilot_chat_endpoint(req: CopilotMessage):
     # Build dynamic pristine baseline without current_ov pollution
     baseline_deck_slides = {
         "slide_1": {"title": "01. Cover Slide", "client_name": client_name},
-        "slide_2": {"title": "02. Catalyst", "trigger": bundle.get("trigger") or "Catalyst window", "why_now_summary": "", "action_summary": ""},
-        "slide_3": {"title": "03. Executive Summary", "focus": f"Proactive capital markets structuring and execution for {client_name}.", "why_now": bundle.get("why_now_nlg") or "", "action": bundle.get("next_best_action") or ""},
+        "slide_2": {"title": "02. Catalyst", "trigger": bundle.get("trigger") or "Catalyst window"},
+        "slide_3": {"title": "03. Executive Summary", "focus": f"Proactive capital markets structuring and execution for {client_name}."},
         "slide_4": {"title": "04. Balance Sheet Foundation", "net_debt": db_net_debt, "liquidity": db_liq, "credit_rating": db_rating, "revenue": db_rev, "ebitda": db_ebitda},
         "slide_5": {"title": s5_title, "details": s5_data},
         "slide_6": {
@@ -2005,8 +1973,8 @@ def copilot_chat_endpoint(req: CopilotMessage):
 
     active_deck_slides = {
         "slide_1": {"title": "01. Cover Slide", "kicker": s1_kicker, "client_name": client_name, "subtitle": s1_subtitle},
-        "slide_2": {"title": "02. Decarbonization Catalyst" if is_green else ("02. FX Risk Catalyst" if is_fx else "02. Strategic Catalyst"), "trigger": s2_trigger, "window": s2_window, "action": s2_action, "why_now_summary": current_ov.get("why_now_summary") or "", "action_summary": current_ov.get("action_summary") or ""},
-        "slide_3": {"title": "03. Executive Summary", "focus": f"Proactive capital markets structuring and execution for {client_name}.", "why_now": current_ov.get("why_now") or bundle.get("why_now_nlg") or "", "action": current_ov.get("action") or bundle.get("next_best_action") or ""},
+        "slide_2": {"title": "02. Decarbonization Catalyst" if is_green else ("02. FX Risk Catalyst" if is_fx else "02. Strategic Catalyst"), "trigger": s2_trigger, "window": s2_window, "action": s2_action},
+        "slide_3": {"title": "03. Executive Summary", "focus": f"Proactive capital markets structuring and execution for {client_name}."},
         "slide_4": {"title": "04. Balance Sheet Foundation", "net_debt": db_net_debt, "liquidity": db_liq, "card3_label": s4_card3_label, "card3_value": s4_card3_val, "credit_rating": db_rating, "revenue": db_rev, "ebitda": db_ebitda},
         "slide_5": {"title": s5_title, "details": s5_data},
         "slide_6": s6_payload,
@@ -2104,10 +2072,6 @@ RESPONSE ARCHITECTURE & STYLE GUIDELINES:
    - "ecb_rate": ECB refinancing / deposit rate (e.g. "2.50%")
    - "protection_floor": FX collar floor strike (FX only)
    - "cap_strike": FX collar cap strike (FX only)
-   - "why_now": Catalyst Rationale narrative for Slide 3 - the strategic case for acting now (2 sentences)
-   - "action": Proposed Execution & Structuring narrative for Slide 3 - the recommended deal structure (2 sentences)
-   - "why_now_summary": Condensed 1-sentence summary of why_now for the Slide 2 Window of Opportunity card (max 160 chars). Regenerated by synthesis unless overridden.
-   - "action_summary": Condensed 1-sentence summary of action for the Slide 2 Recommended Action card (max 160 chars). Regenerated by synthesis unless overridden.
    Always emit exact formatted strings (e.g. write "EUR 800,000,000" rather than "EUR 800M"). Never invent non-standard keys like "notional", "green_notional", or "tranche_size".
 6. **Dynamic Revert & Reset Handling (Universal & Grounded)**:
    When the user asks to revert, reset, or restore any metrics, slides, or benchmarks to baseline or original:

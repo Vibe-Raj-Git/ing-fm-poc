@@ -756,21 +756,21 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
 
     # Product-dynamic trigger resolution matching App.jsx
     if p_fam == "FX_HEDGE":
-        trig_t = ov.get("trigger") or ctx.get("trigger_source") or "Commercial inflow shift: North American expansion increased USD revenue to >$12B against 50% hedge ratio (~$8bn gap)."
-        win_t = ov.get("why_now_summary") or ov.get("window") or "EUR/USD forward points offer structural hedging pickup; volatility corridor allows zero-cost collar structuring."
-        act_t = ov.get("action_summary") or ov.get("action") or "Propose staged 12M–24M layered FX hedging programme with zero-cost collar overlays to close ~$8bn gap."
+        trig_t = ov.get("trigger") or "Commercial inflow shift: North American expansion increased USD revenue to >$12B against 50% hedge ratio (~$8bn gap)."
+        win_t = ov.get("window") or "EUR/USD forward points offer structural hedging pickup; volatility corridor allows zero-cost collar structuring."
+        act_t = ov.get("action") or "Propose staged 12M–24M layered FX hedging programme with zero-cost collar overlays to close ~$8bn gap."
     elif p_fam == "GREEN_ESG":
-        trig_t = ov.get("trigger") or ctx.get("trigger_source") or "EU Taxonomy alignment: €3.5B eligible renewable & decarbonization CapEx pipeline ready for green financing."
-        win_t = ov.get("why_now_summary") or ov.get("window") or "Strong ESG investor liquidity generating 3-7 bps greenium pricing concession across European green bonds, subject to market conditions."
-        act_t = ov.get("action_summary") or ov.get("action") or "Establish inaugural Green Bond with second-party SPO verification."
+        trig_t = ov.get("trigger") or "EU Taxonomy alignment: €3.5B eligible renewable & decarbonization CapEx pipeline ready for green financing."
+        win_t = ov.get("window") or "Strong ESG investor liquidity generating 3-7 bps greenium pricing concession across European green bonds, subject to market conditions."
+        act_t = ov.get("action") or "Establish inaugural Green Bond with second-party SPO verification."
     elif p_fam == "RATES_HEDGE":
-        trig_t = ov.get("trigger") or ctx.get("trigger_source") or "Upcoming €3.2B debt maturities face repricing risk amid benchmark curve fluctuations."
-        win_t = ov.get("why_now_summary") or ov.get("window") or "Current 5Y EUR swap easing at 2.62% provides attractive entry window for forward-starting IRS."
-        act_t = ov.get("action_summary") or ov.get("action") or "Execute €400M pre-hedge IRS overlay to lock in current base yield before debt issuance."
+        trig_t = ov.get("trigger") or "Upcoming €3.2B debt maturities face repricing risk amid benchmark curve fluctuations."
+        win_t = ov.get("window") or "Current 5Y EUR swap easing at 2.62% provides attractive entry window for forward-starting IRS."
+        act_t = ov.get("action") or "Execute €400M pre-hedge IRS overlay to lock in current base yield before debt issuance."
     else:
-        trig_t = ov.get("trigger") or ctx.get("trigger_source") or "Active capital structure optimization and refinancing window identified."
-        win_t = ov.get("why_now_summary") or ov.get("window") or "Favorable benchmark credit spreads across European issuance windows."
-        act_t = ov.get("action_summary") or ov.get("action") or ctx.get("next_best_action", "Propose capital structuring dialogue and benchmark EMTN roadshow.")
+        trig_t = ov.get("trigger") or ctx.get("trigger_source", "Active capital structure optimization and refinancing window identified.")
+        win_t = ov.get("window") or "Favorable benchmark credit spreads across European issuance windows."
+        act_t = ov.get("action") or ctx.get("next_best_action", "Propose capital structuring dialogue and benchmark EMTN roadshow.")
 
     styled_cards = [
         ("Primary Market Trigger", trig_t, RGBColor(255, 247, 237), RGBColor(254, 215, 170), RGBColor(154, 52, 18)),
@@ -810,13 +810,13 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     add_footer(s3)
 
     # 1. Left Orange Hero Panel
-    hero_panel = s3.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(3.0), Inches(7.5))
+    hero_panel = s3.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(4.8), Inches(7.5))
     hero_panel.fill.solid()
     hero_panel.fill.fore_color.rgb = ING_ORANGE
     hero_panel.line.fill.background()
 
     # Left Hero Text Box - Title
-    tb_lh = s3.shapes.add_textbox(Inches(0.4), Inches(1.1), Inches(2.3), Inches(1.0))
+    tb_lh = s3.shapes.add_textbox(Inches(0.6), Inches(1.1), Inches(3.7), Inches(1.0))
     tf_lh = tb_lh.text_frame
     tf_lh.word_wrap = True
     p = tf_lh.paragraphs[0]
@@ -826,7 +826,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     p.font.color.rgb = ING_WHITE
 
     # White Horizontal Divider Line
-    div_w = s3.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.4), Inches(1.95), Inches(0.8), Inches(0.025))
+    div_w = s3.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.6), Inches(1.85), Inches(0.8), Inches(0.025))
     div_w.fill.solid()
     div_w.fill.fore_color.rgb = ING_WHITE
     div_w.line.fill.background()
@@ -840,7 +840,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     }
     s3_subheading = subheading_map.get(p_fam, "Proactive Capital Structuring")
 
-    tb_sub = s3.shapes.add_textbox(Inches(0.4), Inches(2.15), Inches(2.3), Inches(4.4))
+    tb_sub = s3.shapes.add_textbox(Inches(0.6), Inches(2.05), Inches(3.7), Inches(3.8))
     tf_sub = tb_sub.text_frame
     tf_sub.word_wrap = True
     
@@ -860,10 +860,10 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     # 2. Right Side Numbered Pillars (1, 2, 3, 4)
     pillars = get_product_pillars(p_fam, ctx, ov)
     for idx, (p_num, p_head, p_body) in enumerate(pillars):
-        y_pos = Inches(1.1 + (idx * 0.85))
+        y_pos = Inches(1.35 + (idx * 1.32))
         
         # Circle badge
-        c_shp = s3.shapes.add_shape(MSO_SHAPE.OVAL, Inches(3.4), y_pos, Inches(0.42), Inches(0.42))
+        c_shp = s3.shapes.add_shape(MSO_SHAPE.OVAL, Inches(5.3), y_pos, Inches(0.42), Inches(0.42))
         c_shp.fill.solid()
         c_shp.fill.fore_color.rgb = ING_ORANGE
         c_shp.line.fill.background()
@@ -882,7 +882,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         p_c.alignment = PP_ALIGN.CENTER
 
         # Pillar Title & Description Text Box
-        tb_p = s3.shapes.add_textbox(Inches(4.0), y_pos - Inches(0.05), Inches(8.9), Inches(0.85))
+        tb_p = s3.shapes.add_textbox(Inches(5.9), y_pos - Inches(0.05), Inches(6.8), Inches(1.15))
         tf_p = tb_p.text_frame
         tf_p.word_wrap = True
         
@@ -897,52 +897,6 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         p_b.font.size = Pt(10)
         p_b.font.color.rgb = RGBColor(75, 85, 99)
         p_b.space_before = Pt(3)
-
-    # 3. Two Narrative Cards (from Mandate UI section)
-    s3_why_now = ov.get("why_now") or ctx.get("why_now_nlg") or "\u2014"
-    s3_action = ov.get("action") or ctx.get("next_best_action") or "\u2014"
-
-    # Card 1 - Catalyst Rationale
-    card1 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(3.4), Inches(4.65), Inches(4.75), Inches(2.55))
-    card1.fill.solid()
-    card1.fill.fore_color.rgb = RGBColor(255, 247, 237)
-    card1.line.color.rgb = RGBColor(254, 215, 170)
-    card1.line.width = Pt(1)
-
-    tb_c1 = s3.shapes.add_textbox(Inches(3.55), Inches(4.75), Inches(4.45), Inches(2.35))
-    tf_c1 = tb_c1.text_frame
-    tf_c1.word_wrap = True
-    p_c1 = tf_c1.paragraphs[0]
-    p_c1.text = "\U0001F3AF CATALYST RATIONALE (WHY NOW)"
-    p_c1.font.bold = True
-    p_c1.font.size = Pt(10)
-    p_c1.font.color.rgb = RGBColor(154, 52, 18)
-    p_c1_b = tf_c1.add_paragraph()
-    p_c1_b.text = s3_why_now
-    p_c1_b.font.size = Pt(9)
-    p_c1_b.font.color.rgb = RGBColor(55, 65, 81)
-    p_c1_b.space_before = Pt(4)
-
-    # Card 2 - Proposed Execution & Structuring
-    card2 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.35), Inches(4.65), Inches(4.55), Inches(2.55))
-    card2.fill.solid()
-    card2.fill.fore_color.rgb = RGBColor(239, 246, 255)
-    card2.line.color.rgb = RGBColor(191, 219, 254)
-    card2.line.width = Pt(1)
-
-    tb_c2 = s3.shapes.add_textbox(Inches(8.50), Inches(4.75), Inches(4.25), Inches(2.35))
-    tf_c2 = tb_c2.text_frame
-    tf_c2.word_wrap = True
-    p_c2 = tf_c2.paragraphs[0]
-    p_c2.text = "\U0001F4BC PROPOSED EXECUTION & STRUCTURING"
-    p_c2.font.bold = True
-    p_c2.font.size = Pt(10)
-    p_c2.font.color.rgb = RGBColor(0, 0, 102)
-    p_c2_b = tf_c2.add_paragraph()
-    p_c2_b.text = s3_action
-    p_c2_b.font.size = Pt(9)
-    p_c2_b.font.color.rgb = RGBColor(55, 65, 81)
-    p_c2_b.space_before = Pt(4)
 
             # =========================================================================
     # SLIDE 4: BALANCE SHEET (Exact Database & Preview Parity)

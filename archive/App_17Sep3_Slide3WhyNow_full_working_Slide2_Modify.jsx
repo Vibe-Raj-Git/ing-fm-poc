@@ -571,11 +571,7 @@ export default function App() {
           client_id: activeClient.id,
           prompt: textToSend,
           history: updatedHistory,
-          current_overrides: {
-            ...deckOverrides,
-            why_now_summary: activeClient?.why_now_summary,
-            action_summary: activeClient?.action_summary,
-          }
+          current_overrides: deckOverrides
         })
       });
 
@@ -633,8 +629,6 @@ export default function App() {
             liquidity_str: deckOverrides.liquidity_str || (activeClient?.liquidity ? `€${(activeClient.liquidity/1000).toFixed(1)}B` : undefined),
             why_now: deckOverrides.why_now || activeClient?.why_now,
             action: deckOverrides.action || activeClient?.action,
-            why_now_summary: deckOverrides.why_now_summary || activeClient?.why_now_summary,
-            action_summary: deckOverrides.action_summary || activeClient?.action_summary,
           }
         })
       });
@@ -745,7 +739,7 @@ export default function App() {
                 <div className="p-3 bg-orange-50/60 rounded border border-orange-200">
                   <p className="font-bold text-orange-800 mb-1">Primary Market Trigger</p>
                   <p className="text-gray-700 text-[10px] leading-relaxed">
-                    {deckOverrides.trigger || opp.trigger_source || (
+                    {deckOverrides.trigger || (
                       isFX ? "Commercial inflow shift: North American expansion increased USD revenue to >$12B against 50% hedge ratio (~$8bn gap)." :
                       isGreen ? "EU Taxonomy alignment: €3.5bn eligible renewable & decarbonization CapEx pipeline ready for green financing." :
                       isRates ? "Upcoming €3.2B debt maturities face repricing risk amid benchmark curve fluctuations." :
@@ -756,7 +750,7 @@ export default function App() {
                 <div className="p-3 bg-blue-50/60 rounded border border-blue-200">
                   <p className="font-bold text-[#000066] mb-1">Window of Opportunity</p>
                   <p className="text-gray-700 text-[10px] leading-relaxed">
-                    {deckOverrides.why_now_summary || opp.why_now_summary || (
+                    {deckOverrides.window || (
                       isFX ? "EUR/USD forward points offer structural hedging pickup; volatility corridor allows zero-cost collar structuring." :
                       isGreen ? "Strong ESG investor liquidity generating 3-7 bps greenium pricing concession across European green bonds, subject to market conditions." :
                       isRates ? "Current 5Y EUR swap easing at 2.62% provides attractive entry window for forward-starting IRS." :
@@ -767,7 +761,7 @@ export default function App() {
                 <div className="p-3 bg-emerald-50/60 rounded border border-emerald-200">
                   <p className="font-bold text-emerald-800 mb-1">Recommended Action</p>
                   <p className="text-gray-700 text-[10px] leading-relaxed">
-                    {deckOverrides.action_summary || opp.action_summary || (
+                    {deckOverrides.action || (
                       isFX ? "Propose staged 12M–24M layered FX hedging programme with zero-cost collar overlays to close ~$8bn gap." :
                       isGreen ? "Establish inaugural Green Bond with second-party SPO verification." :
                       isRates ? "Execute €400M pre-hedge IRS overlay to lock in current base yield before debt issuance." :

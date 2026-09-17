@@ -71,6 +71,44 @@ from pitchbook_builder import fetch_pitchbook_bundle, build_pitchbook
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ing_fm_backend")
 
+
+def _format_signal_type(raw_type) -> str:
+    """Normalise signal_type for display: underscores -> spaces, uppercase."""
+    if not raw_type:
+        return "CATALYST"
+    return str(raw_type).replace("_", " ").upper()
+
+# Module-level TTL cache for mandate synthesis.
+# Key: client_id  ->  Value: (expiry_epoch_seconds, why_now, action)
+# Entries refresh automatically once the TTL elapses.
+_MANDATE_SYNTH_CACHE = {}
+_MANDATE_SYNTH_CACHE_TTL = 300  # seconds (5 minutes)
+
+# ---------------------------------------------------------------------------
+# DEMO CLIENT WHITELIST
+# ---------------------------------------------------------------------------
+# Only clients listed here get LLM synthesis for the mandate narrative
+# (why_now / action). All other clients read their curated DB row directly
+# from ca.ca_opportunity_scoring — no Gemini call is made for them.
+#
+# To add another client to the demo (e.g. BASF, Ørsted):
+#   1. Add its client_id to the set below, e.g.:
+#         _DEMO_CLIENT_IDS = {"CLI101", "CLI103"}
+#         _DEMO_CLIENT_IDS = {"CLI101"}
+#      (CLI103 = BASF SE, CLI001 = Ørsted A/S, CLI003 = Stellantis N.V.,
+#       CLI102 = ASML, etc. See ca.client_master for the full mapping.)
+#   2. Mirror the same ID in frontend/src/App.jsx:
+#         const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"]; 
+#         const ACTIVE_UI_CLIENT_IDS = {"CLI101"};
+#   3. Optionally ingest signals / houseviews for the new client so the
+#      synthesis has material to work with.
+#
+# Both lists must stay in sync — the backend whitelist controls synthesis,
+# the frontend whitelist controls rendering.
+# ---------------------------------------------------------------------------
+#_DEMO_CLIENT_IDS = {"CLI101"}
+_DEMO_CLIENT_IDS = {"CLI101"}
+
 app = FastAPI(title="ING FM Insights API", version="1.0.0")
 
 app.add_middleware(
@@ -288,21 +326,36 @@ def get_live_signals():
     if conn:
         try:
             cur = conn.cursor()
+            # Filter to demo clients only (see _DEMO_CLIENT_IDS).
+            _sig_demo_ids = list(_DEMO_CLIENT_IDS)
+            if not _sig_demo_ids:
+                _sig_demo_ids = ["__none__"]
+
             cur.execute("""
                 SELECT DISTINCT ON (s.signal_id)
                     s.signal_id,
                     s.client_id,
                     COALESCE(c.client_name, s.client_id) as client_name,
                     s.signal_type,
-                    COALESCE(s.metric_identified, s.trigger_summary, s.description, 'Market Catalyst') as headline,
+                    COALESCE(
+                    CASE
+                        WHEN LENGTH(COALESCE(s.metric_identified, '')) < 20 THEN s.trigger_summary
+                        ELSE s.metric_identified
+                    END,
+                    s.metric_identified,
+                    s.trigger_summary,
+                    s.description,
+                    'Market Catalyst'
+                ) as headline,
                     s.confidence_pct,
                     s.urgency,
                     s.created_at
                 FROM ca.digital_twin_signals s
                 LEFT JOIN ca.client_master c ON (s.client_id = c.client_id)
+                WHERE s.client_id = ANY(%s)
                 ORDER BY s.signal_id, s.created_at DESC
                 LIMIT 40;
-            """)
+            """, (_sig_demo_ids,))
             rows = cur.fetchall()
             now_dt = datetime.now()
             
@@ -344,7 +397,7 @@ def get_live_signals():
                     "id": str(sig_id),
                     "client_id": cid_str,
                     "client_name": cname_str,
-                    "type": str(stype or "CATALYST").upper(),
+                    "type": _format_signal_type(stype),
                     "text": f"{cname_str}: {headline}",
                     "headline": str(headline),
                     "confidence": int(conf or 90),
@@ -389,7 +442,16 @@ def get_live_signals():
                     s.client_id,
                     COALESCE(c.client_name, s.client_id) as client_name,
                     s.signal_type,
-                    COALESCE(s.metric_identified, s.trigger_summary, s.description, 'Market Catalyst') as headline,
+                    COALESCE(
+                    CASE
+                        WHEN LENGTH(COALESCE(s.metric_identified, '')) < 20 THEN s.trigger_summary
+                        ELSE s.metric_identified
+                    END,
+                    s.metric_identified,
+                    s.trigger_summary,
+                    s.description,
+                    'Market Catalyst'
+                ) as headline,
                     s.confidence_pct,
                     s.urgency,
                     s.created_at
@@ -425,7 +487,7 @@ def get_live_signals():
                     "id": str(sig_id),
                     "client_id": str(cid),
                     "client_name": str(cname),
-                    "type": str(stype or "CATALYST").upper(),
+                    "type": _format_signal_type(stype),
                     "text": f"{cname}: {headline}",
                     "headline": str(headline),
                     "confidence": int(conf or 90),
@@ -467,24 +529,43 @@ def synthesize_mandate_catalyst(
     news_headline: str,
     latent_opps: list = None,
     base_why_now: str = "",
-    base_action: str = ""
+    base_action: str = "",
+    all_signals: list = None,
+    current_why_now: str = "",
+    current_action: str = ""
 ) -> dict:
     latent_str = "; ".join(latent_opps) if latent_opps else "Capital structure optimization and hedging review"
+    current_why_now = (current_why_now or "").strip() or "(not yet curated)"
+    current_action = (current_action or "").strip() or "(not yet curated)"
+    if all_signals:
+        _signals_block = "\n".join([
+            f"- [{s.get('catalog_family', '')}] {s.get('signal_type', '')}: {s.get('trigger_summary', '')} (conf {s.get('confidence_pct', '')}%)"
+            for s in all_signals[:20]
+        ])
+    else:
+        _signals_block = "(no accumulated signals available)"
     liq_bn = f"{liquidity_eur_m / 1000.0:.1f}bn" if liquidity_eur_m >= 1000 else f"{liquidity_eur_m:,.0f}M"
     mat_bn = f"{debt_maturing_24m_eur_m / 1000.0:.2f}bn" if debt_maturing_24m_eur_m >= 1000 else f"{debt_maturing_24m_eur_m:,.0f}M"
     swap_5y = market_metrics.get("swap_5y", "2.62%")
     credit_spr = market_metrics.get("credit_spread", "78 bps")
 
     if "SUSTAINABLE" in product_family.upper() or "GREEN" in product_family.upper():
-        fallback_why = (
-            f"{client_name} faces a concentrated €{mat_bn} debt maturity wall across 2026–2027 against a €{liq_bn} liquidity buffer. "
-            f"With 5Y euro swap benchmarks at {swap_5y} and spreads at {credit_spr}, "
-            f"an immediate refinancing window locks in multi-year duration before anticipated benchmark revisions."
-        )
-        fallback_act = (
-            f"Execute a €1.0B Dual-Tranche Senior Unsecured issuance (€600M 8Y Green at Mid-swap + 73 bps net of 5 bps greenium + €400M 12Y SLB), "
-            f"leveraging their €3.5B eligible green asset pool under the €12.0bn Board authorization, paired with a €500M swap pre-hedge overlay."
-        )
+        # Prefer the curated anchor if available; fall back to a generic template
+        if current_why_now and current_why_now.strip() and current_why_now.strip() != "(not yet curated)":
+            fallback_why = current_why_now.strip()
+        else:
+            fallback_why = (
+                f"{client_name} faces a concentrated €{mat_bn} debt maturity wall across 2026–2027 against a €{liq_bn} liquidity buffer. "
+                f"With 5Y euro swap benchmarks at {swap_5y} and spreads at {credit_spr}, "
+                f"an immediate refinancing window locks in multi-year duration before anticipated benchmark revisions."
+            )
+        if current_action and current_action.strip() and current_action.strip() != "(not yet curated)":
+            fallback_act = current_action.strip()
+        else:
+            fallback_act = (
+                f"Execute a €600M 7Y Green EMTN at Mid-swap + 73 bps (net of 5 bps greenium) and a €400M 10Y Sustainability-Linked Bond, "
+                f"leveraging their €3.5B eligible green asset pool under the €12.0bn Board authorization, paired with a €500M swap pre-hedge overlay."
+            )
     else:
         fallback_why = (
             f"{client_name} is navigating a €{mat_bn} maturity profile against €{liq_bn} in available liquidity. "
@@ -502,28 +583,58 @@ def synthesize_mandate_catalyst(
         region = os.getenv("REGION", "europe-west1")
         client_gcp = genai.Client(vertexai=True, project=project_id, location=region)
 
+        # Dynamic product-aware driver injection with rich keyword contexts
+        p_fam_upper = str(product_family).upper()
+        latent_context = str(latent_str).upper() if 'latent_str' in locals() else ''
+        combined_context = f"{p_fam_upper} {latent_context}"
+
+        if any(k in combined_context for k in ['GREEN', 'SUSTAINABLE', 'ESG', 'SLB', 'SUSTAINABILITY-LINKED']):
+            product_specific_driver = '5. Sustainable Financing Catalyst: Eligible green asset pool utilization and 3–7 bps greenium pricing concession.'
+        elif any(k in combined_context for k in ['FX', 'CURRENCY', 'COLLAR', 'HEDGING GAP', 'USD']):
+            product_specific_driver = '5. FX Risk Catalyst: Foreign currency revenue exposure and unhedged cash flow gap.'
+        elif any(k in combined_context for k in ['RATES', 'IRS', 'PRE-HEDGE', 'SWAP', 'RATE SENSITIVITY']):
+            product_specific_driver = '5. Rate Risk Catalyst: Benchmark yield curve volatility and pre-hedge lock windows.'
+        else:
+            product_specific_driver = '5. Refinancing Catalyst: Standard institutional debt capital markets distribution.'
+
         prompt = f"""You are an Executive Director in ING Wholesale Banking Capital Markets & Advisory.
 Synthesize the provided database-grounded signals into two authoritative, desk-ready sentences for an executive pitchbook.
 
 CLIENT: {client_name}
 TARGET PRODUCT FAMILY: {product_family}
 
+=========================================================================
+MANDATORY STRUCTURE — READ THIS FIRST. THIS OVERRIDES ALL OTHER INPUTS.
+=========================================================================
+The following is ING's current proposal. Every number in it — tranche sizes,
+tenors, and structure — is a business decision already made by the desk.
+Your synthesis MUST preserve these exact values. Do not change them, even
+if the signals below reference different tenors or notionals.
+
+why_now (current): {current_why_now}
+action  (current): {current_action}
+
+If the signals below mention different tenors (e.g. 8Y or 12Y) or notionals
+(e.g. €750M), IGNORE those conflicting values. The proposal above is the
+single source of truth.
+=========================================================================
+
 GROUNDED INPUT SIGNALS (4 FEEDS):
 1. Balance Sheet & Liquidity: Available Liquidity €{liq_bn} | 2026–2027 Maturity Wall €{mat_bn}
 2. Market DB Benchmarks: 5Y EUR Swap: {swap_5y} | Credit Spread: {credit_spr} | Benchmark Spread: 78 bps | Indicative Greenium: -5 bps
 3. Context Fabric Tacit Knowledge: {context_memo[:400]}
 4. Houseviews & News Intelligence: {news_headline[:300]}
+{product_specific_driver}
 
 ACTIVE SIGNALS & LATENT OPPORTUNITIES:
 - {latent_str}
 
-PRODUCT BLUEPRINT CONTEXT:
-- For Sustainable Funding / Enel: Recommend €1.0B Dual-Tranche Senior Unsecured (€600M 8Y Green at Mid-swap + 73 bps net of -5 bps greenium + €400M 12Y SLB), backed by €3.5B green asset pool within €12.0bn Board envelope, paired with a €500M swap pre-hedge.
-- For other clients/products: Derive specific structuring, tenors, and derivative overlays directly from the client inputs and market metrics above.
+ACCUMULATED SIGNALS FOR THIS CLIENT (most recent first):
+{_signals_block}
 
 INSTRUCTIONS:
 Output a valid JSON object with exactly two keys:
-1. "why_now": Exactly 2 sentences. Connect the debt maturity wall (€{mat_bn}), liquidity buffer (€{liq_bn}), recent market issuance, and the prevailing 5Y swap rate ({swap_5y}) to explain why this transaction is critical now.
+1. "why_now": Exactly 2 sentences. Connect the debt maturity wall (€{mat_bn}), liquidity buffer (€{liq_bn}), prevailing 5Y swap rate ({swap_5y}), and available sustainable pricing concessions or greenium drivers to explain why this transaction is critical now.
 2. "action": Exactly 2 sentences. Specify the exact transaction structuring, tenor distribution, pricing/hedging overlay, and immediate operational next steps with Treasury.
 
 CONSTRAINTS:
@@ -607,6 +718,19 @@ def get_opportunities():
                 cid_str = str(cid)
                 name_str = str(name)
 
+                # Resolve primary Relationship Manager from coverage_teams
+                try:
+                    cur.execute("""
+                        SELECT banker_name FROM ca.coverage_teams
+                        WHERE client_id = %s AND role_title ILIKE %s
+                        LIMIT 1;
+                    """, (cid_str, '%Relationship Manager%'))
+                    rm_team_row = cur.fetchone()
+                    if rm_team_row and rm_team_row[0]:
+                        rm = rm_team_row[0]
+                except Exception as e_rm:
+                    logger.warning(f"coverage_teams RM lookup failed for {cid_str}: {e_rm}")
+
                 # Client-specific credit spreads
                 credit_spreads = {}
                 first_word = name_str.split()[0].replace(',', '').strip() if name_str else ""
@@ -661,8 +785,8 @@ def get_opportunities():
                 cf_latent = "Pre-hedge interest rate swap window and bond issuance advisory."
                 cf_author = "Luca Moretti (DCM Origination)"
                 attrib_author = "Luca Moretti (DCM Origination)"
-                hv_doc_title = "ING_Utilities_Strategy_Q3.pdf"
-                hv_doc_summary = "ING Strategy Desk: Utilities sector debt wall favors pre-hedging 2026-2027 tenors at 2.62% 5Y EUR swap benchmark."
+                hv_doc_title = "ING FM Research"
+                hv_doc_summary = "No ING houseview published for this client in the current reporting cycle."
                 news_source = "Capital Market News / Bloomberg"
                 news_headline = f"{name_str} capital markets update: Monitoring debt maturity wall and rate pre-hedge window."
                 
@@ -688,7 +812,7 @@ def get_opportunities():
                             preview_str = (str(c_text or "").strip())[:150]
                             if len(str(c_text or "").strip()) > 150:
                                 preview_str += "..."
-                            
+
                             if std_chan == "WORKFABRIC_MEMO":
                                 chip_label = "🧠 WorkFabric Memo"
                                 color_cls = "bg-blue-50 text-blue-800 border-blue-200"
@@ -753,7 +877,7 @@ def get_opportunities():
                         if wf_memo_row[1]:
                             cf_author = wf_memo_row[1]
                     else:
-                        cur.execute("""SELECT description, trigger_summary FROM ca.digital_twin_signals WHERE client_id = %s AND catalog_family IN ('Financing/Capital Markets', 'Interest Rate') AND (signal_type IS NULL OR signal_type != 'LATENT_OPPORTUNITY') ORDER BY confidence_pct DESC, signal_id ASC LIMIT 1;""", (cid_str,))
+                        cur.execute("""SELECT description, trigger_summary FROM ca.digital_twin_signals WHERE client_id = %s AND (signal_type IS NULL OR signal_type != 'LATENT_OPPORTUNITY') ORDER BY created_at DESC LIMIT 1;""", (cid_str,))
                         sig_row = cur.fetchone()
                         if sig_row:
                             if sig_row[0]: cf_desc = sig_row[0]
@@ -762,35 +886,89 @@ def get_opportunities():
                 except Exception as e_sig:
                     logger.warning("Error querying signals: " + str(e_sig))
 
-                houseview_label = "Refinancing Requirement"
+                # Extract financing capacity metric for Tile 3 (Context Fabric)
+                cf_tile_value = "No capacity signal"
+                try:
+                    cur.execute("""
+                        SELECT metric_value FROM ca.digital_twin_signals
+                        WHERE client_id = %s
+                          AND signal_type IN ('BOARD_AUTHORIZATION', 'Funding Capacity Authorisation')
+                          AND metric_value IS NOT NULL
+                          AND metric_value != ''
+                        ORDER BY created_at DESC LIMIT 1;
+                    """, (cid_str,))
+                    _cap_row = cur.fetchone()
+                    if _cap_row and _cap_row[0]:
+                        _cap_raw = str(_cap_row[0]).strip()
+                        # Normalize: "€12.0bn" -> "€12bn"; "€12.0bn; 'March 2027'" -> "€12bn"
+                        _cap_num = _cap_raw.split(";")[0].strip()
+                        _cap_num = _cap_num.replace(".0bn", "bn").replace(".0B", "B")
+                        cf_tile_value = f"{_cap_num} financing capacity"
+                except Exception as e_cap:
+                    logger.warning(f"Error querying capacity for {cid_str}: {e_cap}")
+
+                houseview_label = "No houseview ingested"
                 try:
                     cur.execute("""
                         SELECT text_content, source_name, structured_metadata 
                         FROM ca.document_vector_chunks 
-                            WHERE client_id = %s AND source_channel IN ('PDF_REPORT', 'ANALYST_NOTE', 'RESEARCH_NOTE', 'HOUSEVIEW')
+                            WHERE client_id = %s AND source_channel IN ('PDF_REPORT', 'HOUSEVIEW')
+                              AND source_channel NOT IN ('NEWS_RSS', 'LIVE_RSS_NEWS')
                         ORDER BY created_at DESC, chunk_id DESC 
                         LIMIT 1;
                     """, (cid_str,))
                     hv_row = cur.fetchone()
                     if hv_row:
+                        # Populate chip label from the DB row's source_name
+                        if hv_row[1]:
+                            hv_doc_title = str(hv_row[1])
+                        # Prefer executive_summary from metadata; fall back to truncated text
+                        meta_pre = hv_row[2] if isinstance(hv_row[2], dict) else {}
+                        exec_sum = meta_pre.get("executive_summary") if meta_pre else None
+                        if exec_sum:
+                            hv_doc_summary = str(exec_sum).strip()
+                        elif hv_row[0]:
+                            raw_txt = str(hv_row[0]).strip()
+                            hv_doc_summary = raw_txt[:200] + ("..." if len(raw_txt) > 200 else "")
+
                         meta = hv_row[2]
                         if meta and isinstance(meta, dict) and meta.get("detected_signals"):
                             sigs = meta.get("detected_signals")
                             if sigs and len(sigs) > 0:
-                                s_type = sigs[0].get("signal_type", "Refinancing Requirement")
-                                s_metric = sigs[0].get("metric_identified", "")
-                                houseview_label = f"{s_type}: {s_metric}" if s_metric else s_type
+                                first = sigs[0]
+                                s_type = str(first.get("signal_type") or "").strip()
+                                s_metric = str(first.get("metric_identified") or "").strip()
+
+                                # Abbreviate signal_type to first two words
+                                type_words = s_type.split()
+                                short_type = " ".join(type_words[:2]) if len(type_words) >= 2 else s_type
+
+                                # Trim metric at first semicolon
+                                if ";" in s_metric:
+                                    s_metric = s_metric.split(";")[0].strip()
+
+                                # Strip structured prefixes like "Amount: " and "Event: "
+                                if ":" in s_metric:
+                                    s_metric = s_metric.split(":", 1)[1].strip()
+
+                                if s_metric and s_metric.lower() != "n/a":
+                                    houseview_label = s_metric
+                                elif short_type:
+                                    houseview_label = short_type
+                                else:
+                                    houseview_label = "Signal detected"
                         elif hv_row[1]:
                             houseview_label = hv_row[1].replace(".pdf", "").replace("_", " ")
                 except Exception as e_hv:
                     logger.warning(f"Error querying houseview for {cid_str}: {e_hv}")
                 # 3. Query ca.document_vector_chunks for Segment 4 Houseviews & News (Dynamic per-client)
                 try:
+                    # Absolute latest single row filtered by client ID and source channels
                     cur.execute("""
                         SELECT text_content, source_name
                         FROM ca.document_vector_chunks
                         WHERE client_id = %s
-                          AND source_channel = 'NEWS_RSS'
+                          AND source_channel IN ('NEWS_RSS', 'LIVE_RSS_NEWS', 'LIVE RSS News', 'News RSS')
                         ORDER BY created_at DESC, chunk_id DESC
                         LIMIT 1;
                     """, (cid_str,))
@@ -803,7 +981,7 @@ def get_opportunities():
                                 for line in raw_txt.splitlines():
                                     if "[1] HEADLINE:" in line:
                                         hl_part = line.strip()
-                                        news_headline = f"LIVE RSS INTELLIGENCE WIRE: {hl_part}"
+                                        news_headline = hl_part
                                         break
                             else:
                                 news_headline = raw_txt
@@ -820,19 +998,29 @@ def get_opportunities():
                 bund_10y = mkt_curves.get("10Y", {}).get("bund")
                 swap_7y = mkt_curves.get("7Y", {}).get("swap")
 
-                # Universal LLM synthesis: Trigger Gemini if narration is missing, short, or flags stale keywords
-                is_stale = (
-                    not why_now or 
-                    not action or
-                    "planning window" in str(why_now).lower() or
-                    "holistic review" in str(action).lower() or
-                    "corporate treasury assesses" in str(why_now).lower() or 
-                    "active balance sheet review" in str(why_now).lower() or
-                    len(str(why_now).strip()) < 40
-                )
+                # Always-on synthesis from accumulated signals, cached per client with TTL
+                import time as _time_mod
+                _now_ts = _time_mod.time()
+                _cached_entry = _MANDATE_SYNTH_CACHE.get(cid_str)
 
-                if is_stale and GENAI_AVAILABLE:
+                if _cached_entry and _cached_entry[0] > _now_ts:
+                    final_why_now, final_action = _cached_entry[1], _cached_entry[2]
+                    logger.info(f"Mandate synthesis cache HIT for {cid_str}")
+                elif GENAI_AVAILABLE and cid_str in _DEMO_CLIENT_IDS:
                     try:
+                        cur.execute("""
+                            SELECT DISTINCT ON (trigger_summary) signal_type, trigger_summary, metric_identified, catalog_family, confidence_pct, created_at FROM ca.digital_twin_signals WHERE client_id = %s ORDER BY trigger_summary, created_at DESC LIMIT 20;
+                        """, (cid_str,))
+                        _all_signals = [
+                            {
+                                "signal_type": r[0],
+                                "trigger_summary": r[1],
+                                "metric_identified": r[2],
+                                "catalog_family": r[3],
+                                "confidence_pct": r[4]
+                            } for r in cur.fetchall()
+                        ]
+
                         synth_metrics = {
                             "swap_5y": swap_5y or "2.62%",
                             "bund_10y": bund_10y or "2.61%",
@@ -848,12 +1036,35 @@ def get_opportunities():
                             news_headline=str(news_headline or ""),
                             latent_opps=cf_latent_list,
                             base_why_now=str(why_now or ""),
-                            base_action=str(action or "")
+                            base_action=str(action or ""),
+                            all_signals=_all_signals,
+                            current_why_now=str(why_now or ""),
+                            current_action=str(action or "")
                         )
-                        final_why_now = synth.get("why_now") or why_now
-                        final_action = synth.get("action") or action
+                        final_why_now = synth.get("why_now") or why_now or f"Active funding assessment for {name_str}."
+                        final_action = synth.get("action") or action or "Review opportunity and schedule coverage call."
 
-                        # Persist synthesized narrative back to ca_opportunity_scoring for high-speed subsequent requests
+                        # -----------------------------------------------------------------
+                        # Drift guard: if the LLM output introduces tenors that conflict
+                        # with the anchor's tenors, replace the LLM output with the anchor.
+                        # -----------------------------------------------------------------
+                        _anchor_action = str(action or "").strip()
+                        if _anchor_action and _anchor_action != "(not yet curated)":
+                            _anchor_has_7Y = "7Y" in _anchor_action or "7 Years" in _anchor_action
+                            _anchor_has_10Y = "10Y" in _anchor_action or "10 Years" in _anchor_action
+                            _out_has_8Y = "8Y" in final_action or "8 Years" in final_action
+                            _out_has_12Y = "12Y" in final_action or "12 Years" in final_action
+                            if (_anchor_has_7Y and _out_has_8Y) or (_anchor_has_10Y and _out_has_12Y):
+                                logger.warning(f"Tenor drift detected for {cid_str}: LLM produced 8Y/12Y vs anchor 7Y/10Y. Overriding with anchor.")
+                                final_action = _anchor_action
+                            _anchor_why = str(why_now or "").strip()
+                            if _anchor_why and _anchor_why != "(not yet curated)":
+                                final_why_now = final_why_now  # keep LLM's why_now (usually fine)
+
+                        _MANDATE_SYNTH_CACHE[cid_str] = (_now_ts + _MANDATE_SYNTH_CACHE_TTL, final_why_now, final_action)
+                        logger.info(f"Mandate synthesis cache MISS for {cid_str}, refreshed (TTL {_MANDATE_SYNTH_CACHE_TTL}s)")
+
+                        # Persist fresh synthesis so pitchbook/copilot/compliance read the same value
                         try:
                             cur.execute("""
                                 UPDATE ca.ca_opportunity_scoring
@@ -861,11 +1072,12 @@ def get_opportunities():
                                 WHERE client_id = %s;
                             """, (final_why_now, final_action, cid_str))
                             conn.commit()
+                            logger.info(f"Persisted fresh synthesis for {cid_str}")
                         except Exception as e_up:
                             logger.warning(f"Could not persist synthesis for {cid_str}: {e_up}")
                     except Exception as e_gen:
                         logger.warning(f"Dynamic synthesis skipped for {cid_str}: {e_gen}")
-                        final_why_now = why_now or f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M."
+                        final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
                         final_action = action or "Proactive capital markets advisory and rate hedging review."
                 else:
                     final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
@@ -900,6 +1112,7 @@ def get_opportunities():
                     "net_debt_str": (f"€{float(net_debt)/1000:,.1f}bn" if float(net_debt) >= 1000 else f"€{float(net_debt):,.0f}M") if float(net_debt) > 0 else "—",
                     "liquidity_str": (f"€{float(liq)/1000:,.1f}bn" if float(liq) >= 1000 else f"€{float(liq):,.0f}M") if float(liq) > 0 else "—",
                     "debt_maturing_24m_str": f"€{float(m24):,.0f}M" if float(m24) > 0 else "—",
+                    "cf_tile_value": cf_tile_value,
                     "debt_maturing_24m_bn": (f"€{float(m24)/1000:,.2f}bn" if float(m24) >= 1000 else f"€{float(m24):,.0f}M") if float(m24) > 0 else "—",
                     "rm_name": rm or "Coverage Director",
                     "eur_10y_bund": bund_10y or "—",
@@ -1087,7 +1300,21 @@ def ingest_text_signal(req: TextIngestRequest):
     cname = bundle.get("client_name", "Corporate Client")
 
     # Smart Channel & Author Normalization
-    if "TEAMS" in raw_chan or "TEAMS" in text.upper() or "LUCA MORETTI (DCM" in text.upper() or "GIULIA ROMANO (RM)" in text.upper():
+    # Documents uploaded through the Houseviews (PDF/PPTX) tab
+    _sname_lower = str(raw_sname or "").lower()
+    is_document_upload = (
+        _sname_lower.endswith(".pdf")
+        or _sname_lower.endswith(".pptx")
+        or raw_chan == "DOCUMENT UPLOAD"
+    )
+
+    if "RSS" in raw_chan or "NEWS" in raw_chan:
+        channel = "LIVE_RSS_NEWS"
+        sname = raw_sname if raw_sname else "Live Verified News"
+    elif is_document_upload:
+        channel = "PDF_REPORT"
+        sname = raw_sname if raw_sname else "Ingested Document"
+    elif "TEAMS" in raw_chan or "TEAMS" in text.upper() or "LUCA MORETTI (DCM" in text.upper() or "GIULIA ROMANO (RM)" in text.upper():
         channel = "TEAMS_CHAT"
         sname = raw_sname if raw_sname and raw_sname != "Client Inbound Touchpoint" else "European Utilities Coverage (#deal-coverage-enel)"
     elif "EMAIL" in raw_chan or "FROM:" in text.upper() or "SUBJECT:" in text.upper() or "FABIO TAGLIAFERRI" in text.upper():
@@ -1123,20 +1350,24 @@ Analyze the following touchpoint text for wholesale corporate client '{cname}' (
 TEXT CONTENT:
 {text}
 
-Extract structured signal parameters matching the database schema as STRICT JSON without markdown:
+Extract ALL distinct structured signals from this text as STRICT JSON without markdown, using this schema:
 {{
-  "signal_type": "SUSTAINABLE FUNDING | REFINANCING | LIQUIDITY | COVENANT | HEDGING | M&A",
-  "catalog_family": "Financing/Capital Markets | Interest Rate | Foreign Exchange | Sustainable Finance",
-  "metric_identified": "Short headline / metric identified (max 100 chars)",
-  "trigger_summary": "1-sentence executive trigger summary",
-  "metric_value": "Key value or spread (e.g. €750M or Mid-Swap +77bps)",
-  "description": "2-sentence detailed institutional description",
-  "confidence_pct": 94,
-  "urgency": "High | Medium | Low",
-  "suggested_action": "Specific deal recommendation (e.g. Execute EUR 750M 8Y Green EMTN with EUR 500M Pre-Hedge)",
-  "est_revenue_eur_000": 5500,
-  "priority_score": 94
+  "detected_signals": [
+    {{
+      "signal_type": "SUSTAINABLE FUNDING | REFINANCING | LIQUIDITY | COVENANT | HEDGING | M&A",
+      "catalog_family": "Financing/Capital Markets | Interest Rate | Foreign Exchange | Sustainable Finance",
+      "metric_identified": "Short headline / metric identified (max 100 chars)",
+      "trigger_summary": "1-sentence executive trigger summary",
+      "metric_value": "Key value or spread (e.g. €750M or Mid-Swap +77bps)",
+      "description": "2-sentence detailed institutional description",
+      "confidence_pct": 94,
+      "urgency": "High | Medium | Low"
+    }}
+  ]
 }}
+
+If the text contains only one signal, return an array with one element.
+If the text contains no extractable signals, return {{"detected_signals": []}}.
 """
             response = client_gcp.models.generate_content(
                 model='gemini-2.5-flash',
@@ -1158,64 +1389,148 @@ Extract structured signal parameters matching the database schema as STRICT JSON
             cur = conn.cursor()
             sig_id = f"SIG-{uuid.uuid4().hex[:8].upper()}"
             
-            # 0. Insert into ca.document_vector_chunks for Dynamic Context Fabric chips & hover tooltips
+            # 0. Insert into ca.document_vector_chunks with strict deduplication guard
             std_channel = "WORKFABRIC_MEMO" if any(k in str(channel).upper() for k in ("MEMO", "NOTE", "FABRIC", "CONTEXT")) else str(channel)
+            
+            # Channel-scoped semantic deduplication guard
+            std_channel = "WORKFABRIC_MEMO" if any(k in str(channel).upper() for k in ("MEMO", "NOTE", "FABRIC", "CONTEXT")) else str(channel)
+            
             cur.execute("""
-                INSERT INTO ca.document_vector_chunks (
-                    client_id, source_channel, source_name, text_content, created_at
-                ) VALUES (%s, %s, %s, %s, NOW())
-                RETURNING chunk_id;
-            """, (str(cid), std_channel, str(sname), str(text)))
-            new_chunk_id = cur.fetchone()[0]
-            logger.info(f"Inserted ca.document_vector_chunks #{new_chunk_id} for {cid}")
+                SELECT source_name, text_content 
+                FROM ca.document_vector_chunks
+                WHERE client_id = %s
+                ORDER BY created_at DESC 
+                LIMIT 15;
+            """, (str(cid),))
+            channel_history = cur.fetchall()
+            
+            existing_chunk_id = None
+            # Deterministic exact-match pre-check
+            if channel_history:
+                for r in channel_history:
+                    if str(r[0]).strip().lower() == str(sname).strip().lower() or (text and str(r[1]).strip()[:200] == str(text).strip()[:200]):
+                        # Find the matching chunk_id
+                        cur.execute("""
+                            SELECT chunk_id FROM ca.document_vector_chunks
+                            WHERE client_id = %s AND source_name = %s
+                            ORDER BY created_at DESC 
+                            LIMIT 1;
+                        """, (str(cid), r[0]))
+                        match_row = cur.fetchone()
+                        if match_row:
+                            existing_chunk_id = match_row[0]
+                            break
 
-            # 1. Insert into ca.digital_twin_signals
-            cur.execute("""
-                INSERT INTO ca.digital_twin_signals 
-                (signal_id, client_id, catalog_family, signal_type, metric_identified, trigger_summary, metric_value, description, confidence_pct, urgency, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
-            """, (
-                sig_id,
-                str(cid),
-                str(extracted.get("catalog_family", "Financing/Capital Markets")),
-                str(extracted.get("signal_type", "REFINANCING")),
-                str(extracted.get("metric_identified", "Catalyst"))[:100],
-                str(extracted.get("trigger_summary", text[:200])),
-                str(extracted.get("metric_value", "Live Trigger"))[:50],
-                str(extracted.get("description", text[:500])),
-                int(extracted.get("confidence_pct", 94)),
-                str(extracted.get("urgency", "High"))
-            ))
-
-            # 2. Update ca.ca_opportunity_scoring
-            new_action = str(extracted.get("suggested_action", "Execute EUR 750M 8Y Green EMTN with EUR 500M Pre-Hedge"))
-            new_why_now = str(extracted.get("trigger_summary", text[:200]))
-            new_fee = float(extracted.get("est_revenue_eur_000", 5500))
-            new_score = int(extracted.get("priority_score", 94))
-            extracted_cat = str(extracted.get("catalog_family", "")).lower()
-            ext_sig = str(extracted.get("signal_type", "")).lower()
-            if "sustainable" in extracted_cat or "green" in ext_sig or "sustainable" in ext_sig:
-                new_type = "SUSTAINABLE FUNDING"
+            if not existing_chunk_id and channel_history:
+                history_snippets = [f"Title: {r[0]} | Content: {r[1][:250]}" for r in channel_history]
+                eval_prompt = f"""
+                You are a senior institutional banking intelligence auditor.
+                Compare this incoming ingestion item against the recent history for this specific channel ({std_channel}).
+                
+                Incoming Source/Title: {sname}
+                Incoming Content Snippet: {text[:350]}
+                
+                Recent Channel History:
+                {chr(10).join(history_snippets)}
+                
+                Does this incoming item convey the exact same core corporate event, news headline, or memo as any existing record in THIS channel? 
+                Answer strictly with 'DUPLICATE' or 'UNIQUE'.
+                """
+                try:
+                    eval_res = call_gemini_pro_evaluation(eval_prompt) if 'call_gemini_pro_evaluation' in globals() else ""
+                    # Fallback lightweight LLM evaluation if helper isn't globally scoped
+                    if not eval_res and 'model' in globals():
+                        resp = model.generate_content(eval_prompt)
+                        eval_res = resp.text
+                    
+                    if "DUPLICATE" in str(eval_res).upper():
+                        # Find the matching chunk_id to link
+                        cur.execute("""
+                            SELECT chunk_id FROM ca.document_vector_chunks
+                            WHERE client_id = %s
+                            ORDER BY created_at DESC 
+                            LIMIT 1;
+                        """, (str(cid),))
+                        match_row = cur.fetchone()
+                        if match_row:
+                            existing_chunk_id = match_row[0]
+                except Exception as e_sem:
+                    logger.warning(f"Semantic deduplication evaluation fallback error: {e_sem}")
+            
+            if existing_chunk_id:
+                new_chunk_id = existing_chunk_id
+                logger.info(f"Skipping semantically duplicate chunk for {cid} in channel {std_channel}: {str(sname)[:50]}")
+                if conn:
+                    conn.commit()
+                    cur.close()
+                    conn.close()
+                return {
+                    "status": "duplicate_skipped",
+                    "message": f"⚠️ Duplicate signal intercepted: '{str(sname)[:60]}' already exists in channel {std_channel}.",
+                    "chunk_id": existing_chunk_id
+                }
             else:
-                new_type = str(extracted.get("signal_type", "REFINANCING")).upper()
+                cur.execute("""
+                    INSERT INTO ca.document_vector_chunks (
+                        client_id, source_channel, source_name, text_content, created_at
+                    ) VALUES (%s, %s, %s, %s, NOW())
+                    RETURNING chunk_id;
+                """, (str(cid), std_channel, str(sname), str(text)))
+                new_chunk_id = cur.fetchone()[0]
+                logger.info(f"Inserted ca.document_vector_chunks #{new_chunk_id} for {cid}")
 
-            cur.execute("""
-                UPDATE ca.ca_opportunity_scoring
-                SET next_best_action = %s,
-                    why_now_nlg = %s,
-                    est_revenue_eur_000 = %s,
-                    priority_score = %s,
-                    opportunity_type = %s
-                WHERE client_id = %s OR client_id LIKE %s;
-            """, (
-                new_action,
-                new_why_now,
-                new_fee,
-                new_score,
-                new_type,
-                str(cid),
-                f"{str(cid)}%"
-            ))
+            # 1. Insert one row per detected signal (with dedup on trigger_summary)
+            detected_signals = extracted.get("detected_signals") if isinstance(extracted, dict) else None
+            
+            # If this is a semantic duplicate, skip inserting redundant digital twin signals entirely
+            if existing_chunk_id:
+                logger.info(f"Skipping digital_twin_signals insert for semantic duplicate chunk #{existing_chunk_id}")
+                detected_signals = []
+            if not detected_signals:
+                # Backward-compatible fallback: treat the flattened extraction as a single signal
+                detected_signals = [{
+                    "signal_type": extracted.get("signal_type", "REFINANCING"),
+                    "catalog_family": extracted.get("catalog_family", "Financing/Capital Markets"),
+                    "metric_identified": extracted.get("metric_identified", "Catalyst"),
+                    "trigger_summary": extracted.get("trigger_summary", text[:200]),
+                    "metric_value": extracted.get("metric_value", "Live Trigger"),
+                    "description": extracted.get("description", text[:500]),
+                    "confidence_pct": extracted.get("confidence_pct", 94),
+                    "urgency": extracted.get("urgency", "High"),
+                }]
+
+            for sig_obj in detected_signals:
+                sig_id_new = f"SIG-{uuid.uuid4().hex[:8].upper()}"
+                trig_sum = str(sig_obj.get("trigger_summary", text[:200]))[:500]
+
+                # Dedup guard: skip if identical trigger_summary already exists for this client
+                cur.execute("""
+                    SELECT 1 FROM ca.digital_twin_signals
+                    WHERE client_id = %s AND trigger_summary = %s LIMIT 1;
+                """, (str(cid), trig_sum))
+                if cur.fetchone():
+                    logger.info(f"Skipping duplicate signal for {cid}: {trig_sum[:60]}")
+                    continue
+
+                cur.execute("""
+                    INSERT INTO ca.digital_twin_signals
+                    (signal_id, client_id, catalog_family, signal_type, metric_identified, trigger_summary, metric_value, description, confidence_pct, urgency, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW());
+                """, (
+                    sig_id_new,
+                    str(cid),
+                    str(sig_obj.get("catalog_family", "Financing/Capital Markets")),
+                    str(sig_obj.get("signal_type", "REFINANCING")),
+                    str(sig_obj.get("metric_identified", "Catalyst"))[:100],
+                    trig_sum,
+                    str(sig_obj.get("metric_value", "Live Trigger"))[:50],
+                    str(sig_obj.get("description", text[:500]))[:1000],
+                    int(sig_obj.get("confidence_pct", 94)),
+                    str(sig_obj.get("urgency", "High"))
+                ))
+
+            # 2. (Removed) Ingestion no longer writes to ca_opportunity_scoring.
+            #    Mandate text is synthesized in /api/opportunities from accumulated signals.
 
             conn.commit()
             cur.close()
@@ -1494,13 +1809,14 @@ def copilot_chat_endpoint(req: CopilotMessage):
             "spread": f"Mid-swap + {str(bundle.get('credit_spread_5y', '78')).replace(' bps', '')} bps (Greenium: -5 bps)",
             "documentation": "Green Bond Framework / EMTN Prospectus"
         }
+        bund_10y_val = bundle.get("bund_10y_yield", "2.61%")
         base_s8_leg2 = {
-            "instrument": "Sustainability Overlay",
+            "instrument": "Sustainability-Linked Tranche",
             "notional": bundle.get("notional_swap", "EUR 400,000,000"),
-            "tenor": "Annual SPT verification window",
-            "benchmark": "Scope 1 & 2 Decarbonisation KPI",
-            "spread": "+/- 5 bps SPT step-up / step-down",
-            "documentation": "ICMA Green Bond Principles + SPO"
+            "tenor": "10 Years (T + 10Y)",
+            "benchmark": f"10Y German Bund ({bund_10y_val}) / EUR mid-swap",
+            "spread": "Mid-swap + 80 bps (-2 bps vs baseline, +/- 25 bps SPT)",
+            "documentation": "Sustainability-Linked Framework / EMTN Prospectus"
         }
     elif is_fx:
         s4_card3_label = "Unhedged FX Gap"
@@ -1596,6 +1912,7 @@ def copilot_chat_endpoint(req: CopilotMessage):
         **base_s8_leg2,
         **{k: v for k, v in [
             ("notional", current_ov.get("notional_swap") or current_ov.get("notional_slb_eur")),
+            ("tenor", current_ov.get("tenor_leg2")),
         ] if v is not None}
     }
 
@@ -1642,7 +1959,7 @@ def copilot_chat_endpoint(req: CopilotMessage):
     baseline_deck_slides = {
         "slide_1": {"title": "01. Cover Slide", "client_name": client_name},
         "slide_2": {"title": "02. Catalyst", "trigger": bundle.get("trigger") or "Catalyst window"},
-        "slide_3": {"title": "03. Executive Summary", "focus": f"Proactive capital markets structuring and execution for {client_name}."},
+        "slide_3": {"title": "03. Executive Summary", "focus": f"Proactive capital markets structuring and execution for {client_name}.", "why_now": bundle.get("why_now_nlg") or "", "action": bundle.get("next_best_action") or ""},
         "slide_4": {"title": "04. Balance Sheet Foundation", "net_debt": db_net_debt, "liquidity": db_liq, "credit_rating": db_rating, "revenue": db_rev, "ebitda": db_ebitda},
         "slide_5": {"title": s5_title, "details": s5_data},
         "slide_6": {
@@ -1672,7 +1989,7 @@ def copilot_chat_endpoint(req: CopilotMessage):
     active_deck_slides = {
         "slide_1": {"title": "01. Cover Slide", "kicker": s1_kicker, "client_name": client_name, "subtitle": s1_subtitle},
         "slide_2": {"title": "02. Decarbonization Catalyst" if is_green else ("02. FX Risk Catalyst" if is_fx else "02. Strategic Catalyst"), "trigger": s2_trigger, "window": s2_window, "action": s2_action},
-        "slide_3": {"title": "03. Executive Summary", "focus": f"Proactive capital markets structuring and execution for {client_name}."},
+        "slide_3": {"title": "03. Executive Summary", "focus": f"Proactive capital markets structuring and execution for {client_name}.", "why_now": current_ov.get("why_now") or bundle.get("why_now_nlg") or "", "action": current_ov.get("action") or bundle.get("next_best_action") or ""},
         "slide_4": {"title": "04. Balance Sheet Foundation", "net_debt": db_net_debt, "liquidity": db_liq, "card3_label": s4_card3_label, "card3_value": s4_card3_val, "credit_rating": db_rating, "revenue": db_rev, "ebitda": db_ebitda},
         "slide_5": {"title": s5_title, "details": s5_data},
         "slide_6": s6_payload,
@@ -1770,6 +2087,8 @@ RESPONSE ARCHITECTURE & STYLE GUIDELINES:
    - "ecb_rate": ECB refinancing / deposit rate (e.g. "2.50%")
    - "protection_floor": FX collar floor strike (FX only)
    - "cap_strike": FX collar cap strike (FX only)
+   - "why_now": Catalyst Rationale narrative for Slide 3 - the strategic case for acting now (2 sentences)
+   - "action": Proposed Execution & Structuring narrative for Slide 3 - the recommended deal structure (2 sentences)
    Always emit exact formatted strings (e.g. write "EUR 800,000,000" rather than "EUR 800M"). Never invent non-standard keys like "notional", "green_notional", or "tranche_size".
 6. **Dynamic Revert & Reset Handling (Universal & Grounded)**:
    When the user asks to revert, reset, or restore any metrics, slides, or benchmarks to baseline or original:
@@ -1960,6 +2279,316 @@ else:
     def index():
         return {"status": "Backend running, frontend build not found."}
 
+@app.post("/api/system/reset-baseline")
+def reset_baseline(payload: dict = None):
+    """
+    Restores whitelisted clients to their pristine baseline state.
+
+    Reads baseline_snapshots.json and inserts pristine rows into every
+    client-scoped table. Rows with a primary key use ON CONFLICT DO UPDATE
+    so the endpoint is idempotent. Rows without a primary key
+    (debt_maturity_schedule, coverage_teams) are scoped by client_id: any
+    prior rows for the client are removed, then pristine rows are inserted.
+    That deletion only ever touches rows the reset itself previously inserted,
+    because the ingestion pipeline does not write to those two tables.
+
+    For the two timestamp-bearing tables (digital_twin_signals and
+    document_vector_chunks), created_at is set to NOW() on both insert and
+    update so the pristine rows become the newest rows in the table and win
+    the ORDER BY created_at DESC reads that drive the UI.
+
+    Global market tables (mkt_rates_curves, ext_credit_spreads) are not
+    touched — they are not client-scoped, and the ingestion pipeline cannot
+    modify them.
+    """
+    # 1. Resolve target client IDs (whitelist by default)
+    if payload and isinstance(payload, dict) and payload.get("client_ids"):
+        client_ids = [str(c).strip() for c in payload["client_ids"] if c]
+    else:
+        client_ids = list(_DEMO_CLIENT_IDS)
+
+    # 2. Invalidate mandate synthesis cache for those clients
+    for cid in client_ids:
+        _MANDATE_SYNTH_CACHE.pop(cid, None)
+
+    # 3. Load the snapshot file
+    snapshot_path = os.path.join(os.path.dirname(__file__), "baseline_snapshots.json")
+    if not os.path.exists(snapshot_path):
+        return {"status": "error", "message": "baseline_snapshots.json not found."}
+
+    try:
+        with open(snapshot_path, "r", encoding="utf-8") as f:
+            snapshots = json.load(f)
+    except Exception as e:
+        logger.exception("Failed to load baseline_snapshots.json")
+        return {"status": "error", "message": f"Could not read snapshot file: {e}"}
+
+    clients_block = snapshots.get("clients", {})
+
+    # 4. Open DB connection
+    conn, connector = get_db_connection()
+    if not conn:
+        return {"status": "error", "message": "Database connection failed."}
+
+    summary = {}
+    skipped = []
+    cur = None
+
+    try:
+        cur = conn.cursor()
+
+        for cid in client_ids:
+            if cid not in clients_block:
+                skipped.append(cid)
+                logger.warning(f"Reset skipped: {cid} not in snapshot")
+                continue
+
+            data = clients_block[cid]
+            counts = {
+                "client_master": 0,
+                "ext_company_filings": 0,
+                "ca_opportunity_scoring": 0,
+                "digital_twin_signals": 0,
+                "document_vector_chunks": 0,
+                "debt_maturity_schedule": 0,
+                "coverage_teams": 0,
+                "ext_deals": 0,
+            }
+
+            # client_master
+            for row in data.get("client_master", []):
+                cur.execute("""
+                    INSERT INTO ca.client_master (
+                        client_id, client_name, group_parent, legal_entity,
+                        industry_sector, country, region, ownership_type,
+                        tier, hq_country, revenue_eur_m, rm_name, base_ccy
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (client_id) DO UPDATE SET
+                        client_name = EXCLUDED.client_name,
+                        group_parent = EXCLUDED.group_parent,
+                        legal_entity = EXCLUDED.legal_entity,
+                        industry_sector = EXCLUDED.industry_sector,
+                        country = EXCLUDED.country,
+                        region = EXCLUDED.region,
+                        ownership_type = EXCLUDED.ownership_type,
+                        tier = EXCLUDED.tier,
+                        hq_country = EXCLUDED.hq_country,
+                        revenue_eur_m = EXCLUDED.revenue_eur_m,
+                        rm_name = EXCLUDED.rm_name,
+                        base_ccy = EXCLUDED.base_ccy;
+                """, (
+                    row.get("client_id"), row.get("client_name"),
+                    row.get("group_parent"), row.get("legal_entity"),
+                    row.get("industry_sector"), row.get("country"),
+                    row.get("region"), row.get("ownership_type"),
+                    row.get("tier"), row.get("hq_country"),
+                    row.get("revenue_eur_m"), row.get("rm_name"),
+                    row.get("base_ccy"),
+                ))
+                counts["client_master"] += 1
+
+            # ext_company_filings
+            for row in data.get("ext_company_filings", []):
+                cur.execute("""
+                    INSERT INTO ca.ext_company_filings (
+                        filing_id, client_id, reporting_period, net_debt_eur_m,
+                        liquidity_eur_m, ebitda_eur_m, reported_revenue_eur_m,
+                        debt_maturing_24m_eur_m, notes
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (filing_id) DO UPDATE SET
+                        client_id = EXCLUDED.client_id,
+                        reporting_period = EXCLUDED.reporting_period,
+                        net_debt_eur_m = EXCLUDED.net_debt_eur_m,
+                        liquidity_eur_m = EXCLUDED.liquidity_eur_m,
+                        ebitda_eur_m = EXCLUDED.ebitda_eur_m,
+                        reported_revenue_eur_m = EXCLUDED.reported_revenue_eur_m,
+                        debt_maturing_24m_eur_m = EXCLUDED.debt_maturing_24m_eur_m,
+                        notes = EXCLUDED.notes;
+                """, (
+                    row.get("filing_id"), row.get("client_id"),
+                    row.get("reporting_period"), row.get("net_debt_eur_m"),
+                    row.get("liquidity_eur_m"), row.get("ebitda_eur_m"),
+                    row.get("reported_revenue_eur_m"),
+                    row.get("debt_maturing_24m_eur_m"), row.get("notes"),
+                ))
+                counts["ext_company_filings"] += 1
+
+            # ca_opportunity_scoring
+            for row in data.get("ca_opportunity_scoring", []):
+                cur.execute("""
+                    INSERT INTO ca.ca_opportunity_scoring (
+                        opportunity_id, client_id, opportunity_type, trigger_source,
+                        est_revenue_eur_000, propensity_score, value_score,
+                        priority_score, rank, next_best_action, why_now_nlg
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (opportunity_id) DO UPDATE SET
+                        client_id = EXCLUDED.client_id,
+                        opportunity_type = EXCLUDED.opportunity_type,
+                        trigger_source = EXCLUDED.trigger_source,
+                        est_revenue_eur_000 = EXCLUDED.est_revenue_eur_000,
+                        propensity_score = EXCLUDED.propensity_score,
+                        value_score = EXCLUDED.value_score,
+                        priority_score = EXCLUDED.priority_score,
+                        rank = EXCLUDED.rank,
+                        next_best_action = EXCLUDED.next_best_action,
+                        why_now_nlg = EXCLUDED.why_now_nlg;
+                """, (
+                    row.get("opportunity_id"), row.get("client_id"),
+                    row.get("opportunity_type"), row.get("trigger_source"),
+                    row.get("est_revenue_eur_000"), row.get("propensity_score"),
+                    row.get("value_score"), row.get("priority_score"),
+                    row.get("rank"), row.get("next_best_action"),
+                    row.get("why_now_nlg"),
+                ))
+                counts["ca_opportunity_scoring"] += 1
+
+            # digital_twin_signals — created_at = NOW()
+            for row in data.get("digital_twin_signals", []):
+                cur.execute("""
+                    INSERT INTO ca.digital_twin_signals (
+                        signal_id, client_id, catalog_family, signal_type,
+                        metric_identified, trigger_summary, metric_value,
+                        description, confidence_pct, urgency, created_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (signal_id) DO UPDATE SET
+                        client_id = EXCLUDED.client_id,
+                        catalog_family = EXCLUDED.catalog_family,
+                        signal_type = EXCLUDED.signal_type,
+                        metric_identified = EXCLUDED.metric_identified,
+                        trigger_summary = EXCLUDED.trigger_summary,
+                        metric_value = EXCLUDED.metric_value,
+                        description = EXCLUDED.description,
+                        confidence_pct = EXCLUDED.confidence_pct,
+                        urgency = EXCLUDED.urgency,
+                        created_at = NOW();
+                """, (
+                    row.get("signal_id"), row.get("client_id"),
+                    row.get("catalog_family"), row.get("signal_type"),
+                    row.get("metric_identified"), row.get("trigger_summary"),
+                    row.get("metric_value"), row.get("description"),
+                    row.get("confidence_pct"), row.get("urgency"),
+                ))
+                counts["digital_twin_signals"] += 1
+
+            # document_vector_chunks — created_at = NOW(), structured_metadata preserved
+            for row in data.get("document_vector_chunks", []):
+                meta = row.get("structured_metadata")
+                if isinstance(meta, (dict, list)):
+                    meta_payload = json.dumps(meta)
+                else:
+                    meta_payload = meta
+
+                cur.execute("""
+                    INSERT INTO ca.document_vector_chunks (
+                        chunk_id, client_id, source_channel, source_name,
+                        text_content, structured_metadata, created_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (chunk_id) DO UPDATE SET
+                        client_id = EXCLUDED.client_id,
+                        source_channel = EXCLUDED.source_channel,
+                        source_name = EXCLUDED.source_name,
+                        text_content = EXCLUDED.text_content,
+                        structured_metadata = EXCLUDED.structured_metadata,
+                        created_at = NOW();
+                """, (
+                    row.get("chunk_id"), row.get("client_id"),
+                    row.get("source_channel"), row.get("source_name"),
+                    row.get("text_content"), meta_payload,
+                ))
+                counts["document_vector_chunks"] += 1
+
+            # debt_maturity_schedule — no PK, delete+insert scoped by client_id
+            maturities = data.get("debt_maturity_schedule", [])
+            if maturities:
+                cur.execute(
+                    "DELETE FROM ca.debt_maturity_schedule WHERE client_id = %s",
+                    (cid,),
+                )
+                for row in maturities:
+                    cur.execute("""
+                        INSERT INTO ca.debt_maturity_schedule (
+                            isin, client_id, instrument_type, amount_eur_m,
+                            maturity_year, coupon_rate_pct, currency
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        row.get("isin"), row.get("client_id"),
+                        row.get("instrument_type"), row.get("amount_eur_m"),
+                        row.get("maturity_year"), row.get("coupon_rate_pct"),
+                        row.get("currency"),
+                    ))
+                    counts["debt_maturity_schedule"] += 1
+
+            # coverage_teams — no PK, delete+insert scoped by client_id
+            coverage = data.get("coverage_teams", [])
+            if coverage:
+                cur.execute(
+                    "DELETE FROM ca.coverage_teams WHERE client_id = %s",
+                    (cid,),
+                )
+                for row in coverage:
+                    cur.execute("""
+                        INSERT INTO ca.coverage_teams (
+                            client_id, role_title, banker_name, location
+                        ) VALUES (%s, %s, %s, %s)
+                    """, (
+                        row.get("client_id"), row.get("role_title"),
+                        row.get("banker_name"), row.get("location"),
+                    ))
+                    counts["coverage_teams"] += 1
+
+            # ext_deals
+            for row in data.get("ext_deals", []):
+                cur.execute("""
+                    INSERT INTO ca.ext_deals (
+                        deal_id, client_id, deal_type, volume_eur_m,
+                        role, deal_date
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (deal_id) DO UPDATE SET
+                        client_id = EXCLUDED.client_id,
+                        deal_type = EXCLUDED.deal_type,
+                        volume_eur_m = EXCLUDED.volume_eur_m,
+                        role = EXCLUDED.role,
+                        deal_date = EXCLUDED.deal_date;
+                """, (
+                    row.get("deal_id"), row.get("client_id"),
+                    row.get("deal_type"), row.get("volume_eur_m"),
+                    row.get("role"), row.get("deal_date"),
+                ))
+                counts["ext_deals"] += 1
+
+            summary[cid] = counts
+            logger.info(f"Reset baseline applied for {cid}: {counts}")
+
+        conn.commit()
+
+        return {
+            "status": "success",
+            "restored_clients": [c for c in client_ids if c in summary],
+            "skipped_clients": skipped,
+            "summary": summary,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        logger.exception("Reset baseline failed")
+        return {"status": "error", "message": str(e)}
+
+    finally:
+        try:
+            if cur: cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
+        if connector:
+            try: connector.close()
+            except Exception: pass
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)

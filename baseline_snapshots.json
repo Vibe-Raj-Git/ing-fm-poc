@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": "1.0",
-    "generated_at": "2026-09-18T13:57:12.791460Z",
+    "generated_at": "2026-09-18T19:44:39.091176Z",
     "client_count": 13,
     "note": "Complete snapshot of client-scoped and global tables. Client-scoped tables are keyed by client_id under 'clients'. Global tables are at top level and are NOT reset per-client."
   },
@@ -531,8 +531,8 @@
           "value_score": 95,
           "priority_score": 94,
           "rank": 2,
-          "next_best_action": "We propose a \u20ac1.0bn dual-tranche senior unsecured issuance, strategically utilizing Enel's \u20ac3.5bn green asset pool via a \u20ac600m 7Y Green bond priced at Mid-swap + 73 bps (net of -5 bps greenium), alongside a \u20ac400m 10Y Sustainability-Linked Bond. To ensure optimal funding mix and swift execution, we recommend an immediate meeting with Treasury to finalize the funding calendar and sustainable finance readiness.",
-          "why_now_nlg": "Enel faces a critical \u20ac10.13bn debt maturity wall in 2026-2027, requiring proactive refinancing despite its robust \u20ac14.2bn liquidity buffer, especially given rising interest rates. The prevailing market, with a 5Y EUR swap rate of 2.62% and an indicative -5 bps greenium, presents a timely opportunity to optimize funding costs and strategically utilize Enel's sustainable finance capabilities."
+          "next_best_action": "We propose a \u20ac1.0bn dual-tranche senior unsecured issuance, strategically leveraging Enel's \u20ac3.5bn green asset pool through a \u20ac600m 7Y Green bond priced at Mid-swap + 73 bps (net of -5 bps greenium), complemented by a \u20ac400m 10Y Sustainability-Linked Bond. To ensure an optimal funding mix and swift execution, we recommend an immediate meeting with Treasury to finalize the funding calendar and sustainable finance readiness.",
+          "why_now_nlg": "Enel faces a critical \u20ac10.13bn debt maturity wall in 2026-2027, necessitating proactive refinancing despite its robust \u20ac14.2bn liquidity buffer, particularly amidst rising interest rates. The current market, featuring a 5Y EUR swap rate of 2.62% and an indicative -5 bps greenium, offers a timely opportunity to optimize funding costs and leverage Enel's sustainable finance capabilities."
         }
       ],
       "digital_twin_signals": [

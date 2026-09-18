@@ -228,6 +228,15 @@ def get_rm_metrics():
             
             # Sort distinct clients by priority score DESC, then est_fee DESC
             sorted_rows = sorted(rows, key=lambda x: (int(x[2]), float(x[4])), reverse=True)[:4]
+
+            # Demo guarantee: ensure all whitelisted clients appear in the priorities list,
+            # even if their score ranks below the top 4.
+            _whitelist_ids = set(_DEMO_CLIENT_IDS)
+            _present_ids = {str(r[1]) for r in sorted_rows}
+            _missing_whitelist = [r for r in rows if str(r[1]) in _whitelist_ids and str(r[1]) not in _present_ids]
+            if _missing_whitelist:
+                _missing_sorted = sorted(_missing_whitelist, key=lambda x: (int(x[2]), float(x[4])), reverse=True)
+                sorted_rows = list(sorted_rows) + _missing_sorted
             
             for rank_idx, r in enumerate(sorted_rows, 1):
                 cname, cid, score, opp_type, est_fee, next_action, why_now, sector, country, rm_name = r
@@ -576,7 +585,7 @@ def synthesize_mandate_catalyst(
         )
 
     if not GENAI_AVAILABLE:
-        return {"why_now": fallback_why, "action": fallback_act, "why_now_summary": "", "action_summary": ""}
+        return {"why_now": fallback_why, "action": fallback_act, "why_now_summary": "", "action_summary": "", "priority_score": None}
 
     try:
         project_id = os.getenv("GCP_PROJECT", "dulcet-radar-508218-c5")
@@ -633,17 +642,22 @@ ACCUMULATED SIGNALS FOR THIS CLIENT (most recent first):
 {_signals_block}
 
 INSTRUCTIONS:
-Output a valid JSON object with exactly four keys:
+Output a valid JSON object with exactly five keys:
 1. "why_now": Exactly 2 sentences. Connect the debt maturity wall (€{mat_bn}), liquidity buffer (€{liq_bn}), prevailing 5Y swap rate ({swap_5y}), and available sustainable pricing concessions or greenium drivers to explain why this transaction is critical now.
 2. "action": Exactly 2 sentences. Specify the exact transaction structuring, tenor distribution, pricing/hedging overlay, and immediate operational next steps with Treasury.
 3. "why_now_summary": Exactly 1 sentence, maximum 160 characters. A condensed, punchy version of "why_now" suitable for a summary card on Slide 2. Must NOT copy the "why_now" text verbatim — rephrase for brevity while preserving the key numbers (maturity wall, liquidity buffer, swap rate).
 4. "action_summary": Exactly 1 sentence, maximum 160 characters. A condensed, punchy version of "action" suitable for a summary card on Slide 2. Must NOT copy the "action" text verbatim — rephrase for brevity while preserving the key structural terms (notional, tenor, instrument).
+5. "priority_score": An integer 0-100 reflecting the overall priority of this opportunity. Base it on the following weighted rubric:
+   - Signal strength (40%): number of accumulated signals for this client, their confidence_pct values, and their urgency levels.
+   - Balance-sheet pressure (30%): size of the debt maturity wall relative to available liquidity; any coverage-policy or covenant triggers.
+   - Market window (30%): prevailing market conditions relevant to the target product family (e.g. swap rates, credit spreads, forward points, basis levels, or greenium where applicable).
+   Scoring bands: 85-100 = Strong signals, imminent need, clear window. 70-84 = Moderate signals, defined need. 50-69 = Weaker signals or less urgent need. 0-49 = Sparse signals, no immediate need.
 
 CONSTRAINTS:
 - Professional CIB pitchbook language. Active voice.
 - Strictly adhere to the numbers provided. Do not hallucinate tenors or spreads.
 - JSON output ONLY:
-{{"why_now": "...", "action": "...", "why_now_summary": "...", "action_summary": "..."}}"""
+{{"why_now": "...", "action": "...", "why_now_summary": "...", "action_summary": "...", "priority_score": 0}}"""
 
         response = client_gcp.models.generate_content(
             model="gemini-2.5-flash",
@@ -658,11 +672,12 @@ CONSTRAINTS:
             "why_now": res_data.get("why_now") or res_data.get("catalyst_rationale") or fallback_why,
             "action": res_data.get("action") or res_data.get("proposed_execution") or fallback_act,
             "why_now_summary": res_data.get("why_now_summary") or "",
-            "action_summary": res_data.get("action_summary") or ""
+            "action_summary": res_data.get("action_summary") or "",
+            "priority_score": res_data.get("priority_score")
         }
     except Exception as e:
         logger.warning(f"Error generating mandate synthesis for {client_name}: {e}")
-        return {"why_now": fallback_why, "action": fallback_act, "why_now_summary": "", "action_summary": ""}
+        return {"why_now": fallback_why, "action": fallback_act, "why_now_summary": "", "action_summary": "", "priority_score": None}
 
 @app.get("/api/opportunities")
 def get_opportunities():
@@ -722,6 +737,7 @@ def get_opportunities():
                 cid, name, tier, hq, rm, sector, net_debt, liq, m24, score_num, opp_type, action, why_now, est_fee, trigger_source_val = r
                 cid_str = str(cid)
                 name_str = str(name)
+                final_priority_score = None
 
                 # Resolve primary Relationship Manager from coverage_teams
                 try:
@@ -767,8 +783,9 @@ def get_opportunities():
                 if float(m24) == 0 and total_nominal > 0:
                     m24 = total_nominal
 
-                score_level = "High" if int(score_num) >= 85 else ("Medium" if int(score_num) >= 70 else "Low")
-                score_val = f"{score_level} · {score_num}"
+                _effective_score = int(final_priority_score) if final_priority_score is not None else int(score_num)
+                score_level = "High" if _effective_score >= 85 else ("Medium" if _effective_score >= 70 else "Low")
+                score_val = f"{score_level} · {_effective_score}"
 
                 chips = []
                 if float(m24) > 0:
@@ -1013,6 +1030,7 @@ def get_opportunities():
                     final_action = _cached_entry[2]
                     final_why_now_summary = _cached_entry[3] if len(_cached_entry) > 3 else ""
                     final_action_summary = _cached_entry[4] if len(_cached_entry) > 4 else ""
+                    final_priority_score = _cached_entry[5] if len(_cached_entry) > 5 else None
                     logger.info(f"Mandate synthesis cache HIT for {cid_str}")
                 elif GENAI_AVAILABLE and cid_str in _DEMO_CLIENT_IDS:
                     try:
@@ -1053,6 +1071,7 @@ def get_opportunities():
                         final_action = synth.get("action") or action or "Review opportunity and schedule coverage call."
                         final_why_now_summary = synth.get("why_now_summary") or ""
                         final_action_summary = synth.get("action_summary") or ""
+                        final_priority_score = synth.get("priority_score")
 
                         # -----------------------------------------------------------------
                         # Drift guard: if the LLM output introduces tenors that conflict
@@ -1071,16 +1090,23 @@ def get_opportunities():
                             if _anchor_why and _anchor_why != "(not yet curated)":
                                 final_why_now = final_why_now  # keep LLM's why_now (usually fine)
 
-                        _MANDATE_SYNTH_CACHE[cid_str] = (_now_ts + _MANDATE_SYNTH_CACHE_TTL, final_why_now, final_action, final_why_now_summary, final_action_summary)
+                        _MANDATE_SYNTH_CACHE[cid_str] = (_now_ts + _MANDATE_SYNTH_CACHE_TTL, final_why_now, final_action, final_why_now_summary, final_action_summary, final_priority_score)
                         logger.info(f"Mandate synthesis cache MISS for {cid_str}, refreshed (TTL {_MANDATE_SYNTH_CACHE_TTL}s)")
 
                         # Persist fresh synthesis so pitchbook/copilot/compliance read the same value
                         try:
-                            cur.execute("""
-                                UPDATE ca.ca_opportunity_scoring
-                                SET why_now_nlg = %s, next_best_action = %s
-                                WHERE client_id = %s;
-                            """, (final_why_now, final_action, cid_str))
+                            if final_priority_score is not None:
+                                cur.execute("""
+                                    UPDATE ca.ca_opportunity_scoring
+                                    SET why_now_nlg = %s, next_best_action = %s, priority_score = %s
+                                    WHERE client_id = %s;
+                                """, (final_why_now, final_action, int(final_priority_score), cid_str))
+                            else:
+                                cur.execute("""
+                                    UPDATE ca.ca_opportunity_scoring
+                                    SET why_now_nlg = %s, next_best_action = %s
+                                    WHERE client_id = %s;
+                                """, (final_why_now, final_action, cid_str))
                             conn.commit()
                             logger.info(f"Persisted fresh synthesis for {cid_str}")
                         except Exception as e_up:
@@ -1091,11 +1117,13 @@ def get_opportunities():
                         final_action = action or "Proactive capital markets advisory and rate hedging review."
                         final_why_now_summary = ""
                         final_action_summary = ""
+                        final_priority_score = None
                 else:
                     final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
                     final_action = action or "Proactive capital markets advisory and rate hedging review."
                     final_why_now_summary = ""
                     final_action_summary = ""
+                    final_priority_score = None
 
                 opps.append({
                     "id": cid_str,
@@ -1105,7 +1133,7 @@ def get_opportunities():
                     "subtitle": f"{tier or 'Coverage'} ({sector or hq or 'Corporate'})",
                     "tier": tier or "Tier 1",
                     "score": score_val,
-                    "score_num": int(score_num),
+                    "score_num": int(final_priority_score) if final_priority_score is not None else int(score_num),
                     "chips": chips,
                     "callout": f"{final_why_now} {final_action}".strip(),
                     "why_now": final_why_now,

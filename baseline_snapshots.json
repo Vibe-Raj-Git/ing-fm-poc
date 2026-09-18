@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": "1.0",
-    "generated_at": "2026-09-18T09:44:06.332632Z",
+    "generated_at": "2026-09-18T13:57:12.791460Z",
     "client_count": 13,
     "note": "Complete snapshot of client-scoped and global tables. Client-scoped tables are keyed by client_id under 'clients'. Global tables are at top level and are NOT reset per-client."
   },
@@ -531,8 +531,8 @@
           "value_score": 95,
           "priority_score": 94,
           "rank": 2,
-          "next_best_action": "We propose a \u20ac1.0bn dual-tranche senior unsecured issuance, comprising a \u20ac600m 7Y Green bond priced at Mid-swap + 73 bps (net of -5 bps greenium) leveraging Enel's \u20ac3.5bn green asset pool, and a \u20ac400m 10Y Sustainability-Linked Bond. We recommend an immediate meeting with Treasury to finalize the funding calendar and sustainable finance readiness for swift execution.",
-          "why_now_nlg": "Despite a robust \u20ac14.2bn liquidity buffer, Enel faces a significant \u20ac10.13bn debt maturity wall in 2026-2027, making proactive refinancing critical. The current market, with a 5Y EUR swap rate of 2.62% and an indicative -5 bps greenium, presents a timely window to optimize funding costs and leverage sustainable finance."
+          "next_best_action": "We propose a \u20ac1.0bn dual-tranche senior unsecured issuance, strategically utilizing Enel's \u20ac3.5bn green asset pool via a \u20ac600m 7Y Green bond priced at Mid-swap + 73 bps (net of -5 bps greenium), alongside a \u20ac400m 10Y Sustainability-Linked Bond. To ensure optimal funding mix and swift execution, we recommend an immediate meeting with Treasury to finalize the funding calendar and sustainable finance readiness.",
+          "why_now_nlg": "Enel faces a critical \u20ac10.13bn debt maturity wall in 2026-2027, requiring proactive refinancing despite its robust \u20ac14.2bn liquidity buffer, especially given rising interest rates. The prevailing market, with a 5Y EUR swap rate of 2.62% and an indicative -5 bps greenium, presents a timely opportunity to optimize funding costs and strategically utilize Enel's sustainable finance capabilities."
         }
       ],
       "digital_twin_signals": [
@@ -1914,32 +1914,6 @@
           "created_at": "2026-09-16T19:49:25.215347"
         },
         {
-          "signal_id": "SIG-03A9B502",
-          "client_id": "CLI103",
-          "catalog_family": "Financing/Capital Markets",
-          "signal_type": "REFINANCING",
-          "metric_identified": "ENEL_Capital_Markets_Filing_2026.pdf",
-          "trigger_summary": "ENEL SpA\n Capital Markets & Treasury Risk Management Update \u2014 2026\nPOC TEST DOCUMENT \u2014 SYNTHETIC DATA\nCreated specifically to test the ING Financial Markets AI Agentic Platform. This is not an authent",
-          "metric_value": "Market Catalyst",
-          "description": "ENEL SpA\n Capital Markets & Treasury Risk Management Update \u2014 2026\nPOC TEST DOCUMENT \u2014 SYNTHETIC DATA\nCreated specifically to test the ING Financial Markets AI Agentic Platform. This is not an authentic Enel disclosure.\n1. Refinancing Profile\nEnel SpA is reviewing its medium-term refinancing programme in light of a concentrated debt maturity profile\nacross late 2026 and 2027. Approximately \u20ac10.13bn of debt is identified as maturing over this period. The treasury\nteam is assessing refinancing seq",
-          "confidence_pct": 94,
-          "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
-        },
-        {
-          "signal_id": "SIG-071CB23F",
-          "client_id": "CLI103",
-          "catalog_family": "Financing/Capital Markets",
-          "signal_type": "REFINANCING | LIQUIDITY",
-          "metric_identified": "\u20ac10.13bn debt maturity wall in 2026-2027",
-          "trigger_summary": "Enel faces a concentrated \u20ac10.13bn debt maturity wall across late 2026 and 2027, requiring active refinancing assessment.",
-          "metric_value": "\u20ac10.13bn",
-          "description": "Enel SpA is reviewing its medium-term refinancing program due to a concentrated debt maturity profile of approximately \u20ac10.13bn across late 2026 and 2027. The treasury team is assessing refinancing sequencing and potential pre-hedging requirements before these major maturity dates.",
-          "confidence_pct": 95,
-          "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
-        },
-        {
           "signal_id": "SIG-0B994C0F",
           "client_id": "CLI103",
           "catalog_family": "Financing/Capital Markets",
@@ -1975,19 +1949,6 @@
           "metric_value": "N/A",
           "description": "The article mentions a 'debt move' by BASF, indicating a strategic decision concerning its debt portfolio. This could involve refinancing existing debt, issuing new debt, or other capital structure adjustments aimed at optimizing its financial position.",
           "confidence_pct": 90,
-          "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
-        },
-        {
-          "signal_id": "SIG-2B6937FD",
-          "client_id": "CLI103",
-          "catalog_family": "Cross-Asset",
-          "signal_type": "HEDGING",
-          "metric_identified": "Commodity-price volatility affecting operating cash flows",
-          "trigger_summary": "Commodity-price volatility may further affect Enel's operating cash flows, requiring review and potential hedging.",
-          "metric_value": "N/A",
-          "description": "Commodity-price volatility is identified as a factor that may further affect Enel's operating cash flows, particularly linked to energy and fuel purchases. This exposure warrants careful monitoring and potential hedging strategies to mitigate impact.",
-          "confidence_pct": 85,
           "urgency": "Medium",
           "created_at": "2026-09-16T19:49:25.215347"
         },
@@ -2213,19 +2174,6 @@
           "created_at": "2026-09-16T19:49:25.215347"
         },
         {
-          "signal_id": "SIG-95B9127D",
-          "client_id": "CLI103",
-          "catalog_family": "Foreign Exchange",
-          "signal_type": "HEDGING",
-          "metric_identified": "USD-linked procurement and FX exposure from energy/fuel purchases",
-          "trigger_summary": "Enel is reviewing USD-linked procurement and foreign-exchange exposures, as a strengthening USD could increase EUR costs for USD-denominated purchases.",
-          "metric_value": "N/A",
-          "description": "The treasury team is reviewing USD-linked procurement and foreign-exchange exposures associated with energy and fuel purchases. A strengthening USD against EUR could significantly increase the EUR cost of USD-denominated procurement, impacting operating cash flows.",
-          "confidence_pct": 90,
-          "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
-        },
-        {
           "signal_id": "SIG-97EB2395",
           "client_id": "CLI103",
           "catalog_family": "Financing/Capital Markets",
@@ -2330,19 +2278,6 @@
           "created_at": "2026-09-16T19:49:25.215347"
         },
         {
-          "signal_id": "SIG-CE794BB0",
-          "client_id": "CLI103",
-          "catalog_family": "Sustainable Finance | Financing/Capital Markets",
-          "signal_type": "SUSTAINABLE FUNDING | REFINANCING",
-          "metric_identified": "\u20ac12.0bn financing capacity authorized, partly for renewable-energy capex",
-          "trigger_summary": "Enel's Board authorized \u20ac12.0bn financing capacity through March 2027, partly intended to support planned renewable-energy capital expenditure.",
-          "metric_value": "\u20ac12.0bn",
-          "description": "The Board has authorized up to \u20ac12.0bn of financing capacity through March 2027, intended to support upcoming maturities, liquidity requirements, and planned renewable-energy capital expenditure. This authorization provides significant capacity for future funding needs, including green initiatives.",
-          "confidence_pct": 90,
-          "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
-        },
-        {
           "signal_id": "SIG_CLI010_BASF_ENERGYPRICEV",
           "client_id": "CLI103",
           "catalog_family": "Commodities",
@@ -2405,19 +2340,6 @@
           "description": "BASF Treasury is proactively reviewing its 2026/2027 debt maturities. They are evaluating an indicative \u20ac800M benchmark issuance to refinance these upcoming obligations.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
-        },
-        {
-          "signal_id": "SIG-EB4D4F96",
-          "client_id": "CLI103",
-          "catalog_family": "Interest Rate",
-          "signal_type": "HEDGING | REFINANCING",
-          "metric_identified": "Material increase in financing cost due to legacy 1.20% coupon vs. 4.5-5.0% refinancing yields",
-          "trigger_summary": "Enel faces a material potential increase in financing costs as legacy debt with a 1.20% coupon is refinanced at indicative yields of 4.5%-5.0%.",
-          "metric_value": "1.20% vs 4.5%-5.0%",
-          "description": "A portion of Enel's existing debt carries a legacy fixed coupon of approximately 1.20%, while current indicative refinancing yields are assumed to be in the 4.5%-5.0% range. This significant spread creates a material potential increase in financing cost upon refinancing, highlighting interest rate exposure.",
-          "confidence_pct": 95,
-          "urgency": "High",
           "created_at": "2026-09-16T19:49:25.215347"
         },
         {
@@ -2633,26 +2555,8 @@
           "chunk_id": 17,
           "client_id": "CLI103",
           "source_channel": "CLIENT_EMAIL",
-          "source_name": "Enel Treasury Rome (Fabio Tagliaferri)",
+          "source_name": "BASF Group Treasury (Claudia Meier)",
           "text_content": "TREASURY EMAIL:\nFrom: CFO Treasury <treasury@basf.com>\nTo: Wholesale Coverage Director\nSubject: 2026/2027 Rollover & Pre-Hedging Request\n\nWe are reviewing upcoming debt maturities. Given 5Y EUR swap easing, we want to evaluate an indicative \u20ac800M benchmark issuance combined with an ISDA pre-hedge overlay.",
-          "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
-        },
-        {
-          "chunk_id": 18,
-          "client_id": "CLI103",
-          "source_channel": "TEAMS_CHAT",
-          "source_name": "European Utilities Coverage (#deal-coverage-enel)",
-          "text_content": "MS TEAMS TRANSCRIPT:\n[10:14] Giulia Romano (RM): Treasury flagged debt maturity step-up approaching.\n[10:15] Luca Moretti (DCM): Recommend pre-hedging the curve now while credit spreads remain tight.\n[10:16] Rates Desk: Structuring 6Y EMTN benchmark + pre-hedge overlay.",
-          "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
-        },
-        {
-          "chunk_id": 19,
-          "client_id": "CLI103",
-          "source_channel": "PDF_REPORT",
-          "source_name": "ENEL_Capital_Markets_Filing_2026.pdf",
-          "text_content": "ENEL SpA\n Capital Markets & Treasury Risk Management Update \u2014 2026\nPOC TEST DOCUMENT \u2014 SYNTHETIC DATA\nCreated specifically to test the ING Financial Markets AI Agentic Platform. This is not an authentic Enel disclosure.\n1. Refinancing Profile\nEnel SpA is reviewing its medium-term refinancing programme in light of a concentrated debt maturity profile\nacross late 2026 and 2027. Approximately \u20ac10.13bn of debt is identified as maturing over this period. The treasury\nteam is assessing refinancing sequencing and potential pre-hedging requirements before the relevant maturity\ndates.\n2. Funding Authorisation\nThe Board has authorised up to \u20ac12.0bn of financing capacity through March 2027. The authorisation is intended\nto support upcoming maturities, liquidity requirements and planned renewable-energy capital expenditure.\n3. Existing Coupon and Repricing Exposure\nA portion of the existing debt ladder carries a legacy fixed coupon of approximately 1.20%. Current indicative\nrefinancing yields in this test scenario are assumed to be in the 4.5%\u20135.0% range. This creates a material potential\nincrease in financing cost when legacy debt is refinanced.\n4. Recent Funding Activity\nA hypothetical $2.5bn multi-tranche USD bond transaction in July 2026 is included as a test scenario. It\naddresses immediate funding requirements but does not eliminate the remaining 2026\u20132027 maturity\nconcentration.\n5. Foreign Exchange and Commodity Exposure\nThe treasury team is also reviewing USD-linked procurement and foreign-exchange exposures associated with\nenergy and fuel purchases. A strengthening USD against EUR could increase the EUR cost of USD-denominated\nprocurement. Commodity-price volatility may further affect operating cash flows.\n6. Potential Treasury Actions Under Review\nThe following actions are being evaluated for this synthetic scenario:\nArea\nPotential action\nInterest Rate\nReview forward-starting or pre-hedging interest-rate swap requirements before major maturities.\nFunding\nAssess refinancing sequencing across the \u20ac10.13bn maturity wall and available \u20ac12.0bn authorisation.\nFX\nEvaluate hedging of USD-denominated fuel and procurement exposures.\nCross-Asset\nAssess whether refinancing, rates and commodity/FX risks should be coordinated.\n7. Treasury Coverage Trigger\nThe combination of a \u20ac10.13bn debt maturity wall, \u20ac12.0bn funding authorisation, a 1.20% legacy coupon,\nhigher indicative refinancing yields, and potential USD procurement exposure represents a multi-channel treasury\ncoverage trigger for this POC.\nThe intended test outcome is for the AI system to identify Interest Rate and Financing/Capital Markets as primary\nopportunity areas, while considering FX and Cross-Asset opportunities as conditional areas for further qualification.\nEnd of synthetic POC test document. No investment, trading, financing, or hedging recommendation is contained in this document.",
           "structured_metadata": null,
           "created_at": "2026-09-16T19:49:25.215347"
         },
@@ -2669,17 +2573,8 @@
           "chunk_id": 26,
           "client_id": "CLI103",
           "source_channel": "CLIENT_EMAIL",
-          "source_name": "Enel Treasury Rome (Fabio Tagliaferri)",
+          "source_name": "BASF Group Treasury (Claudia Meier)",
           "text_content": "TREASURY EMAIL:\nFrom: CFO Treasury <treasury@basf.com>\nTo: Wholesale Coverage Director\nSubject: 2026/2027 Rollover & Pre-Hedging Request\n\nWe are reviewing upcoming debt maturities. Given 5Y EUR swap easing, we want to evaluate an indicative \u20ac800M benchmark issuance combined with an ISDA pre-hedge overlay.",
-          "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
-        },
-        {
-          "chunk_id": 27,
-          "client_id": "CLI103",
-          "source_channel": "PDF_REPORT",
-          "source_name": "ENEL_Capital_Markets_Filing_2026.pdf",
-          "text_content": "ENEL SpA\n Capital Markets & Treasury Risk Management Update \u2014 2026\nPOC TEST DOCUMENT \u2014 SYNTHETIC DATA\nCreated specifically to test the ING Financial Markets AI Agentic Platform. This is not an authentic Enel disclosure.\n1. Refinancing Profile\nEnel SpA is reviewing its medium-term refinancing programme in light of a concentrated debt maturity profile\nacross late 2026 and 2027. Approximately \u20ac10.13bn of debt is identified as maturing over this period. The treasury\nteam is assessing refinancing sequencing and potential pre-hedging requirements before the relevant maturity\ndates.\n2. Funding Authorisation\nThe Board has authorised up to \u20ac12.0bn of financing capacity through March 2027. The authorisation is intended\nto support upcoming maturities, liquidity requirements and planned renewable-energy capital expenditure.\n3. Existing Coupon and Repricing Exposure\nA portion of the existing debt ladder carries a legacy fixed coupon of approximately 1.20%. Current indicative\nrefinancing yields in this test scenario are assumed to be in the 4.5%\u20135.0% range. This creates a material potential\nincrease in financing cost when legacy debt is refinanced.\n4. Recent Funding Activity\nA hypothetical $2.5bn multi-tranche USD bond transaction in July 2026 is included as a test scenario. It\naddresses immediate funding requirements but does not eliminate the remaining 2026\u20132027 maturity\nconcentration.\n5. Foreign Exchange and Commodity Exposure\nThe treasury team is also reviewing USD-linked procurement and foreign-exchange exposures associated with\nenergy and fuel purchases. A strengthening USD against EUR could increase the EUR cost of USD-denominated\nprocurement. Commodity-price volatility may further affect operating cash flows.\n6. Potential Treasury Actions Under Review\nThe following actions are being evaluated for this synthetic scenario:\nArea\nPotential action\nInterest Rate\nReview forward-starting or pre-hedging interest-rate swap requirements before major maturities.\nFunding\nAssess refinancing sequencing across the \u20ac10.13bn maturity wall and available \u20ac12.0bn authorisation.\nFX\nEvaluate hedging of USD-denominated fuel and procurement exposures.\nCross-Asset\nAssess whether refinancing, rates and commodity/FX risks should be coordinated.\n7. Treasury Coverage Trigger\nThe combination of a \u20ac10.13bn debt maturity wall, \u20ac12.0bn funding authorisation, a 1.20% legacy coupon,\nhigher indicative refinancing yields, and potential USD procurement exposure represents a multi-channel treasury\ncoverage trigger for this POC.\nThe intended test outcome is for the AI system to identify Interest Rate and Financing/Capital Markets as primary\nopportunity areas, while considering FX and Cross-Asset opportunities as conditional areas for further qualification.\nEnd of synthetic POC test document. No investment, trading, financing, or hedging recommendation is contained in this document.",
           "structured_metadata": null,
           "created_at": "2026-09-16T19:49:25.215347"
         },
@@ -2718,15 +2613,6 @@
           "text_content": "BASF SE Evaluates \u20ac1.5B Senior Bond Issuance as Derivative Hedges Mature\nChemicals platform reviews floating-to-fixed interest rate swaps and \u20ac4.8B 24-month maturity schedule.",
           "structured_metadata": null,
           "created_at": "2026-09-16T19:49:25.215347"
-        },
-        {
-          "chunk_id": 39,
-          "client_id": "CLI103",
-          "source_channel": "TEAMS_CHAT",
-          "source_name": "European Utilities Coverage (#deal-coverage-enel)",
-          "text_content": "MS TEAMS TRANSCRIPT:\n[10:14] Giulia Romano (RM): Treasury flagged debt maturity step-up approaching.\n[10:15] Luca Moretti (DCM): Recommend pre-hedging the curve now while credit spreads remain tight.\n[10:16] Rates Desk: Structuring 6Y EMTN benchmark + pre-hedge overlay.",
-          "structured_metadata": null,
-          "created_at": "2026-09-16T19:26:48.376371"
         },
         {
           "chunk_id": 40,

@@ -664,7 +664,7 @@ CONSTRAINTS:
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                temperature=0.15
+                temperature=0.0
             )
         )
         res_data = json.loads(response.text)
@@ -1090,27 +1090,30 @@ def get_opportunities():
                             if _anchor_why and _anchor_why != "(not yet curated)":
                                 final_why_now = final_why_now  # keep LLM's why_now (usually fine)
 
-                        _MANDATE_SYNTH_CACHE[cid_str] = (_now_ts + _MANDATE_SYNTH_CACHE_TTL, final_why_now, final_action, final_why_now_summary, final_action_summary, final_priority_score)
-                        logger.info(f"Mandate synthesis cache MISS for {cid_str}, refreshed (TTL {_MANDATE_SYNTH_CACHE_TTL}s)")
-
                         # Persist fresh synthesis so pitchbook/copilot/compliance read the same value
                         try:
+                            # Anchor protection: why_now_nlg and next_best_action are
+                            # curated fields and must NOT be overwritten by the LLM.
+                            # Only priority_score is persisted on synthesis.
+                            # Rationale: the anchor is a fixed input to the prompt; if
+                            # synthesis rewrote it, the prompt would drift on every cache
+                            # miss and temperature 0.0 could not guarantee a stable score.
                             if final_priority_score is not None:
                                 cur.execute("""
                                     UPDATE ca.ca_opportunity_scoring
-                                    SET why_now_nlg = %s, next_best_action = %s, priority_score = %s
+                                    SET priority_score = %s
                                     WHERE client_id = %s;
-                                """, (final_why_now, final_action, int(final_priority_score), cid_str))
-                            else:
-                                cur.execute("""
-                                    UPDATE ca.ca_opportunity_scoring
-                                    SET why_now_nlg = %s, next_best_action = %s
-                                    WHERE client_id = %s;
-                                """, (final_why_now, final_action, cid_str))
+                                """, (int(final_priority_score), cid_str))
                             conn.commit()
-                            logger.info(f"Persisted fresh synthesis for {cid_str}")
+                            # Cache only AFTER the DB write has committed. If persistence
+                            # fails, the cache must not hold a value the DB does not have.
+                            # This prevents the cache/DB divergence bug where the UI shows
+                            # a fresh synthesis score that was never persisted.
+                            _MANDATE_SYNTH_CACHE[cid_str] = (_now_ts + _MANDATE_SYNTH_CACHE_TTL, final_why_now, final_action, final_why_now_summary, final_action_summary, final_priority_score)
+                            logger.info(f"Persisted fresh synthesis and cached for {cid_str} (TTL {_MANDATE_SYNTH_CACHE_TTL}s)")
                         except Exception as e_up:
                             logger.warning(f"Could not persist synthesis for {cid_str}: {e_up}")
+                            _MANDATE_SYNTH_CACHE.pop(cid_str, None)
                     except Exception as e_gen:
                         logger.warning(f"Dynamic synthesis skipped for {cid_str}: {e_gen}")
                         final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")

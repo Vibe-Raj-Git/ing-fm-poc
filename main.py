@@ -82,6 +82,14 @@ def _format_signal_type(raw_type) -> str:
 # Key: client_id  ->  Value: (expiry_epoch_seconds, why_now, action)
 # Entries refresh automatically once the TTL elapses.
 _MANDATE_SYNTH_CACHE = {}
+
+# Credit rating display strings — §8.1 known hardcode exception.
+# No credit_rating column exists on ca.client_master (§7.2: no DDL).
+# Source: agency confirmations as of 19 Sep 2026.
+_CREDIT_RATINGS = {
+    "CLI101": "S&P | BBB | Positive",   # Enel S.p.A.
+    "CLI103": "S&P | A- | Stable",      # BASF SE
+}
 _MANDATE_SYNTH_CACHE_TTL = 300  # seconds (5 minutes)
 
 # ---------------------------------------------------------------------------
@@ -107,7 +115,7 @@ _MANDATE_SYNTH_CACHE_TTL = 300  # seconds (5 minutes)
 # the frontend whitelist controls rendering.
 # ---------------------------------------------------------------------------
 #_DEMO_CLIENT_IDS = {"CLI101"}
-_DEMO_CLIENT_IDS = {"CLI101"}
+_DEMO_CLIENT_IDS = {"CLI101", "CLI103"}
 
 app = FastAPI(title="ING FM Insights API", version="1.0.0")
 
@@ -199,9 +207,11 @@ def healthz():
 def get_rm_metrics():
     conn, connector = get_db_connection()
     priorities = []
-    active_drafts_count = 0
-    pending_review_count = 0
-    cohort_matches_count = 0
+    clients_with_signals_count = 0
+    high_priority_clients_count = 0
+    clients_in_database_count = 0
+    _active_signals_total = 0
+    _active_signals_7d = 0
     
     if conn:
         try:
@@ -266,30 +276,51 @@ def get_rm_metrics():
                     "rm_name": str(rm_name)
                 })
 
-            # 2. Dynamic Metric: Active drafts / Ingested client signals
+            # 2. Clients with signals — whitelist-scoped.
+            _sig_clients = list(_DEMO_CLIENT_IDS)
             cur.execute("""
-                SELECT COUNT(DISTINCT client_id) 
-                FROM ca.digital_twin_signals;
-            """)
+                SELECT COUNT(DISTINCT client_id)
+                FROM ca.digital_twin_signals
+                WHERE client_id = ANY(%s);
+            """, (_sig_clients,))
             res_active = cur.fetchone()
-            active_drafts_count = int(res_active[0]) if res_active and res_active[0] is not None else len(priorities)
+            clients_with_signals_count = int(res_active[0]) if res_active and res_active[0] is not None else 0
 
-            # 3. Dynamic Metric: Deals pending review (High priority opportunities >= 85)
+            # 3. High-priority clients — whitelist-scoped, score >= 85.
+            _hi_ids = list(_DEMO_CLIENT_IDS)
             cur.execute("""
-                SELECT COUNT(DISTINCT client_id) 
-                FROM ca.ca_opportunity_scoring 
-                WHERE priority_score >= 85;
-            """)
+                SELECT COUNT(DISTINCT client_id)
+                FROM ca.ca_opportunity_scoring
+                WHERE priority_score >= 85
+                  AND client_id = ANY(%s);
+            """, (_hi_ids,))
             res_pending = cur.fetchone()
-            pending_review_count = int(res_pending[0]) if res_pending and res_pending[0] is not None else len(priorities)
+            high_priority_clients_count = int(res_pending[0]) if res_pending and res_pending[0] is not None else 0
 
-            # 4. Dynamic Metric: Total Cohort Matches in Database
+            # 4. Clients in database — full client book (not whitelist-scoped).
             cur.execute("""
-                SELECT COUNT(*) 
+                SELECT COUNT(*)
                 FROM ca.client_master;
             """)
             res_cohort = cur.fetchone()
-            cohort_matches_count = int(res_cohort[0]) if res_cohort and res_cohort[0] is not None else 13
+            clients_in_database_count = int(res_cohort[0]) if res_cohort and res_cohort[0] is not None else 0
+
+            # Active signals — scoped to the demo whitelist (_DEMO_CLIENT_IDS).
+            # Value: all-time signal count. Change: 7-day trend.
+            _sig_ids = list(_DEMO_CLIENT_IDS)
+            cur.execute("""
+                SELECT COUNT(*) FROM ca.digital_twin_signals
+                WHERE client_id = ANY(%s);
+            """, (_sig_ids,))
+            _active_signals_total = int(cur.fetchone()[0] or 0)
+
+            cur.execute("""
+                SELECT COUNT(*) FROM ca.digital_twin_signals
+                WHERE client_id = ANY(%s)
+                  AND created_at >= NOW() - INTERVAL '7 days';
+            """, (_sig_ids,))
+            _active_signals_7d = int(cur.fetchone()[0] or 0)
+            logger.info(f"/api/metrics active_signals for whitelist={sorted(_sig_ids)}: total={_active_signals_total}, 7d={_active_signals_7d}")
 
             cur.close()
             conn.close()
@@ -299,30 +330,25 @@ def get_rm_metrics():
             logger.error(f"Failed to query RM metrics: {e}")
 
     return {
-        "active_drafts": {
-            "value": active_drafts_count, 
-            "change": f"▲ {active_drafts_count}", 
-            "label": "Active drafts in progress"
+        "clients_with_signals": {
+            "value": str(clients_with_signals_count),
+            "change": f"▲ {clients_with_signals_count}",
+            "label": "Clients with signals"
         },
-        "avg_time": {
-            "value": "< 15s", 
-            "change": "▼ 99% vs manual", 
-            "label": "Avg. time to first draft"
+        "active_signals": {
+            "value": str(_active_signals_total),
+            "change": (f"▲ {_active_signals_7d} this week" if _active_signals_7d > 0 else "No new this week"),
+            "label": "Active signals"
         },
-        "avg_time_draft": {
-            "value": "< 15s", 
-            "change": "▼ 99% vs manual", 
-            "label": "Avg. time to first draft"
+        "high_priority_clients": {
+            "value": str(high_priority_clients_count),
+            "change": "≥ 85 score",
+            "label": "High-priority clients"
         },
-        "pending_review": {
-            "value": pending_review_count, 
-            "change": "High conviction", 
-            "label": "Deals pending review"
-        },
-        "cohort_matches": {
-            "value": cohort_matches_count, 
-            "change": "▲ 5", 
-            "label": "Cohort matches in database"
+        "clients_in_database": {
+            "value": str(clients_in_database_count),
+            "change": f"▲ {clients_in_database_count}",
+            "label": "Clients in database"
         },
         "priorities": priorities
     }
@@ -1135,6 +1161,7 @@ def get_opportunities():
                     "is_debt": float(m24) > 0 or total_nominal > 0 or "DEBT" in (opp_type or "").upper(),
                     "subtitle": f"{tier or 'Coverage'} ({sector or hq or 'Corporate'})",
                     "tier": tier or "Tier 1",
+                    "credit_rating": _CREDIT_RATINGS.get(cid_str, "—"),
                     "score": score_val,
                     "score_num": int(final_priority_score) if final_priority_score is not None else int(score_num),
                     "chips": chips,
@@ -1802,16 +1829,14 @@ def copilot_chat_endpoint(req: CopilotMessage):
     is_rates = (p_family == "RATES_HEDGE")
 
     # Dynamic DB Metrics directly from bundle & overrides
-    db_wall_str = current_ov.get("maturity_wall_str") or bundle.get("debt_maturing_24m_str") or (f"€{bundle.get('debt_maturing_24m', 0):,.0f}M" if bundle.get('debt_maturing_24m') else "€3,000M")
+    db_wall_str = current_ov.get("maturity_wall_str") or bundle.get("debt_maturing_24m_bn") or (f"€{bundle.get('debt_maturing_24m', 0):,.0f}M" if bundle.get('debt_maturing_24m') else "—")
     db_net_debt = current_ov.get("net_debt_str") or bundle.get("net_debt_str") or (f"€{bundle.get('net_debt', 0):,.0f}M" if bundle.get('net_debt') else "€58.5bn" if is_green else "€16,200M")
     db_liq = current_ov.get("liquidity_str") or bundle.get("liquidity_str") or (f"€{bundle.get('liquidity', 0):,.0f}M" if bundle.get('liquidity') else "€14.2bn" if is_green else "€7,800M")
     db_rev = current_ov.get("revenue_str") or bundle.get("revenue_str") or (f"€{bundle.get('revenue_eur_m', 0):,.0f}M" if bundle.get('revenue_eur_m') else "N/A")
     db_ebitda = current_ov.get("ebitda_str") or bundle.get("ebitda_str") or (f"€{bundle.get('ebitda_eur_m', 0):,.0f}M" if bundle.get('ebitda_eur_m') else "N/A")
-    raw_db_rating = current_ov.get("tier") or bundle.get("tier") or bundle.get("credit_rating") or "Tier 1 (Investment Grade)"
-    if "ENEL" in str(bundle.get("client_id", "")).upper() or bundle.get("client_id") == "CLI101":
-        db_rating = "External ratings: S&P | BBB | Positive"
-    else:
-        db_rating = "Tier 1 (Investment Grade)" if "tier 1" in str(raw_db_rating).lower() else raw_db_rating
+    # Rating from the §8.1 curated dict. Em-dash for clients without a curated rating.
+    _bundle_cid = str(bundle.get("client_id") or "").strip()
+    db_rating = _CREDIT_RATINGS.get(_bundle_cid, "—")
 
     # Slide 1: Cover
     s1_kicker = current_ov.get("kicker") or get_product_kicker(p_family)

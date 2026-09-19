@@ -140,7 +140,7 @@ class ErrorBoundary extends React.Component {
 // const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
 // const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"];
 //const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
-const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
+const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"];
 
 export default function App() {
   const [opportunities, setOpportunities] = useState([]);
@@ -673,16 +673,14 @@ export default function App() {
     const defaultLiquidity = isGreen ? "€14,200M" : isRates ? "€7,800M" : "€1,008M";
     const defaultRevenue = isGreen ? "€95,000M" : isRates ? "€65,000M" : "€28,300M";
     const defaultEbitda = isGreen ? "€20,900M" : isRates ? "€14,300M" : "€6,226M";
-    const defaultMatWall = isGreen ? "€10,127M" : isRates ? "€3,000M" : "€0M";
     const defaultRM = isGreen ? "Marco Bianchi" : isRates ? "Klaus Weber" : "Daan Visser";
 
     const netDebtVal = deckOverrides.net_debt_str || deckOverrides.net_debt || opp.net_debt_str || (opp.net_debt ? `€${Number(opp.net_debt).toLocaleString()}M` : defaultNetDebt);
     const liquidityVal = deckOverrides.liquidity_str || deckOverrides.liquidity || opp.liquidity_str || (opp.liquidity ? `€${Number(opp.liquidity).toLocaleString()}M` : defaultLiquidity);
     const revenueVal = deckOverrides.revenue_str || deckOverrides.revenue || opp.revenue_str || (opp.revenue_eur_m ? `€${Number(opp.revenue_eur_m).toLocaleString()}M` : defaultRevenue);
     const ebitdaVal = deckOverrides.ebitda_str || deckOverrides.ebitda || opp.ebitda_str || (opp.ebitda_eur_m ? `€${Number(opp.ebitda_eur_m).toLocaleString()}M` : defaultEbitda);
-    const maturityVal = deckOverrides.maturity_wall_str || deckOverrides.maturity_wall || opp.debt_maturing_24m_str || defaultMatWall;
+    const maturityVal = deckOverrides.maturity_wall_str || deckOverrides.maturity_wall || opp.debt_maturing_24m_bn || "—";
     const unhedgedGapVal = deckOverrides.unhedged_gap_str || deckOverrides.unhedged_gap || deckOverrides.unhedged_usd_commercial_gap || "$8.0B";
-    const tierVal = deckOverrides.tier || deckOverrides.rating || opp.tier || "Tier 1 (Investment Grade)";
     const rmName = deckOverrides.rm_name || opp.rm_name || defaultRM;
 
     const kickerText = deckOverrides.kicker || (
@@ -902,7 +900,7 @@ export default function App() {
                 </div>
                 <div className="p-2.5 bg-gray-50 rounded border border-gray-200">
                   <p className="text-[10px] text-gray-500 font-semibold">Credit Rating / Tier</p>
-                  <p className="text-sm font-bold text-[#000066] mt-0.5">{activeClient?.rating_display || (activeClient?.id === "CLI101" ? "S&P | BBB | Positive" : "Tier 1")}</p>
+                  <p className="text-sm font-bold text-[#000066] mt-0.5">{activeClient?.credit_rating || '—'}</p>
                 </div>
               </div>
               <div className="p-3 bg-blue-50/50 rounded border border-blue-200 text-[10px] text-gray-700 space-y-1">
@@ -965,7 +963,7 @@ export default function App() {
                             <p>• <strong>2028 Maturities:</strong> €5,497M (Syndicated Term Loan)</p>
                           </>
                         )}
-                        <p className="font-bold text-orange-600 pt-1">Total 24M Maturity Wall: {maturityVal}</p>
+                        <p className="font-bold text-orange-600 pt-1">Total Maturity Profile: €{(clientMaturities || []).reduce((s, m) => s + (Number(m.amount_eur_m || m.amount) || 0), 0).toLocaleString()}M</p>
                       </>
                     )}
                   </div>
@@ -1024,8 +1022,8 @@ export default function App() {
           const s6_rateUnchanged = deckOverrides?.rate_scenario_unchanged || s6_allInStr;
           const s6_rateDown = deckOverrides?.rate_scenario_down || `${(s6_allInNum - 0.50).toFixed(2)}%`;
 
-          const s6_clientRating = activeClient?.rating || "BBB+";
-          const s6_clientWall = deckOverrides?.maturity_wall_str || activeClient?.debtMaturing24M || "€3,000M";
+          const s6_clientRating = (activeClient?.credit_rating || "").split("|")[1]?.trim() || "—";
+          const s6_clientWall = deckOverrides?.maturity_wall_str || activeClient?.debt_maturing_24m_bn || "—";
 
           return (
             <div className="h-full flex flex-col justify-between bg-white p-5 rounded-lg border border-gray-200">
@@ -1050,7 +1048,7 @@ export default function App() {
                         {deckOverrides?.scenario_text || (
                           isFX ? `A corporate treasury with expanding commercial operations in North America has unhedged USD exposures. Fluctuations in EUR/USD spot risk compressing operating margins. Treasury seeks certainty on downside floor while retaining upside participation.` :
                           isGreen ? `A leading corporate issuer is evaluating its inaugural sustainable finance framework. Dedicated ESG funds offer pricing tension. Treasury seeks to capture the 3-5 bps greenium benefit while establishing market leadership in EU taxonomy alignment.` :
-                          `A ${s6_clientRating} rated issuer has a ${s6_clientWall} debt maturity wall upcoming. Current swap-plus-spread levels imply higher refinancing costs. Treasury wants to lock in funding cost ahead of maturity while managing execution risk.`
+                          `An issuer rated ${s6_clientRating} has a ${s6_clientWall} debt maturity wall upcoming. Current swap-plus-spread levels imply higher refinancing costs. Treasury wants to lock in funding cost ahead of maturity while managing execution risk.`
                         )}
                       </p>
                     </div>
@@ -1765,7 +1763,7 @@ export default function App() {
                                 </div>
                                 <div className="flex justify-between">
                                   <span className="text-gray-500 font-medium">External ratings:</span>
-                                  <span className="font-semibold text-gray-900">{opp.id === 'CLI101' || opp.name?.includes('Enel') ? 'S&P | BBB | Positive' : (opp.tier || 'Tier 1')}</span>
+                                  <span className="font-semibold text-gray-900">{opp.credit_rating || '—'}</span>
                                 </div>
                                 <div className="flex justify-between">
                                   <span className="text-gray-500 font-medium">Net Debt:</span>
@@ -1773,11 +1771,11 @@ export default function App() {
                                 </div>
                                 <div className="flex justify-between">
                                   <span className="text-gray-500 font-medium">Available Liquidity:</span>
-                                  <span className="font-semibold text-emerald-700">{opp.id === 'CLI101' || opp.name?.includes('Enel') ? '€14.2bn' : (opp.liquidity_str || '€14.2bn')}</span>
+                                  <span className="font-semibold text-emerald-700">{opp.liquidity_str || '—'}</span>
                                 </div>
                                 <div className="flex justify-between pt-1 border-t border-gray-100">
                                   <span className="text-gray-600 font-bold">Potential debt maturities within 24 months:</span>
-                                  <span className="font-extrabold text-[#FF6200]">{opp.id === 'CLI101' || opp.name?.includes('Enel') ? '€10.13bn' : (opp.debt_maturing_24m_str || '€10.13bn')}</span>
+                                  <span className="font-extrabold text-[#FF6200]">{opp.debt_maturing_24m_bn || '—'}</span>
                                 </div>
                               </div>
                             </div>
@@ -2073,24 +2071,24 @@ ${chip.preview}`}
               {metrics ? (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <p className="text-2xl font-bold text-gray-900">{displayedOpportunities.length || 1}</p>
-                    <p className="text-[11px] font-semibold text-emerald-600 mb-1">▲ {displayedOpportunities.length || 1}</p>
-                    <p className="text-xs text-gray-500 leading-tight">{metrics.active_drafts?.label || "Active drafts in progress"}</p>
+                    <p className="text-2xl font-bold text-gray-900">{metrics.clients_with_signals?.value || "0"}</p>
+                    <p className="text-[11px] font-semibold text-emerald-600 mb-1">{metrics.clients_with_signals?.change || ""}</p>
+                    <p className="text-xs text-gray-500 leading-tight">{metrics.clients_with_signals?.label || "Clients with signals"}</p>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <p className="text-2xl font-bold text-gray-900">{metrics.avg_time?.value || "< 15s"}</p>
-                    <p className="text-[11px] font-semibold text-emerald-600 mb-1">{metrics.avg_time?.change || "▼ 99% vs manual"}</p>
-                    <p className="text-xs text-gray-500 leading-tight">{metrics.avg_time?.label || "Avg. time to first draft"}</p>
+                    <p className="text-2xl font-bold text-gray-900">{metrics.active_signals?.value || "0"}</p>
+                    <p className="text-[11px] font-semibold text-emerald-600 mb-1">{metrics.active_signals?.change || ""}</p>
+                    <p className="text-xs text-gray-500 leading-tight">{metrics.active_signals?.label || "Active signals"}</p>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <p className="text-2xl font-bold text-gray-900">{displayedOpportunities.length || 1}</p>
-                    <p className="text-[11px] font-semibold text-gray-400 mb-1">{metrics.pending_review?.change || "steady"}</p>
-                    <p className="text-xs text-gray-500 leading-tight">{metrics.pending_review?.label || "Deals pending review"}</p>
+                    <p className="text-2xl font-bold text-gray-900">{metrics.high_priority_clients?.value || "0"}</p>
+                    <p className="text-[11px] font-semibold text-gray-400 mb-1">{metrics.high_priority_clients?.change || ""}</p>
+                    <p className="text-xs text-gray-500 leading-tight">{metrics.high_priority_clients?.label || "High-priority clients"}</p>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <p className="text-2xl font-bold text-gray-900">{displayedOpportunities.length || 1}</p>
-                    <p className="text-[11px] font-semibold text-emerald-600 mb-1">▲ {displayedOpportunities.length || 1}</p>
-                    <p className="text-xs text-gray-500 leading-tight">{metrics.cohort_matches?.label || "Cohort matches in database"}</p>
+                    <p className="text-2xl font-bold text-gray-900">{metrics.clients_in_database?.value || "0"}</p>
+                    <p className="text-[11px] font-semibold text-emerald-600 mb-1">{metrics.clients_in_database?.change || ""}</p>
+                    <p className="text-xs text-gray-500 leading-tight">{metrics.clients_in_database?.label || "Clients in database"}</p>
                   </div>
                 </div>
               ) : (

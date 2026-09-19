@@ -1,5 +1,13 @@
 import re
 
+# Credit rating display strings — §8.1 known hardcode exception.
+# No credit_rating column exists on ca.client_master (§7.2: no DDL).
+# Source: agency confirmations as of 19 Sep 2026.
+_CREDIT_RATINGS = {
+    "CLI101": "S&P | BBB | Positive",   # Enel S.p.A.
+    "CLI103": "S&P | A- | Stable",      # BASF SE
+}
+
 def compute_canonical_bundle(ctx, ov=None):
     """
     Single mathematical source of truth.
@@ -8,9 +16,9 @@ def compute_canonical_bundle(ctx, ov=None):
     ov = ov or {}
     
     # Client Meta
-    rating = ov.get("rating", ctx.get("credit_rating", ctx.get("rating", "BBB+")))
-    raw_wall = ov.get("debt_maturing_24m_str", ov.get("maturity_wall_str", ctx.get("debt_maturing_24m_str")))
-    wall_str = str(raw_wall) if raw_wall and str(raw_wall) != "None" else "€3,000M"
+    rating = ov.get("rating") or _CREDIT_RATINGS.get(str(ctx.get("client_id") or "").strip(), "—")
+    raw_wall = ov.get("debt_maturing_24m_bn") or ov.get("maturity_wall_str") or ctx.get("debt_maturing_24m_bn")
+    wall_str = str(raw_wall) if raw_wall and str(raw_wall) != "None" else "—"
     
     # 1. Tenor
     tenor_raw = str(ov.get("tenor", ctx.get("tenor", "7 Years")))
@@ -210,9 +218,9 @@ def get_product_pillars(p_fam, ctx, ov):
     """Get executive summary pillars matching App.jsx preview with dynamic WorkFabric & Channel Telemetry."""
     client_name = ov.get("client_name", ctx.get("client_name", "Corporate Client"))
     rm_name = ov.get("rm_name", ctx.get("rm_name", "Senior Relationship Manager"))
-    mat_wall = ov.get("maturity_wall_str", ctx.get("debt_maturing_24m_str", "€3,000M"))
+    mat_wall = ov.get("maturity_wall_str") or ctx.get("debt_maturing_24m_bn") or "—"
     if mat_wall == "N/A" or not mat_wall:
-        mat_wall = "€3,000M"
+        mat_wall = "—"
     unhedged_gap = ov.get("unhedged_gap_str", ov.get("unhedged_gap", "$8.0B"))
     if unhedged_gap == "N/A" or not unhedged_gap:
         unhedged_gap = "$8.0B"
@@ -291,6 +299,7 @@ def fetch_pitchbook_bundle(canonical_id, client_id_raw, get_db_connection):
         "leverage_ratio": "N/A",
         "debt_maturing_24m": 0.0,
         "debt_maturing_24m_str": "N/A",
+        "debt_maturing_24m_bn": "N/A",
         "signals": [],
         "maturities": []
     }
@@ -393,6 +402,7 @@ def fetch_pitchbook_bundle(canonical_id, client_id_raw, get_db_connection):
                 if mat24 and float(mat24) > 0:
                     ctx["debt_maturing_24m"] = float(mat24)
                     ctx["debt_maturing_24m_str"] = f"€{float(mat24):,.0f}M"
+                    ctx["debt_maturing_24m_bn"] = f"€{float(mat24)/1000:,.2f}bn" if float(mat24) >= 1000 else f"€{float(mat24):,.0f}M"
                 if net_d and ebitda and float(ebitda) > 0:
                     ctx["leverage_ratio"] = f"{(float(net_d) / float(ebitda)):.1f}x"
 
@@ -419,6 +429,7 @@ def fetch_pitchbook_bundle(canonical_id, client_id_raw, get_db_connection):
                 if tot_wall > 0:
                     ctx["debt_maturing_24m"] = float(tot_wall)
                     ctx["debt_maturing_24m_str"] = f"€{tot_wall:,.0f}M"
+                    ctx["debt_maturing_24m_bn"] = f"€{tot_wall/1000:,.2f}bn" if tot_wall >= 1000 else f"€{tot_wall:,.0f}M"
 
             # 5. Fetch Digital Twin Signals (Deterministic parity with main.py & App.jsx)
             # Fetch top Latent Opportunities ordered deterministically by signal_id ASC
@@ -608,7 +619,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     net_debt_str = ov.get("net_debt_str", ctx.get("net_debt_str", "N/A"))
     liquidity_str = ov.get("liquidity_str", ctx.get("liquidity_str", "N/A"))
     leverage_str = ov.get("leverage_ratio", ctx.get("leverage_ratio", "N/A"))
-    mat_wall_str = ov.get("debt_maturing_24m_str", ov.get("maturity_wall_str", ctx.get("debt_maturing_24m_str", "N/A")))
+    mat_wall_str = ov.get("debt_maturing_24m_bn") or ov.get("maturity_wall_str") or ctx.get("debt_maturing_24m_bn") or "N/A"
     
     # Signals from database
     signals = ctx.get("signals", [])
@@ -952,14 +963,13 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     add_logo(s4)
     add_footer(s4)
 
-    # Rating / Tier parity with Segment 1 Client Data
-    tier_str = ov.get("rating_tier") or ov.get("credit_rating")
-    if not tier_str:
-        if ctx.get("client_id") == "CLI101" or "Enel" in ctx.get("client_name", ""):
-            tier_str = "S&P | BBB | Positive"
-        else:
-            base_tier = ctx.get("tier", "Tier 1")
-            tier_str = f"{base_tier} (Investment Grade)" if "Tier" in base_tier else base_tier
+    # Rating / Tier parity with Segment 1 Client Data.
+    # Curated dict per §8.1. Overrides still take precedence.
+    tier_str = (
+        ov.get("rating_tier")
+        or ov.get("credit_rating")
+        or _CREDIT_RATINGS.get(str(ctx.get("client_id") or "").strip(), "—")
+    )
 
     def _to_bn_val(val_str, fallback):
         s = val_str or fallback
@@ -981,7 +991,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     elif p_fam == "GREEN_ESG":
         card3_val = ov.get("eligible_green_capex", "€3.5bn")
     else:
-        card3_val = mat_wall_str if (mat_wall_str and mat_wall_str != "N/A") else "€3,000M"
+        card3_val = mat_wall_str if (mat_wall_str and mat_wall_str != "N/A") else "—"
 
     metrics = [
         ("Net Debt", s4_net_debt, ING_DARK_SLATE),
@@ -1163,13 +1173,21 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         p.font.size = Pt(13)
         p.font.color.rgb = ING_DARK_SLATE
 
-        mat_wall_val = mat_wall_str if (mat_wall_str and mat_wall_str != "N/A") else "€3,000M"
-        
-        mat_items = [
-            ("2026 Maturities", "€600M (Commodity & Fixed Notes)"),
-            ("2027 Maturities", "€3,000M (IRS Pre-Hedge Refinancing)"),
-            ("2028 Maturities", "€5,497M (Syndicated Term Loan)")
-        ]
+        mat_wall_val = mat_wall_str if (mat_wall_str and mat_wall_str != "N/A") else "—"
+
+        # Tranche maturity breakdown — read from ctx["maturities"] (populated by fetch_pitchbook_bundle).
+        _mat_rows = ctx.get("maturities") or []
+        if _mat_rows:
+            mat_items = [
+                (f"{m.get('maturity_year', '')} Maturities",
+                 f"€{float(m.get('amount_eur_m', 0)):,.0f}M ({m.get('instrument_type', 'Bond')})")
+                for m in _mat_rows
+            ]
+            _mat_total = sum(float(m.get("amount_eur_m", 0)) for m in _mat_rows)
+            mat_total_str = f"€{_mat_total:,.0f}M"
+        else:
+            mat_items = []
+            mat_total_str = "—"
 
         for lbl, val in mat_items:
             p_i = tf_l.add_paragraph()
@@ -1179,7 +1197,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
             p_i.space_before = Pt(8)
 
         p_tot = tf_l.add_paragraph()
-        p_tot.text = f"Total 24M Maturity Wall: {mat_wall_val}"
+        p_tot.text = f"Total Maturity Profile: {mat_total_str}"
         p_tot.font.bold = True
         p_tot.font.size = Pt(11)
         p_tot.font.color.rgb = ING_ORANGE
@@ -1196,7 +1214,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         if p_fam == "RATES_HEDGE":
             p_desc.text = "Upcoming maturities cluster in near-term windows. Locking in forward-starting swap rates eliminates repricing uncertainty ahead of primary debt issuance."
         else:
-            p_desc.text = f"Upcoming debt maturities of {mat_wall_val} cluster in near-term windows. Proactive capital structuring and benchmark EMTN roadshows ensure optimal tenor extension and liquidity resilience."
+            p_desc.text = f"Debt maturities totaling {mat_total_str} across 2026-2028 cluster in near-term windows. Proactive capital structuring and benchmark EMTN roadshows ensure optimal tenor extension and liquidity resilience."
         p_desc.font.size = Pt(10.5)
         p_desc.font.color.rgb = RGBColor(55, 65, 81)
         p_desc.space_before = Pt(8)

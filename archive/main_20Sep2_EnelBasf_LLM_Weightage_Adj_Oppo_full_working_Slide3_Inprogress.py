@@ -2173,10 +2173,10 @@ INGESTED MULTI-STREAM SIGNALS (WORKFABRIC & CHANNEL TELEMETRY):
 You assist Relationship Managers (RMs) by delivering consultative structuring commentary, CFO-level talking points, executing parameter mutations, and applying EU regulatory compliance remediations across pitchbook slides.
 
 PRISTINE DATABASE BASELINE (ORIGINAL UNMUTATED DECK):
-{json.dumps(baseline_deck_slides, indent=2, ensure_ascii=False)}
+{json.dumps(baseline_deck_slides, indent=2)}
 
 CURRENT ACTIVE SLIDES (WITH APPLIED MUTATIONS):
-{json.dumps(active_deck_slides, indent=2, ensure_ascii=False)}
+{json.dumps(active_deck_slides, indent=2)}
 
 ACTIVE OVERRIDES STATE:
 {json.dumps(current_ov, indent=2)}
@@ -2188,8 +2188,6 @@ RESPONSE ARCHITECTURE & STYLE GUIDELINES:
    - **Strategic Objective**: Explain the strategic purpose of this slide and why it matters to the corporate treasury of {client_name}.
    - **Key Mechanics & Deal Metrics**: Contextualize the exact figures, notionals, spreads, ratings, or milestones from the active slide into an analytical narrative.
    - **CFO Pitch / Talking Points**: Provide 1-2 sharp, actionable talking points the RM can deliver directly to {client_name}'s CFO / Group Treasurer.
-   - **Adjacent Opportunities** (CONDITIONAL — only include this section when the active slide payload contains a non-empty "adjacent_opportunities" field; if the field is empty or absent, omit this section entirely): Summarise the cross-sell angles ING has identified beyond the primary mandate, using ONLY the text in the "adjacent_opportunities" field. Do not invent, embellish, or extrapolate. 2-3 sentences.
-3. **Formatting Consistency for Slide Explanations**: In every section above, render all monetary amounts, percentages, and tenors in **bold** (e.g. **€10.13bn**, **2.62%**, **7Y**, **-5 bps**). Always use the € symbol for euro amounts — never "EUR" and never the escaped form "\u20ac". This applies uniformly to every slide, ensuring consistent visual emphasis across the deck.
 3. **EU Regulatory Compliance & Remediation**:
    When the user asks to "Apply compliance recommendations", "Remediate", or adjust compliance standards:
    - Act as the presentation drafting engine applying approved EU compliance standards (MiFID II Art. 24/54, MAR Art. 11, EU Green Bond Standard/EuGB, and EMIR).
@@ -2357,20 +2355,7 @@ async def handle_pitchbook_generation(
 
         # 1. Fetch grounded bundle from DB
         bundle = fetch_pitchbook_bundle(cid, cid, get_db_connection) or {}
-
-        # 1b. Enrich bundle with the two synthesis-produced fields from
-        # the in-memory cache. Falls back gracefully if the cache is
-        # cold (e.g. first request after a restart).
-        try:
-            import time as _pb_time
-            _pb_now = _pb_time.time()
-            _pb_cached = _MANDATE_SYNTH_CACHE.get(cid)
-            if _pb_cached and len(_pb_cached) > 7 and _pb_cached[0] > _pb_now:
-                bundle["family"] = _pb_cached[6]
-                bundle["adjacent_opportunities"] = _pb_cached[7]
-        except Exception as _pb_e:
-            logger.warning(f"Bundle enrichment from synthesis cache failed: {_pb_e}")
-
+        
         # 2. Extract client name & opp meta
         client_name = overrides.get("client_name") or bundle.get("client_name") or "Corporate Client"
         opp_meta = {

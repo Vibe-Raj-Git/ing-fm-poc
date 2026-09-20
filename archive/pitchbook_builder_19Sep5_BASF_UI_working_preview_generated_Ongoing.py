@@ -3,21 +3,6 @@ import re
 # Credit rating display strings — §8.1 known hardcode exception.
 # No credit_rating column exists on ca.client_master (§7.2: no DDL).
 # Source: agency confirmations as of 19 Sep 2026.
-# Weighted vocabulary for product family classification.
-# Must be identical to the dict in main.py. See main.py for rationale.
-_FAMILY_KEYWORD_WEIGHTS = {
-    "FX_HEDGE":    {"fx collar": 5, "currency overlay": 5, "hedging gap": 4,
-                    "fx hedge": 5, "cross-currency": 4, "collar": 3},
-    "GREEN_ESG":   {"green bond": 5, "sustainability-linked": 5, "slb": 5,
-                    "green asset pool": 4, "green financing": 4,
-                    "sustainable funding": 4, "greenium": 1},
-    "RATES_HEDGE": {"irs pre-hedge": 5, "pre-hedge swap": 5, "swap overlay": 4,
-                    "forward-starting": 3, "rate hedging": 4, "rate sensitivity": 3},
-    "DCM_REFI":    {"emtn": 5, "bond issuance": 5, "dcm": 4,
-                    "refinancing": 2, "maturity wall": 1,
-                    "dual-tranche": 1, "senior unsecured": 1},
-}
-
 _CREDIT_RATINGS = {
     "CLI101": "S&P | BBB | Positive",   # Enel S.p.A.
     "CLI103": "S&P | A- | Stable",      # BASF SE
@@ -31,9 +16,9 @@ def compute_canonical_bundle(ctx, ov=None):
     ov = ov or {}
     
     # Client Meta
-    rating = ov.get("rating") or _CREDIT_RATINGS.get(str(ctx.get("client_id") or "").strip(), "—")
-    raw_wall = ov.get("debt_maturing_24m_bn") or ov.get("maturity_wall_str") or ctx.get("debt_maturing_24m_bn")
-    wall_str = str(raw_wall) if raw_wall and str(raw_wall) != "None" else "—"
+    rating = ov.get("rating", ctx.get("credit_rating", ctx.get("rating", "BBB+")))
+    raw_wall = ov.get("debt_maturing_24m_str", ov.get("maturity_wall_str", ctx.get("debt_maturing_24m_str")))
+    wall_str = str(raw_wall) if raw_wall and str(raw_wall) != "None" else "€3,000M"
     
     # 1. Tenor
     tenor_raw = str(ov.get("tenor", ctx.get("tenor", "7 Years")))
@@ -186,53 +171,22 @@ def add_footer(slide, is_white=False):
 
 
 def detect_product_family(ctx):
-    """
-    Determine product family using the LLM proposal validated by the
-    weighted anchor score.
-
-    Decision logic:
-      1. LLM proposes a family (from synthesis).
-      2. Weighted vocabulary scores the anchor (why_now_nlg + next_best_action).
-      3. If the weighted score >= 5 with margin >= 3 over runner-up,
-         the weights override the LLM (deterministic, decisive).
-      4. Otherwise, trust the LLM.
-      5. If both are silent, fall back to narrative keyword classification.
-    """
-    llm_family = str(ctx.get("family") or ctx.get("product_family") or "").upper().strip()
-    if llm_family not in ("FX_HEDGE", "GREEN_ESG", "RATES_HEDGE", "DCM_REFI"):
-        llm_family = None
-
-    anchor = (
-        str(ctx.get("why_now_nlg") or "") + " " + str(ctx.get("next_best_action") or "")
-    ).lower()
-    scores = {}
-    for fam, weights in _FAMILY_KEYWORD_WEIGHTS.items():
-        scores[fam] = sum(w for kw, w in weights.items() if kw in anchor)
-
-    ranked = sorted(scores.items(), key=lambda x: -x[1])
-    top_family, top_score = ranked[0]
-    runner_up_score = ranked[1][1] if len(ranked) > 1 else 0
-    margin = top_score - runner_up_score
-
-    if top_score >= 5 and margin >= 3:
-        return top_family
-
-    if llm_family:
-        return llm_family
-
-    if top_score > 0:
-        return top_family
     combined = " ".join([
         str(ctx.get("opportunity_type") or ""),
+        str(ctx.get("product_family") or ""),
+        str(ctx.get("type") or ""),
         str(ctx.get("next_best_action") or ""),
-        str(ctx.get("why_now_nlg") or ""),
+        str(ctx.get("trigger_catalyst") or ""),
+        str(ctx.get("why_now_nlg") or "")
     ]).lower()
-    if any(k in combined for k in ["fx", "currency", "collar"]):
-        return "FX_HEDGE"
-    if any(k in combined for k in ["green bond", "sustainable", "slb", "esg"]):
+    if any(k in combined for k in ["green", "sustainable", "esg", "slb", "sustainability"]):
         return "GREEN_ESG"
-    if any(k in combined for k in ["irs", "pre-hedge", "swap overlay"]):
+    if any(k in combined for k in ["fx", "currency", "collar", "usd", "hedging gap"]):
+        return "FX_HEDGE"
+    if any(k in combined for k in ["irs", "pre-hedge", "rate sensitivity", "swap overlay"]):
         return "RATES_HEDGE"
+    if any(k in combined for k in ["refinanc", "dcm", "emtn", "bond", "maturity wall"]):
+        return "DCM_REFI"
     return "DCM_REFI"
         
     return "DCM_REFI"
@@ -264,9 +218,9 @@ def get_product_pillars(p_fam, ctx, ov):
     """Get executive summary pillars matching App.jsx preview with dynamic WorkFabric & Channel Telemetry."""
     client_name = ov.get("client_name", ctx.get("client_name", "Corporate Client"))
     rm_name = ov.get("rm_name", ctx.get("rm_name", "Senior Relationship Manager"))
-    mat_wall = ov.get("maturity_wall_str") or ctx.get("debt_maturing_24m_bn") or "—"
+    mat_wall = ov.get("maturity_wall_str", ctx.get("debt_maturing_24m_str", "€3,000M"))
     if mat_wall == "N/A" or not mat_wall:
-        mat_wall = "—"
+        mat_wall = "€3,000M"
     unhedged_gap = ov.get("unhedged_gap_str", ov.get("unhedged_gap", "$8.0B"))
     if unhedged_gap == "N/A" or not unhedged_gap:
         unhedged_gap = "$8.0B"
@@ -345,8 +299,6 @@ def fetch_pitchbook_bundle(canonical_id, client_id_raw, get_db_connection):
         "leverage_ratio": "N/A",
         "debt_maturing_24m": 0.0,
         "debt_maturing_24m_str": "N/A",
-        "debt_maturing_24m_bn": "N/A",
-        "adjacent_opportunities": "",
         "signals": [],
         "maturities": []
     }
@@ -449,7 +401,6 @@ def fetch_pitchbook_bundle(canonical_id, client_id_raw, get_db_connection):
                 if mat24 and float(mat24) > 0:
                     ctx["debt_maturing_24m"] = float(mat24)
                     ctx["debt_maturing_24m_str"] = f"€{float(mat24):,.0f}M"
-                    ctx["debt_maturing_24m_bn"] = f"€{float(mat24)/1000:,.2f}bn" if float(mat24) >= 1000 else f"€{float(mat24):,.0f}M"
                 if net_d and ebitda and float(ebitda) > 0:
                     ctx["leverage_ratio"] = f"{(float(net_d) / float(ebitda)):.1f}x"
 
@@ -476,7 +427,6 @@ def fetch_pitchbook_bundle(canonical_id, client_id_raw, get_db_connection):
                 if tot_wall > 0:
                     ctx["debt_maturing_24m"] = float(tot_wall)
                     ctx["debt_maturing_24m_str"] = f"€{tot_wall:,.0f}M"
-                    ctx["debt_maturing_24m_bn"] = f"€{tot_wall/1000:,.2f}bn" if tot_wall >= 1000 else f"€{tot_wall:,.0f}M"
 
             # 5. Fetch Digital Twin Signals (Deterministic parity with main.py & App.jsx)
             # Fetch top Latent Opportunities ordered deterministically by signal_id ASC
@@ -666,8 +616,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     net_debt_str = ov.get("net_debt_str", ctx.get("net_debt_str", "N/A"))
     liquidity_str = ov.get("liquidity_str", ctx.get("liquidity_str", "N/A"))
     leverage_str = ov.get("leverage_ratio", ctx.get("leverage_ratio", "N/A"))
-    mat_wall_str = ov.get("debt_maturing_24m_bn") or ov.get("maturity_wall_str") or ctx.get("debt_maturing_24m_bn") or "N/A"
-    adjacent_opportunities_text = ov.get("adjacent_opportunities") or ctx.get("adjacent_opportunities") or ""
+    mat_wall_str = ov.get("debt_maturing_24m_str", ov.get("maturity_wall_str", ctx.get("debt_maturing_24m_str", "N/A")))
     
     # Signals from database
     signals = ctx.get("signals", [])
@@ -875,7 +824,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     hero_panel.line.fill.background()
 
     # Left Hero Text Box - Title
-    tb_lh = s3.shapes.add_textbox(Inches(0.4), Inches(0.55), Inches(2.3), Inches(1.0))
+    tb_lh = s3.shapes.add_textbox(Inches(0.4), Inches(1.1), Inches(2.3), Inches(1.0))
     tf_lh = tb_lh.text_frame
     tf_lh.word_wrap = True
     p = tf_lh.paragraphs[0]
@@ -885,7 +834,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     p.font.color.rgb = ING_WHITE
 
     # White Horizontal Divider Line
-    div_w = s3.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.4), Inches(1.42), Inches(0.8), Inches(0.025))
+    div_w = s3.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.4), Inches(1.95), Inches(0.8), Inches(0.025))
     div_w.fill.solid()
     div_w.fill.fore_color.rgb = ING_WHITE
     div_w.line.fill.background()
@@ -899,7 +848,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     }
     s3_subheading = subheading_map.get(p_fam, "Proactive Capital Structuring")
 
-    tb_sub = s3.shapes.add_textbox(Inches(0.4), Inches(1.55), Inches(2.3), Inches(4.4))
+    tb_sub = s3.shapes.add_textbox(Inches(0.4), Inches(2.15), Inches(2.3), Inches(4.4))
     tf_sub = tb_sub.text_frame
     tf_sub.word_wrap = True
     
@@ -916,59 +865,59 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     p.space_before = Pt(8)
 
 
-    # 2. Four Numbered Pillars — relocated to the left orange panel
+    # 2. Right Side Numbered Pillars (1, 2, 3, 4)
     pillars = get_product_pillars(p_fam, ctx, ov)
     for idx, (p_num, p_head, p_body) in enumerate(pillars):
-        y_pos = Inches(3.55 + (idx * 1.0))
+        y_pos = Inches(1.1 + (idx * 0.85))
         
-        # Circle badge — now inside orange panel
-        c_shp = s3.shapes.add_shape(MSO_SHAPE.OVAL, Inches(0.3), y_pos, Inches(0.36), Inches(0.36))
+        # Circle badge
+        c_shp = s3.shapes.add_shape(MSO_SHAPE.OVAL, Inches(3.4), y_pos, Inches(0.42), Inches(0.42))
         c_shp.fill.solid()
-        c_shp.fill.fore_color.rgb = ING_WHITE
+        c_shp.fill.fore_color.rgb = ING_ORANGE
         c_shp.line.fill.background()
         
-        # Centered orange number inside white circle
+        # Centered white number inside circle
         tf_c = c_shp.text_frame
         tf_c.margin_left = Inches(0)
         tf_c.margin_right = Inches(0)
-        tf_c.margin_top = Inches(0.02)
+        tf_c.margin_top = Inches(0.04)
         tf_c.margin_bottom = Inches(0)
         p_c = tf_c.paragraphs[0]
         p_c.text = str(p_num)
         p_c.font.bold = True
-        p_c.font.size = Pt(11)
-        p_c.font.color.rgb = ING_ORANGE
+        p_c.font.size = Pt(12)
+        p_c.font.color.rgb = ING_WHITE
         p_c.alignment = PP_ALIGN.CENTER
 
-        # Pillar Title & Description Text Box — inside orange panel
-        tb_p = s3.shapes.add_textbox(Inches(0.78), y_pos - Inches(0.05), Inches(2.05), Inches(0.95))
+        # Pillar Title & Description Text Box
+        tb_p = s3.shapes.add_textbox(Inches(4.0), y_pos - Inches(0.05), Inches(8.9), Inches(0.85))
         tf_p = tb_p.text_frame
         tf_p.word_wrap = True
         
         p_h = tf_p.paragraphs[0]
         p_h.text = p_head
         p_h.font.bold = True
-        p_h.font.size = Pt(9.5)
-        p_h.font.color.rgb = ING_WHITE
+        p_h.font.size = Pt(12.5)
+        p_h.font.color.rgb = ING_ORANGE
 
         p_b = tf_p.add_paragraph()
         p_b.text = p_body
-        p_b.font.size = Pt(8)
-        p_b.font.color.rgb = RGBColor(255, 235, 220)
-        p_b.space_before = Pt(2)
+        p_b.font.size = Pt(10)
+        p_b.font.color.rgb = RGBColor(75, 85, 99)
+        p_b.space_before = Pt(3)
 
     # 3. Two Narrative Cards (from Mandate UI section)
     s3_why_now = ov.get("why_now") or ctx.get("why_now_nlg") or "\u2014"
     s3_action = ov.get("action") or ctx.get("next_best_action") or "\u2014"
 
-    # Card 1 - Catalyst Rationale (full width, stacked)
-    card1 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(3.2), Inches(0.85), Inches(9.8), Inches(1.65))
+    # Card 1 - Catalyst Rationale
+    card1 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(3.4), Inches(4.65), Inches(4.75), Inches(2.55))
     card1.fill.solid()
     card1.fill.fore_color.rgb = RGBColor(255, 247, 237)
     card1.line.color.rgb = RGBColor(254, 215, 170)
     card1.line.width = Pt(1)
 
-    tb_c1 = s3.shapes.add_textbox(Inches(3.35), Inches(0.95), Inches(9.5), Inches(1.45))
+    tb_c1 = s3.shapes.add_textbox(Inches(3.55), Inches(4.75), Inches(4.45), Inches(2.35))
     tf_c1 = tb_c1.text_frame
     tf_c1.word_wrap = True
     p_c1 = tf_c1.paragraphs[0]
@@ -982,14 +931,14 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     p_c1_b.font.color.rgb = RGBColor(55, 65, 81)
     p_c1_b.space_before = Pt(4)
 
-    # Card 2 - Proposed Execution & Structuring (full width, stacked)
-    card2 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(3.2), Inches(2.65), Inches(9.8), Inches(2.15))
+    # Card 2 - Proposed Execution & Structuring
+    card2 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.35), Inches(4.65), Inches(4.55), Inches(2.55))
     card2.fill.solid()
     card2.fill.fore_color.rgb = RGBColor(239, 246, 255)
     card2.line.color.rgb = RGBColor(191, 219, 254)
     card2.line.width = Pt(1)
 
-    tb_c2 = s3.shapes.add_textbox(Inches(3.35), Inches(2.75), Inches(9.5), Inches(1.95))
+    tb_c2 = s3.shapes.add_textbox(Inches(8.50), Inches(4.75), Inches(4.25), Inches(2.35))
     tf_c2 = tb_c2.text_frame
     tf_c2.word_wrap = True
     p_c2 = tf_c2.paragraphs[0]
@@ -1002,28 +951,6 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     p_c2_b.font.size = Pt(9)
     p_c2_b.font.color.rgb = RGBColor(55, 65, 81)
     p_c2_b.space_before = Pt(4)
-
-    # Card 3 - Adjacent Opportunities (new, full width, stacked)
-    _adj_text = adjacent_opportunities_text or "Additional origination angles will appear here once the mandate synthesis identifies any."
-    card3 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(3.2), Inches(4.95), Inches(9.8), Inches(2.15))
-    card3.fill.solid()
-    card3.fill.fore_color.rgb = RGBColor(236, 253, 245)
-    card3.line.color.rgb = RGBColor(167, 243, 208)
-    card3.line.width = Pt(1)
-
-    tb_c3 = s3.shapes.add_textbox(Inches(3.35), Inches(5.05), Inches(9.5), Inches(1.95))
-    tf_c3 = tb_c3.text_frame
-    tf_c3.word_wrap = True
-    p_c3 = tf_c3.paragraphs[0]
-    p_c3.text = "\U0001F9ED ADJACENT OPPORTUNITIES"
-    p_c3.font.bold = True
-    p_c3.font.size = Pt(10)
-    p_c3.font.color.rgb = RGBColor(6, 95, 70)
-    p_c3_b = tf_c3.add_paragraph()
-    p_c3_b.text = _adj_text
-    p_c3_b.font.size = Pt(9)
-    p_c3_b.font.color.rgb = RGBColor(55, 65, 81)
-    p_c3_b.space_before = Pt(4)
 
             # =========================================================================
     # SLIDE 4: BALANCE SHEET (Exact Database & Preview Parity)
@@ -1061,7 +988,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     elif p_fam == "GREEN_ESG":
         card3_val = ov.get("eligible_green_capex", "€3.5bn")
     else:
-        card3_val = mat_wall_str if (mat_wall_str and mat_wall_str != "N/A") else "—"
+        card3_val = mat_wall_str if (mat_wall_str and mat_wall_str != "N/A") else "€3,000M"
 
     metrics = [
         ("Net Debt", s4_net_debt, ING_DARK_SLATE),
@@ -1243,21 +1170,13 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         p.font.size = Pt(13)
         p.font.color.rgb = ING_DARK_SLATE
 
-        mat_wall_val = mat_wall_str if (mat_wall_str and mat_wall_str != "N/A") else "—"
-
-        # Tranche maturity breakdown — read from ctx["maturities"] (populated by fetch_pitchbook_bundle).
-        _mat_rows = ctx.get("maturities") or []
-        if _mat_rows:
-            mat_items = [
-                (f"{m.get('maturity_year', '')} Maturities",
-                 f"€{float(m.get('amount_eur_m', 0)):,.0f}M ({m.get('instrument_type', 'Bond')})")
-                for m in _mat_rows
-            ]
-            _mat_total = sum(float(m.get("amount_eur_m", 0)) for m in _mat_rows)
-            mat_total_str = f"€{_mat_total:,.0f}M"
-        else:
-            mat_items = []
-            mat_total_str = "—"
+        mat_wall_val = mat_wall_str if (mat_wall_str and mat_wall_str != "N/A") else "€3,000M"
+        
+        mat_items = [
+            ("2026 Maturities", "€600M (Commodity & Fixed Notes)"),
+            ("2027 Maturities", "€3,000M (IRS Pre-Hedge Refinancing)"),
+            ("2028 Maturities", "€5,497M (Syndicated Term Loan)")
+        ]
 
         for lbl, val in mat_items:
             p_i = tf_l.add_paragraph()
@@ -1267,7 +1186,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
             p_i.space_before = Pt(8)
 
         p_tot = tf_l.add_paragraph()
-        p_tot.text = f"Total Maturity Profile: {mat_total_str}"
+        p_tot.text = f"Total 24M Maturity Wall: {mat_wall_val}"
         p_tot.font.bold = True
         p_tot.font.size = Pt(11)
         p_tot.font.color.rgb = ING_ORANGE
@@ -1284,7 +1203,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
         if p_fam == "RATES_HEDGE":
             p_desc.text = "Upcoming maturities cluster in near-term windows. Locking in forward-starting swap rates eliminates repricing uncertainty ahead of primary debt issuance."
         else:
-            p_desc.text = f"Debt maturities totaling {mat_total_str} across 2026-2028 cluster in near-term windows. Proactive capital structuring and benchmark EMTN roadshows ensure optimal tenor extension and liquidity resilience."
+            p_desc.text = f"Upcoming debt maturities of {mat_wall_val} cluster in near-term windows. Proactive capital structuring and benchmark EMTN roadshows ensure optimal tenor extension and liquidity resilience."
         p_desc.font.size = Pt(10.5)
         p_desc.font.color.rgb = RGBColor(55, 65, 81)
         p_desc.space_before = Pt(8)

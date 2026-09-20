@@ -781,16 +781,23 @@ export default function App() {
         return (
           <div className="h-full flex flex-col justify-between bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="grid grid-cols-12 h-full">
-              <div className="col-span-3 bg-[#FF6200] p-4 text-white flex flex-col">
-                <div className="flex-shrink-0">
-                  <h2 className="text-lg font-bold mb-1">Executive Summary</h2>
-                  <div className="w-8 h-0.5 bg-white mb-2"></div>
-                  <p className="text-[11px] font-semibold mb-1.5">
+              <div className="col-span-3 bg-[#FF6200] p-5 text-white flex flex-col justify-between">
+                <div>
+                  <h2 className="text-xl font-bold mb-1">Executive Summary</h2>
+                  <div className="w-8 h-0.5 bg-white mb-3"></div>
+                  <p className="text-xs font-semibold mb-2">
                     {isFX ? "Strategic FX Architecture" : isGreen ? "Sustainable Finance Framework" : isRates ? "Rate Risk Immunisation" : "Proactive Capital Structuring"}
                   </p>
-                  <p className="text-[9px] text-white/90 leading-snug mb-2">
+                  <p className="text-[10px] text-white/90 leading-relaxed">
                     Customized execution roadmap for {clientName} based on group treasury requirements and live market backdrop.
                   </p>
+                </div>
+                
+              </div>
+              <div className="col-span-9 flex flex-col">
+                <div className="px-5 pt-4 pb-2 flex-shrink-0 flex flex-col text-[11px] space-y-1.5 relative">
+                <div className="flex justify-end mb-1">
+                  <img src="/assets/ing_logo_orange.png" alt="ING" className="h-5 object-contain" />
                 </div>
                 {(() => {
                   const rawLatents = deckOverrides.cf_latent_list || opp.cf_latent_list || ((opp.signals || []).filter(s => s.signal_type === "LATENT_OPPORTUNITY"));
@@ -823,48 +830,34 @@ export default function App() {
                     { t: "Balance Sheet Support", d: "Committed credit facilities and ongoing treasury advisory." }
                   ];
 
-                  return (
-                    <div className="flex-1 flex flex-col justify-center space-y-1.5 mt-1">
-                      {pillars.map((p, i) => (
-                        <div key={i} className="flex space-x-1.5 items-start">
-                          <div className="w-3.5 h-3.5 rounded-full bg-white text-[#FF6200] flex items-center justify-center font-bold text-[8px] shrink-0 mt-0.5">{i + 1}</div>
-                          <div className="min-w-0">
-                            <p className="font-bold text-white text-[9px] leading-tight">{p.t}</p>
-                            <p className="text-white/80 text-[8px] leading-snug">{p.d}</p>
-                          </div>
-                        </div>
-                      ))}
+                  return pillars.map((p, i) => (
+                    <div key={i} className="flex space-x-2 items-start">
+                      <div className="w-4 h-4 rounded-full bg-[#FF6200] text-white flex items-center justify-center font-bold text-[9px] shrink-0">{i + 1}</div>
+                      <div>
+                        <p className="font-bold text-[#FF6200] text-[11px]">{p.t}</p>
+                        <p className="text-gray-600 text-[10px]">{p.d}</p>
+                      </div>
                     </div>
-                  );
+                  ));
                 })()}
-              </div>
-              <div className="col-span-9 flex flex-col px-5 pt-3 pb-3">
-                <div className="flex justify-end mb-1 flex-shrink-0">
-                  <img src="/assets/ing_logo_orange.png" alt="ING" className="h-5 object-contain" />
                 </div>
-                <div className="flex-1 flex flex-col gap-2 min-h-0">
-                  <div className="border border-orange-200 bg-orange-50/30 rounded-lg p-2.5 flex flex-col overflow-hidden" style={{flex: "0 0 28%"}}>
-                    <p className="font-bold text-orange-900 text-[9px] uppercase tracking-wider mb-1 flex-shrink-0">
+
+                {/* Bottom: Two Narrative Cards side by side */}
+                <div className="flex-1 grid grid-cols-2 gap-3 px-5 pb-4 pt-2 min-h-0">
+                  <div className="border border-orange-200 bg-orange-50/30 rounded-lg p-3 flex flex-col overflow-hidden">
+                    <p className="font-bold text-orange-900 text-[10px] uppercase tracking-wider mb-1.5 flex-shrink-0">
                       🎯 Catalyst Rationale (Why Now)
                     </p>
-                    <p className="text-gray-800 text-[9px] leading-snug overflow-y-auto">
+                    <p className="text-gray-800 text-[10px] leading-relaxed overflow-y-auto">
                       {deckOverrides.why_now || opp.why_now || "—"}
                     </p>
                   </div>
-                  <div className="border border-blue-200 bg-blue-50/30 rounded-lg p-2.5 flex flex-col overflow-hidden" style={{flex: "0 0 33%"}}>
-                    <p className="font-bold text-[#000066] text-[9px] uppercase tracking-wider mb-1 flex-shrink-0">
+                  <div className="border border-blue-200 bg-blue-50/30 rounded-lg p-3 flex flex-col overflow-hidden">
+                    <p className="font-bold text-[#000066] text-[10px] uppercase tracking-wider mb-1.5 flex-shrink-0">
                       💼 Proposed Execution & Structuring
                     </p>
-                    <p className="text-gray-800 text-[9px] leading-snug overflow-y-auto">
+                    <p className="text-gray-800 text-[10px] leading-relaxed overflow-y-auto">
                       {deckOverrides.action || opp.action || "—"}
-                    </p>
-                  </div>
-                  <div className="border border-emerald-200 bg-emerald-50/30 rounded-lg p-2.5 flex flex-col overflow-hidden" style={{flex: "0 0 33%"}}>
-                    <p className="font-bold text-emerald-900 text-[9px] uppercase tracking-wider mb-1 flex-shrink-0">
-                      🧭 Adjacent Opportunities
-                    </p>
-                    <p className="text-gray-800 text-[9px] leading-snug overflow-y-auto">
-                      {opp.adjacent_opportunities || "Additional origination angles will appear here once the mandate synthesis identifies any."}
                     </p>
                   </div>
                 </div>

@@ -875,7 +875,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     hero_panel.line.fill.background()
 
     # Left Hero Text Box - Title
-    tb_lh = s3.shapes.add_textbox(Inches(0.4), Inches(0.55), Inches(2.3), Inches(1.0))
+    tb_lh = s3.shapes.add_textbox(Inches(0.4), Inches(1.1), Inches(2.3), Inches(1.0))
     tf_lh = tb_lh.text_frame
     tf_lh.word_wrap = True
     p = tf_lh.paragraphs[0]
@@ -885,7 +885,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     p.font.color.rgb = ING_WHITE
 
     # White Horizontal Divider Line
-    div_w = s3.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.4), Inches(1.42), Inches(0.8), Inches(0.025))
+    div_w = s3.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.4), Inches(1.95), Inches(0.8), Inches(0.025))
     div_w.fill.solid()
     div_w.fill.fore_color.rgb = ING_WHITE
     div_w.line.fill.background()
@@ -899,7 +899,7 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     }
     s3_subheading = subheading_map.get(p_fam, "Proactive Capital Structuring")
 
-    tb_sub = s3.shapes.add_textbox(Inches(0.4), Inches(1.55), Inches(2.3), Inches(4.4))
+    tb_sub = s3.shapes.add_textbox(Inches(0.4), Inches(2.15), Inches(2.3), Inches(4.4))
     tf_sub = tb_sub.text_frame
     tf_sub.word_wrap = True
     
@@ -916,59 +916,59 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     p.space_before = Pt(8)
 
 
-    # 2. Four Numbered Pillars — relocated to the left orange panel
+    # 2. Right Side Numbered Pillars (1, 2, 3, 4)
     pillars = get_product_pillars(p_fam, ctx, ov)
     for idx, (p_num, p_head, p_body) in enumerate(pillars):
-        y_pos = Inches(3.55 + (idx * 1.0))
+        y_pos = Inches(1.1 + (idx * 0.85))
         
-        # Circle badge — now inside orange panel
-        c_shp = s3.shapes.add_shape(MSO_SHAPE.OVAL, Inches(0.3), y_pos, Inches(0.36), Inches(0.36))
+        # Circle badge
+        c_shp = s3.shapes.add_shape(MSO_SHAPE.OVAL, Inches(3.4), y_pos, Inches(0.42), Inches(0.42))
         c_shp.fill.solid()
-        c_shp.fill.fore_color.rgb = ING_WHITE
+        c_shp.fill.fore_color.rgb = ING_ORANGE
         c_shp.line.fill.background()
         
-        # Centered orange number inside white circle
+        # Centered white number inside circle
         tf_c = c_shp.text_frame
         tf_c.margin_left = Inches(0)
         tf_c.margin_right = Inches(0)
-        tf_c.margin_top = Inches(0.02)
+        tf_c.margin_top = Inches(0.04)
         tf_c.margin_bottom = Inches(0)
         p_c = tf_c.paragraphs[0]
         p_c.text = str(p_num)
         p_c.font.bold = True
-        p_c.font.size = Pt(11)
-        p_c.font.color.rgb = ING_ORANGE
+        p_c.font.size = Pt(12)
+        p_c.font.color.rgb = ING_WHITE
         p_c.alignment = PP_ALIGN.CENTER
 
-        # Pillar Title & Description Text Box — inside orange panel
-        tb_p = s3.shapes.add_textbox(Inches(0.78), y_pos - Inches(0.05), Inches(2.05), Inches(0.95))
+        # Pillar Title & Description Text Box
+        tb_p = s3.shapes.add_textbox(Inches(4.0), y_pos - Inches(0.05), Inches(8.9), Inches(0.85))
         tf_p = tb_p.text_frame
         tf_p.word_wrap = True
         
         p_h = tf_p.paragraphs[0]
         p_h.text = p_head
         p_h.font.bold = True
-        p_h.font.size = Pt(9.5)
-        p_h.font.color.rgb = ING_WHITE
+        p_h.font.size = Pt(12.5)
+        p_h.font.color.rgb = ING_ORANGE
 
         p_b = tf_p.add_paragraph()
         p_b.text = p_body
-        p_b.font.size = Pt(8)
-        p_b.font.color.rgb = RGBColor(255, 235, 220)
-        p_b.space_before = Pt(2)
+        p_b.font.size = Pt(10)
+        p_b.font.color.rgb = RGBColor(75, 85, 99)
+        p_b.space_before = Pt(3)
 
     # 3. Two Narrative Cards (from Mandate UI section)
     s3_why_now = ov.get("why_now") or ctx.get("why_now_nlg") or "\u2014"
     s3_action = ov.get("action") or ctx.get("next_best_action") or "\u2014"
 
-    # Card 1 - Catalyst Rationale (full width, stacked)
-    card1 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(3.2), Inches(0.85), Inches(9.8), Inches(1.65))
+    # Card 1 - Catalyst Rationale
+    card1 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(3.4), Inches(4.65), Inches(4.75), Inches(2.55))
     card1.fill.solid()
     card1.fill.fore_color.rgb = RGBColor(255, 247, 237)
     card1.line.color.rgb = RGBColor(254, 215, 170)
     card1.line.width = Pt(1)
 
-    tb_c1 = s3.shapes.add_textbox(Inches(3.35), Inches(0.95), Inches(9.5), Inches(1.45))
+    tb_c1 = s3.shapes.add_textbox(Inches(3.55), Inches(4.75), Inches(4.45), Inches(2.35))
     tf_c1 = tb_c1.text_frame
     tf_c1.word_wrap = True
     p_c1 = tf_c1.paragraphs[0]
@@ -982,14 +982,14 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     p_c1_b.font.color.rgb = RGBColor(55, 65, 81)
     p_c1_b.space_before = Pt(4)
 
-    # Card 2 - Proposed Execution & Structuring (full width, stacked)
-    card2 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(3.2), Inches(2.65), Inches(9.8), Inches(2.15))
+    # Card 2 - Proposed Execution & Structuring
+    card2 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.35), Inches(4.65), Inches(4.55), Inches(2.55))
     card2.fill.solid()
     card2.fill.fore_color.rgb = RGBColor(239, 246, 255)
     card2.line.color.rgb = RGBColor(191, 219, 254)
     card2.line.width = Pt(1)
 
-    tb_c2 = s3.shapes.add_textbox(Inches(3.35), Inches(2.75), Inches(9.5), Inches(1.95))
+    tb_c2 = s3.shapes.add_textbox(Inches(8.50), Inches(4.75), Inches(4.25), Inches(2.35))
     tf_c2 = tb_c2.text_frame
     tf_c2.word_wrap = True
     p_c2 = tf_c2.paragraphs[0]
@@ -1002,28 +1002,6 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     p_c2_b.font.size = Pt(9)
     p_c2_b.font.color.rgb = RGBColor(55, 65, 81)
     p_c2_b.space_before = Pt(4)
-
-    # Card 3 - Adjacent Opportunities (new, full width, stacked)
-    _adj_text = adjacent_opportunities_text or "Additional origination angles will appear here once the mandate synthesis identifies any."
-    card3 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(3.2), Inches(4.95), Inches(9.8), Inches(2.15))
-    card3.fill.solid()
-    card3.fill.fore_color.rgb = RGBColor(236, 253, 245)
-    card3.line.color.rgb = RGBColor(167, 243, 208)
-    card3.line.width = Pt(1)
-
-    tb_c3 = s3.shapes.add_textbox(Inches(3.35), Inches(5.05), Inches(9.5), Inches(1.95))
-    tf_c3 = tb_c3.text_frame
-    tf_c3.word_wrap = True
-    p_c3 = tf_c3.paragraphs[0]
-    p_c3.text = "\U0001F9ED ADJACENT OPPORTUNITIES"
-    p_c3.font.bold = True
-    p_c3.font.size = Pt(10)
-    p_c3.font.color.rgb = RGBColor(6, 95, 70)
-    p_c3_b = tf_c3.add_paragraph()
-    p_c3_b.text = _adj_text
-    p_c3_b.font.size = Pt(9)
-    p_c3_b.font.color.rgb = RGBColor(55, 65, 81)
-    p_c3_b.space_before = Pt(4)
 
             # =========================================================================
     # SLIDE 4: BALANCE SHEET (Exact Database & Preview Parity)

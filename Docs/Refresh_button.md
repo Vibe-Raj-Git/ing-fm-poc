@@ -1,8 +1,11 @@
 # Refresh Button Behavior
 
-**Version:** 15 September 2026
+**Version:** 20 September 2026 — Baseline (Flavor 1)
+**Flavor:** Baseline (Flavor 1)
 **Status:** Authoritative
-**Supersedes:** Previous `Refresh_button.md`
+**Audience:** Engineers, Business Analysts
+
+The refresh button and its three endpoints are identical on Flavor 2 (Weighted-Family + Adjacencies). The only difference on Flavor 2 is that `/api/opportunities` returns two additional fields (`family`, `adjacent_opportunities`) — a refresh that triggers synthesis picks up both.
 
 ---
 
@@ -110,17 +113,22 @@ LIMIT 40;
 
 ### 2.3 `GET /api/metrics`
 
-**Tables read:** `ca.ca_opportunity_scoring`, `ca.client_master`.
+**Tables read:** `ca.digital_twin_signals`, `ca.ca_opportunity_scoring`, `ca.client_master`.
 
-**Note:** the doc's earlier claim that this endpoint reads `ca.digital_twin_signals` is incorrect. It reads only the two tables above.
+**What it returns — the four "This Week" tiles (rewritten 20 Sep, commit `f9f8eeb`):**
 
-**What it returns:**
+| Tile | Backend key | Query | Scope |
+|---|---|---|---|
+| Clients with signals | `clients_with_signals` | `COUNT(DISTINCT client_id)` in `ca.digital_twin_signals` | Whitelist-scoped |
+| Active signals | `active_signals` | `COUNT(*)` in `ca.digital_twin_signals` (all-time); change line shows the 7-day count | Whitelist-scoped |
+| High-priority clients | `high_priority_clients` | `COUNT(DISTINCT client_id)` in `ca.ca_opportunity_scoring` WHERE `priority_score >= 85` | Whitelist-scoped |
+| Clients in database | `clients_in_database` | `COUNT(*)` in `ca.client_master` | Full book (not whitelist-scoped) |
 
-- Active drafts count
-- Average time to first draft (static display value)
-- Deals pending review count (`priority_score >= 85`)
-- Cohort matches count (`ca.client_master` row count)
-- Priorities list (top 4 by score, sorted descending)
+**Response shape per tile:** `{"value": "<count>", "change": "<trend line>", "label": "<human-readable label>"}`. Fallbacks are `"0"`.
+
+**Plus:** the `priorities` list — top 4 by score, sorted descending, with the whitelist guarantee (any whitelisted client not already present is appended).
+
+**What was removed:** the prior "Avg. time to first draft" tile was hardcoded (`< 15s / ▼ 99% vs manual`) with no underlying measurement. It was removed in `f9f8eeb` because the platform does not record draft generation — the metric was uncomputable without a schema change. Its replacement is the "Active signals" tile. The prior "Active drafts", "Deals pending review", and "Cohort matches" tiles were also fabricated — they all rendered a frontend render count. They were relabeled to "Clients with signals", "High-priority clients", and "Clients in database" respectively.
 
 ---
 
@@ -195,7 +203,7 @@ The browser tab stays on the same URL. No browser cache is cleared.
 |---|---|
 | Warm container, warm cache | ~1s |
 | Warm container, cold cache (first synthesis) | ~5-6s |
-| Cold container (rare, requires `min-instances=0`) | ~12s+ |
+| Cold container | Not reachable — Cloud Run is configured with `min-instances=1` |
 
 **Why warm is ~1s:** the `/api/opportunities` endpoint runs the mandate synthesis only on
 cache miss. On cache hit, it returns DB values directly. The other two endpoints
@@ -270,9 +278,26 @@ normally. If the error persists, the error state remains visible.
 
 ---
 
-## 7. Changelog — 15 Sep 2026
+## 7. Changelog — 20 Sep 2026 (Flavor 1 — Baseline)
 
-Corrected from the previous version:
+Additions since the 15 Sep version. Reflects the 18–20 Sep session.
+
+### Corrected (this version)
+
+- **§2.3 rewritten.** The four "This Week" tiles were replaced in commit `f9f8eeb`. The prior tiles (`Active drafts`, `Avg. time to first draft`, `Deals pending review`, `Cohort matches`) were fabricated. New tiles: `Clients with signals`, `Active signals`, `High-priority clients`, `Clients in database`. Table list updated to include `ca.digital_twin_signals`.
+- **§5 cold-container note.** Cloud Run is configured `min-instances=1` — the cold path is not reachable.
+- **Header updated.** Flavor identification and audience added. Note added that the refresh behavior is identical on Flavor 2.
+
+### Corrected in the 15 Sep version (preserved)
+
+- Signal count corrected — SQL fetches up to 40, Python slices to 12 unique signals.
+- Table count corrected — `/api/opportunities` reads 9 tables.
+- `/api/metrics` sources corrected.
+- Timing claim corrected — ~1s warm, ~5-6s cold (with `min-instances=1`).
+- UI description corrected — no filters or tabs in the current React UI.
+- §4 "What The Button Does Not Do" added.
+- §5 Performance Characteristics added.
+- §6 expanded — two buttons call `fetchDashboardData()`.
 
 - **Signal count corrected.** "Latest 15 live signals" → SQL fetches up to 40, Python slices
   to 12 unique signals.

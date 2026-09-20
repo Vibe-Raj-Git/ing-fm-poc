@@ -625,7 +625,7 @@ COPY main.py pitchbook_builder.py baseline_snapshots.json ./
 
 Without this line, the endpoint would return `"baseline_snapshots.json not found"` on Cloud Run.
 
-**`ca.ext_company_filings` is not currently in the snapshot.** Row-level cleanups to that table (e.g. the 20 Sep BASF NULL-row deletion, §11.9) are therefore **durable across reset**. If a future version of the snapshot includes the table, this behavior changes.
+**`ca.ext_company_filings` is included in the snapshot.** Row-level cleanups to that table (e.g. the 20 Sep BASF NULL-row deletion, §11.9) are overwritten by a reset — the snapshot holds whatever state existed when `dump_baseline.py` was last run. After cleaning filings rows, re-run `dump_baseline.py` and commit the new snapshot so the clean state becomes the new pristine baseline.
 
 ### 8.3 The reset endpoint
 
@@ -675,7 +675,7 @@ Without this line, the endpoint would return `"baseline_snapshots.json not found
 - **Does not modify user-ingested rows.** No UPDATE touches rows the user created.
 - **Does not touch global tables.** `ca.mkt_rates_curves` and `ca.ext_credit_spreads` are not client-scoped and are not reset. They cannot be modified by ingestion, so they remain pristine by default.
 - **Does not touch non-whitelisted clients.** Only the client IDs in the request body are reset.
-- **Does not touch `ca.ext_company_filings`.** Not in the snapshot (see §8.2).
+- **Touches ca.ext_company_filings.** Included in the snapshot (see §8.2). A reset restores the snapshot's filing rows for the client.
 
 ### 8.5 The `chunk_id` tiebreak convention
 
@@ -879,7 +879,7 @@ Observed in the 19 Sep review: BASF's generated deck showed `€68,900M` revenue
 
 **Root cause:** the ingestion pipeline writes duplicate rows to `ca.ext_company_filings` instead of upserting. Fixing the pipeline is a backlog item — until fixed, the pattern can recur.
 
-**Durability:** `ca.ext_company_filings` is **not** in `baseline_snapshots.json`, so the cleanup survives a reset (§8.2).
+**Durability:** `ca.ext_company_filings` is included in `baseline_snapshots.json`. Row-level cleanups to this table are overwritten by a reset — the snapshot holds whatever state existed when `dump_baseline.py` was last run. The 20 Sep cleanup was captured by re-dumping the snapshot (commit d5e33f1). After any future cleanup, re-run `dump_baseline.py` and commit.
 
 ---
 
@@ -914,8 +914,9 @@ Changes since the 17 Sep 2026 version. Corrections reflect the 19-20 Sep session
 - **§4.1 `ca.debt_maturity_schedule`** — noted it feeds slide 5/10 tranche ladder.
 - **§4.3** — whitelist state updated (two clients), Enel-primary framing.
 - **§5.1** — added canonical-vs-legacy channel guidance for webhook integrations.
-- **§8.2 and §8.4** — noted `ca.ext_company_filings` is not in the snapshot; cleanups durable across reset.
+- **§8.2 and §8.4 (17 Sep change)** — the 17 Sep version stated `ca.ext_company_filings` was not in the snapshot and cleanups were durable across reset. This was corrected on 20 Sep (see the next entry).
 - **§9** — added 20 Sep update on the Copilot's `db_wall_str` and rating sources.
+- **§8.2, §8.4, §11.9 corrected (20 Sep, second pass).** The prior version stated `ca.ext_company_filings` was not in `baseline_snapshots.json` and that cleanups to it were durable across reset. Both statements were wrong — the table is in the snapshot, and the snapshot was re-dumped after the BASF NULL-row cleanup to capture the corrected state (`commit d5e33f1`).
 
 ### Added
 

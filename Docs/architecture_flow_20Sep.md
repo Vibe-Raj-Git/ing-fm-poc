@@ -863,8 +863,7 @@ historical record.
 
 - **`ca.ext_company_filings` BASF rows** — 4 NULL-revenue duplicate rows deleted (5 → 1).
   The multi-row pattern was causing the deck to read NULL for revenue/EBITDA, silently
-  falling through to `client_master` values. Table is not in `baseline_snapshots.json`, so
-  the cleanup is durable across reset.
+  falling through to `client_master` values. Table is in `baseline_snapshots.json`; the cleanup is durable only if the snapshot is re-dumped afterward (see commit d5e33f1).
 
 ### Documentation
 

@@ -457,7 +457,7 @@ Both must stay in sync. Adding a new demo client requires adding its rating to b
 - PK-bearing tables: `ON CONFLICT DO UPDATE`
 - PK-less tables (`debt_maturity_schedule`, `coverage_teams`): delete-by-client then insert
 
-**Note:** `baseline_snapshots.json` does not currently include `ca.ext_company_filings`. Row-level cleanups to that table (e.g. the 20 Sep BASF NULL-row deletion) are durable across reset.
+**Note:** `baseline_snapshots.json` does include `ca.ext_company_filings`. Row-level cleanups to that table (e.g. the 20 Sep BASF NULL-row deletion) are overwritten by a reset unless the snapshot is re-dumped afterward. After any cleanup, run `python3 dump_baseline.py` and commit the new snapshot. The 20 Sep cleanup was captured by a subsequent re-dump (commit d5e33f1).
 
 Full detail in `Data_or_Fabrication.md` §8.
 
@@ -527,7 +527,7 @@ Reads that pick "the latest row" via `ORDER BY reporting_period DESC LIMIT 1` ca
 
 **Root cause:** the ingestion pipeline writes duplicate rows to `ca.ext_company_filings` instead of upserting. Fixing the pipeline is a backlog item — until it's fixed, the same pattern can recur.
 
-**Note:** `ca.ext_company_filings` is not in `baseline_snapshots.json`, so row-level cleanups to this table are durable across reset.
+**Note:** `ca.ext_company_filings` is included in `baseline_snapshots.json`. Row-level cleanups to this table are overwritten by a reset unless the snapshot is re-dumped afterward. After cleaning filings rows, run `python3 dump_baseline.py` and commit the new `baseline_snapshots.json`. The 20 Sep BASF cleanup was captured by a subsequent re-dump (`commit d5e33f1`).
 
 ---
 

@@ -168,6 +168,16 @@ Recommending a product the client is not eligible for, or that exceeds their cre
 is a commercial and compliance failure. Deterministic pre-checks in code prevent this. The
 LLM prompt alone cannot.
 
+**The family classifier is a second, subtler case of the same principle.** A narrative
+that mentions "greenium" and "green tranche" alongside "EMTN" and "IRS pre-hedge" gives a
+naive keyword classifier two conflicting signals — is the deal Green/ESG or DCM/Rates? The
+LLM reads the full narrative and proposes a family; the weighted vocabulary
+(`_FAMILY_KEYWORD_WEIGHTS`) enforces the taxonomy hierarchy — what's the *product*, not
+what's the *feature* or *purpose*. Without the deterministic validation, the LLM's proposal
+could vary run to run; with it, the demo client's classification is deterministic while
+other clients still benefit from the LLM's reasoning. This is the hybrid pattern applied to
+classification.
+
 ---
 
 ## 5. The Current Hybrid Realization
@@ -178,9 +188,11 @@ The current architecture implements the hybrid model as follows:
 |---|---|---|
 | Ingestion | Extract `detected_signals[]` from source text | Persist signals, dedup by `(client_id, trigger_summary)` |
 | Scoring | Return `priority_score` from synthesis with a weighted rubric (signal strength 40% / balance-sheet pressure 30% / market window 30%) | Threshold classification (`≥85 → High`), write-back to `ca_opportunity_scoring`, cache populated only after commit |
+| Family classification | Propose the product family (`family` synthesis key: `FX_HEDGE` / `GREEN_ESG` / `RATES_HEDGE` / `DCM_REFI`) based on the anchor's primary product | Validate the proposal against the weighted anchor score (`_FAMILY_KEYWORD_WEIGHTS`); decisive override at score ≥ 5 and margin ≥ 3; narrative keyword fallback |
+| Adjacent opportunities | Write the 80–140 word cross-sell paragraph grounded in the signal corpus | Enforce the prompt rules (no invention, no repetition of the primary, max 3 angles); render the paragraph on Slide 3; expose it to the Copilot |
 | Synthesis | Produce `why_now` and `action`, anchored to the DB row | Drift guard, TTL cache, whitelist scoping, DB write-back |
-| Pitchbook | None | Template rendering, product-family branching, 1:1 PPTX parity |
-| Copilot | Natural-language reasoning over hydrated slides | Prompt structure, JSON contract, state mutation reducer |
+| Pitchbook | None | Template rendering, product-family branching (using the validated family), 1:1 PPTX parity |
+| Copilot | Natural-language reasoning over hydrated slides | Prompt structure, JSON contract, state mutation reducer; conditional fourth response section (Adjacent Opportunities) |
 | Compliance | Full-deck audit against MiFID II / MAR / EuGB | Alias endpoints, remediation path |
 
 Each row splits the work between probabilistic (LLM) and deterministic (code) capabilities.
@@ -281,6 +293,11 @@ formula.
 4. **Normalise the `signal_type` enum at ingestion.** Currently free text. A canonical set
    would allow catalog-driven mapping rather than keyword matching.
 
+4a. **Refine `_FAMILY_KEYWORD_WEIGHTS` statistically.** The weights are currently hand-curated
+    from the ING product taxonomy. As the platform accumulates classified anchors, the
+    weights could be learned or tuned against observed outcomes — an evidence-based version
+    of the current expert system. Backlog, not blocking.
+
 5. **Persist the synthesis cache in a shared store.** Currently in-memory, which requires
    `max-instances=1`. Moving to Redis or a DB-backed cache allows horizontal scaling.
 
@@ -320,13 +337,37 @@ unchanged — hybrid over LLM-only.
 - Item 1 reframed. The current state is a "structured LLM estimate with a weighted rubric,"
   an intermediate between the prior unfixed estimate and a fully deterministic formula.
 
+### Flavor 2 additions (20 Sep 2026, commit `1a04960`)
+
+The two new features reinforce the hybrid decision with two more instances of the same
+pattern — LLM proposes, code validates:
+
+- **Product family classification.** The LLM proposes a family as a synthesis key. The
+  weighted vocabulary `_FAMILY_KEYWORD_WEIGHTS` validates the proposal against the anchor.
+  Decisive override at score ≥ 5 and margin ≥ 3; otherwise the LLM is trusted. This is the
+  hybrid pattern applied to a classification task — the LLM's semantic reasoning plus the
+  code's deterministic taxonomy.
+- **Adjacent opportunities.** The LLM writes the cross-sell paragraph. The prompt enforces
+  the grounding rules — each adjacency must cite a specific signal, no repetition of the
+  primary, no marketing language. Code renders the paragraph on Slide 3 and exposes it to
+  the Copilot. The LLM produces prose; the constraints around it are deterministic.
+
+Neither changes the decision (§8). Both strengthen the case for hybrid: the LLM is trusted
+for the parts it's good at (semantic reasoning, narrative drafting), and code governs the
+parts it's good at (taxonomy enforcement, drift prevention, cross-consistency).
+
 ### Related session work
 
+- `1a04960` — Flavor 2 feature: product family classification + adjacent opportunities +
+  Slide 3 rework + Copilot additions.
 - `13721ca` — LLM-computed priority_score with weighted rubric + whitelist guarantee.
 - `9cfeb42` — cache populated only after successful DB persist.
 - `f9f8eeb` — display consistency fixes across card, preview, generated deck, and Copilot.
 - `master_persona_20Sep.md` §7.8, §7.9, §8.1, §13 — full detail on the cache/DB invariant,
   the credit rating dict, and the session changelog.
+- `Docs/WeightedFamily/master_persona_20Sep_WeightedFamily.md` §2.1, §7.11, §8.7, §13 —
+  Flavor 2 documentation including the family weights sync invariant and the taxonomy as a
+  curated expert system.
 
 ---
 

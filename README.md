@@ -36,7 +36,7 @@ Full Documentation
 The Docs/ folder holds the complete architecture and operations reference. Key documents:
 
 Document	Purpose
-Docs/master_persona_18Sep.md	Context and persona for AI-assisted sessions (current)
+Docs/master_persona_20Sep.md	Context and persona for AI-assisted sessions (current)
 Docs/architecture_flow_14Sep.md	Complete architecture reference
 Docs/Data_or_Fabrication.md	Zero-fabrication principle and the reset-to-pristine mechanism
 Docs/data_population.md	Field-by-field lineage of every UI element
@@ -151,9 +151,9 @@ main.py — _DEMO_CLIENT_IDS
 
 frontend/src/App.jsx — ACTIVE_UI_CLIENT_IDS
 
-These must remain in sync. The backend list controls LLM synthesis; the frontend list controls rendering. See Docs/master_persona_18Sep.md §6 for the full rule.
+These must remain in sync. The backend list controls LLM synthesis; the frontend list controls rendering. See Docs/master_persona_20Sep.md §6 for the full rule.
 
-Credit rating display. Credit ratings are curated in a single dict per file (_CREDIT_RATINGS) in both main.py and pitchbook_builder.py. There is no credit_rating column on ca.client_master (§7.2 forbids DDL). Adding a new demo client requires adding its rating to both dicts. See Docs/master_persona_18Sep.md §8.1.
+Credit rating display. Credit ratings are curated in a single dict per file (_CREDIT_RATINGS) in both main.py and pitchbook_builder.py. There is no credit_rating column on ca.client_master (§7.2 forbids DDL). Adding a new demo client requires adding its rating to both dicts. See Docs/master_persona_20Sep.md §8.1.
 
 Branching Convention
 Branch	Purpose

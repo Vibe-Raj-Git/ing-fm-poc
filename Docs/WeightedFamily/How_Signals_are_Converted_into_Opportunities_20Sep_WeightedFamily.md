@@ -1,9 +1,9 @@
 # How Signals Are Converted into Opportunities
 
-**Version:** 20 September 2026 — Baseline (Flavor 1)
-**Flavor:** Baseline (Flavor 1)
-**Parallel flavor:** Weighted-Family + Adjacencies (Flavor 2) at `Docs/WeightedFamily/How_Signals_are_Converted_into_Opportunities_20Sep_WeightedFamily.md`
-**Branch:** `feat/dulcet-reset-pristine-semantic-dedup-all-UI-RM-HV-Slide2_LLM_Summary_Slide3_WhyNow_Action_17-Sep`
+**Version:** 20 September 2026 — Weighted-Family + Adjacencies
+**Flavor:** Weighted-Family + Adjacencies (Flavor 2)
+**Parallel flavor:** Baseline (Flavor 1) at `Docs/How_Signals_are_Converted_into_Opportunities.md`
+**Branch:** `feat/dulcet-20Sep-demo-Weighted-LLMProductFamilyIdentification-AdjOppS3`
 **Audience:** Engineers, Business Analysts
 
 ---
@@ -73,12 +73,12 @@ This is a **hybrid pipeline**: an LLM does semantic extraction and narrative syn
 │ 3. On cache miss: │
 │ a. Fetch the 20 most recent signals for the client │
 │ b. Call synthesize_mandate_catalyst() with the anchor first │
-│ c. Receive JSON with five keys: │
-│ {"why_now", "action", "why_now_summary", "action_summary", │
-│ "priority_score"} │
-│ d. Drift guard: replace with anchor verbatim on tenor conflict │
-│ e. UPDATE ca.ca_opportunity_scoring.priority_score │
-│ f. Populate the cache ONLY after the DB commit succeeds │
+│ c. Receive JSON with seven keys:                                       │
+│      {"why_now", "action", "why_now_summary", "action_summary",          │
+│      "priority_score", "family", "adjacent_opportunities"}              │
+│ d. Drift guard: replace with anchor verbatim on tenor conflict         │
+│ e. UPDATE ca.ca_opportunity_scoring.priority_score                     │
+│ f. Populate the cache ONLY after the DB commit succeeds                │
 └──────────────────────────────────────────────────────────────────────────────┘
                                             │
                                             ▼
@@ -158,7 +158,7 @@ These two fields together are **the anchor**.
 ```python
 _MANDATE_SYNTH_CACHE = {}
 _MANDATE_SYNTH_CACHE_TTL = 300  # seconds
-Cache key is client_id. Entry value is a 6-tuple: (expiry_epoch, why_now, action, why_now_summary, action_summary, priority_score). Cache hit returns the stored values without an LLM call.
+Cache key is `client_id`. Entry value is an **8-tuple**: `(expiry_epoch, why_now, action, why_now_summary, action_summary, priority_score, family, adjacent_opportunities)`. Cache hit returns the stored values without an LLM call.
 
 Cache/DB consistency invariant (18 Sep, commit 9cfeb42): the cache is populated only after conn.commit() succeeds. On persist failure, the entry is popped. This prevents the failure mode where the UI served a cached value the DB did not hold.
 
@@ -185,7 +185,7 @@ Grounded input signals (balance sheet, market data, context, news)
 
 Accumulated signals
 
-Instructions to return five keys: why_now, action, why_now_summary, action_summary, priority_score
+   - Instructions to return **seven keys**: `why_now`, `action`, `why_now_summary`, `action_summary`, `priority_score`, `family`, `adjacent_opportunities`
 
 Call gemini-2.5-flash at temperature=0.0
 
@@ -211,6 +211,48 @@ WHERE client_id = %s
 What is not written: why_now_nlg and next_best_action are curated fields and are not overwritten by the LLM. The prompt treats them as fixed inputs; the write-back intentionally excludes them. Rationale: if synthesis rewrote the anchor on every cache miss, the prompt would drift on each run — and temperature=0.0 could not guarantee a stable score, because the input would not be stable.
 
 The priority_score write-back happens inside a try block; the cache entry is populated only after conn.commit() succeeds. On persist failure, the cache entry is popped.
+
+### 5.6 Product family classification
+
+The synthesis LLM returns `family` as one of the seven keys — `FX_HEDGE`, `GREEN_ESG`, `RATES_HEDGE`, or `DCM_REFI`. The prompt instructs the LLM to base the classification on the anchor's `next_best_action`, choose the dominant product (not purpose or feature), and apply a notional tiebreaker.
+
+**Validation.** `detect_product_family(ctx)` in `pitchbook_builder.py` validates the LLM's proposal against a weighted anchor score:
+
+1. Score `why_now_nlg + " " + next_best_action` against `_FAMILY_KEYWORD_WEIGHTS` — strong product signals weight 5 (`green bond`, `slb`, `emtn`, `irs pre-hedge`, `fx collar`); weak context words weight 1–2 (`refinancing`, `maturity wall`, `dual-tranche`, `senior unsecured`).
+2. If the top family's weighted score is **≥ 5 with a margin ≥ 3** over the runner-up → the weights **override** the LLM. Deterministic.
+3. Otherwise → trust the LLM's proposal.
+4. If both are silent → narrative keyword fallback.
+
+**Observed:**
+
+| Client | Anchor score | Margin | Outcome |
+|---|---|---|---|
+| Enel (`CLI101`) | 15 GREEN_ESG vs 5 DCM_REFI | 10 | Decisive — guaranteed `GREEN_ESG` |
+| BASF (`CLI103`) | 8 DCM_REFI vs 5 RATES_HEDGE | 3 | At threshold — LLM decides |
+
+The `family` value is not persisted to the DB — no column exists on `ca.ca_opportunity_scoring`. It travels via the 8-tuple cache, the `/api/opportunities` response as `family`, and the pitchbook bundle. See `Data_or_Fabrication_20Sep_WeightedFamily.md` §6.8.
+
+### 5.7 Adjacent opportunities
+
+The synthesis LLM returns `adjacent_opportunities` as the seventh key — an 80–140 word business-English paragraph identifying up to 3 grounded cross-sell angles beyond the primary mandate.
+
+**Prompt rules:**
+
+- Each adjacency must cite a specific signal from the corpus.
+- No invention — empty string if no adjacencies are supported.
+- No repetition of the primary mandate.
+- Maximum 3 adjacencies, prioritised by notional or urgency.
+- No marketing language.
+
+**Lifecycle:**
+
+1. Produced by synthesis on a cache miss; stored at element 7 of the cache tuple.
+2. Exposed in `/api/opportunities` as `adjacent_opportunities`.
+3. Rendered on Slide 3 as the third card.
+4. Included in the Copilot `slide_3` payload.
+5. Read by `handle_pitchbook_generation` from `_MANDATE_SYNTH_CACHE[cid][7]` and set on the pitchbook bundle before `build_pitchbook`.
+
+**Non-determinism.** Like `priority_score`, the paragraph varies across runs. Multiple grounded variants have been observed for Enel, all citing rate, FX, and DCM angles in different phrasings. See `Data_or_Fabrication_20Sep_WeightedFamily.md` §6.9.
 
 6. The Three Scores on ca.ca_opportunity_scoring
 Column	Type	Current use
@@ -286,19 +328,14 @@ next_best_action: "We propose a €1.0bn dual-tranche senior unsecured issuance,
 7.4 Synthesis
 Since CLI101 is in _DEMO_CLIENT_IDS:
 
-Anchor is read from the DB row
-
-Cache is checked (miss on cold start)
-
-Signal corpus is fetched (20 most recent)
-
-Gemini is called with the anchor at the top of the prompt
-
-Response includes why_now, action, why_now_summary, action_summary, priority_score
-
-Drift guard runs (no conflict for Enel — the LLM respected the anchor)
-
-priority_score is written back to the DB; the cache is populated after commit
+1. Anchor is read from the DB row
+2. Cache is checked (miss on cold start)
+3. Signal corpus is fetched (20 most recent)
+4. Gemini is called with the anchor at the top of the prompt
+5. Response includes why_now, action, why_now_summary, action_summary, priority_score, family, adjacent_opportunities
+6. Drift guard runs (no conflict for Enel — the LLM respected the anchor)
+7. priority_score is written back to the DB; family and adjacent_opportunities are not persisted
+8. The cache is populated after commit
 
 7.5 Read
 The opportunity card displays:
@@ -313,11 +350,11 @@ Available Liquidity: €14.2bn
 
 Maturities within 24 months: €10.13bn
 
-Match confidence: High · 91–94 (from _effective_score)
-
-Catalyst Rationale (Why Now): the synthesized narrative
-
-Proposed Execution & Structuring: the synthesized narrative
+- **Match confidence:** High · 91–94 (from _effective_score)
+- **Catalyst Rationale (Why Now):** the synthesized narrative
+- **Proposed Execution & Structuring:** the synthesized narrative
+- **Family:** GREEN_ESG (drives the deck template)
+- **Adjacent Opportunities:** the grounded cross-sell paragraph (rendered on Slide 3)
 
 All values sourced from the DB or from LLM extraction grounded in DB content.
 

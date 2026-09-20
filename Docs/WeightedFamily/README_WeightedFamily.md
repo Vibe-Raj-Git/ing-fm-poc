@@ -91,3 +91,15 @@ f76bdc0	Flavor 1 HEAD — the branch point
 f9f8eeb, 13721ca, 9cfeb42	Common commits from the 18–20 Sep session
 
 End of document.
+
+## What Changed
+
+| # | Fix |
+|---|---|
+| 1 | `## Related Commits` — added the `##` heading marker |
+| 2 | Related Commits table — restored pipe-delimited markdown table format |
+| 3 | Verification #1 — restored the ` ```bash ` fence around the curl block |
+| 4 | Verification #1 — separated the "Expected output:" line into its own code block |
+| 5 | Verification #2 — restored bullet markers for the two list items |
+| 6 | Verification #3 — restored italic formatting on the Copilot question and bullet list for the checks |
+| 7 | End of document — wrapped in `---` separators and italic markers |

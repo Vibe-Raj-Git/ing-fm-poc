@@ -1,9 +1,9 @@
 # System Architecture & Data Contract Guardrail: Zero-Hardcoding Pipeline
 
-**Version:** 20 September 2026 — Baseline (Flavor 1)
-**Flavor:** Baseline (Flavor 1)
-**Parallel flavor:** Weighted-Family + Adjacencies (Flavor 2) at `Docs/WeightedFamily/SYSTEM_ARCHITECTURE_&_DATA_CONTRACT_GUARDRAIL_20Sep_WeightedFamily.md`
-**Branch:** `feat/dulcet-reset-pristine-semantic-dedup-all-UI-RM-HV-Slide2_LLM_Summary_Slide3_WhyNow_Action_17-Sep`
+**Version:** 20 September 2026 — Weighted-Family + Adjacencies
+**Flavor:** Weighted-Family + Adjacencies (Flavor 2)
+**Parallel flavor:** Baseline (Flavor 1) at `Docs/SYSTEM_ARCHITECTURE_&_DATA_CONTRACT_GUARDRAIL.md`
+**Branch:** `feat/dulcet-20Sep-demo-Weighted-LLMProductFamilyIdentification-AdjOppS3`
 **Target Scope:** `App.jsx`, `main.py`, `pitchbook_builder.py`, `test_parity.py`
 
 **Core Directive:** Maintain 100% data-driven parity across the UI preview, the PPTX generation (`python-pptx`), and the Copilot LLM prompts. No hardcoded financial rates, no placeholder text, no synthetic fallbacks — with the documented exceptions listed in §5.
@@ -293,7 +293,7 @@ Runtime mutations from the RM or Copilot. Example: `{'credit_spread_5y': '60 bps
 
 ### Tier 2 — Canonical Database Context (`bundle` / `opp` / `calc` / `ctx`)
 
-Live values from `ca` tables via `fetch_pitchbook_bundle()` and `compute_canonical_bundle()`. Plus, for whitelisted clients, values from the synthesis cache (`_MANDATE_SYNTH_CACHE`, 6-tuple in Flavor 1) — specifically `why_now`, `action`, `why_now_summary`, `action_summary`, `priority_score`.
+Live values from `ca` tables via `fetch_pitchbook_bundle()` and `compute_canonical_bundle()`. Plus, for whitelisted clients, values from the synthesis cache (`_MANDATE_SYNTH_CACHE`, **8-tuple in Flavor 2**) — specifically `why_now`, `action`, `why_now_summary`, `action_summary`, `priority_score`, **`family`**, **`adjacent_opportunities`**.
 
 ### Tier 3 — Fail-Safe Non-Breaking Fallback
 
@@ -305,7 +305,7 @@ Strictly for type safety if a database field returns `None`. **Never embed stati
 
 ### Non-destructive invariance
 
-Copilot prompt mutations are session-only. **Never** run `UPDATE` or `INSERT` queries against `ca.ext_credit_spreads` or `ca.mkt_rates_curves` during chat or deck builds. The only permitted write-back is the mandate synthesis to `ca.ca_opportunity_scoring.priority_score` — and only the score, not the anchor narratives. See §5 for exceptions.
+Copilot prompt mutations are session-only. **Never** run `UPDATE` or `INSERT` queries against `ca.ext_credit_spreads` or `ca.mkt_rates_curves` during chat or deck builds. The only permitted write-back is the mandate synthesis to `ca.ca_opportunity_scoring.priority_score` — and only the score. The anchor narratives (`why_now_nlg`, `next_best_action`) are **protected from LLM overwrite**. `family` and `adjacent_opportunities` are not persisted to the DB (no columns exist). See §5 for exceptions.
 
 ### Cache/DB consistency invariant
 
@@ -393,37 +393,34 @@ Adding a client requires adding its rating to both dicts.
 
 **Currently dormant:** Enel's curated narrative is populated.
 
-### 5.7 — _FAMILY_KEYWORD_WEIGHTS (Flavor 2 only)
+### 5.7 — `_FAMILY_KEYWORD_WEIGHTS` (Flavor 2)
+
 **Location:** `main.py:89` (near `_CREDIT_RATINGS`), `pitchbook_builder.py:6`.
 
-**What it is:** a weighted vocabulary for product family classification. This is a taxonomy definition, not a per-client exception — it scales to new clients without modification. Listed here for completeness because it is a code-level constant that governs behavior.
+**What it is:** a weighted vocabulary for product family classification. **This is a taxonomy definition, not a per-client exception** — it scales to new clients without modification.
 
-See `master_persona_20Sep.md` §8.7 for the full rationale.
+**Sync invariant:** the two copies must remain byte-identical. See `master_persona_20Sep_WeightedFamily.md` §7.11.
 
-## 6. Changelog — 20 Sep 2026 (Flavor 1 — Baseline)
-Corrected (this version)
-§1 verified against live schema (21 Sep 2026). All 12 tables listed; the column dump for the 7 inspected tables is exact.
-§1 `ca.debt_maturity_schedule` PK corrected. The doc previously said isin was the PK — the table has no PK.
-§1 `ca.coverage_teams` PK absence noted.
-§2 slide 4 credit rating corrected. The rating is now sourced from `_CREDIT_RATINGS`, not a hardcoded string.
-§2 slide 4 maturity wall format updated. Reads `debt_maturing_24m_bn`, not `debt_maturing_24m_str`.
-§4 write-back claim corrected. The synthesis write-back writes only `priority_score`, not the anchor narratives. Anchor protection documented.
-§4 cache/DB consistency invariant added.
-§5 fully rewritten. Seven documented exceptions now listed (was two). Consolidated with persona §8.1–8.7.
-§7 cross-references updated — points at `architecture_flow_20Sep.md` and the current siblings.
+### 5.8 — `ensure_ascii=False` in Copilot serialization (Flavor 2)
 
-## Preserved from the 14 Sep version
-- 3-tier resolution hierarchy.
-- Slide-by-slide contract.
-- python-pptx cell-access rule.
-- String-escape rule.
-- 13-gate parity audit reference.
+**Location:** `main.py` `copilot_chat_endpoint`.
 
-## 7. Reference
-For the full 11-slide product-family mapping, see `architecture_flow_20Sep.md` §6.2.
-For the mandate synthesis anchor pattern, see `How_Signals_are_Converted_into_Opportunities.md` §5.
-For the scoring mechanism, see `Data_or_Fabrication.md` §6.
-For the full exception catalog, see `master_persona_20Sep.md` §8.
+**What it is:** the two `json.dumps` calls that serialize `baseline_deck_slides` and `active_deck_slides` into the Copilot prompt use `ensure_ascii=False`. This is a deliberate override of Python's default ASCII-safe serialization so that UTF-8 characters (notably `€`) reach the LLM as real characters rather than JSON escapes. Without it, the Copilot occasionally echoed `\u20ac` in replies for Slide 3.
+
+## 6. Changelog — 20 Sep 2026 (Flavor 2 — Weighted-Family + Adjacencies)
+
+Changes since the Flavor 1 (Baseline) version. Flavor 1 is documented separately at `Docs/SYSTEM_ARCHITECTURE_&_DATA_CONTRACT_GUARDRAIL.md`.
+
+### Added
+
+- **§3 Tier 2 updated** — cache is 8-tuple; the two new fields (`family`, `adjacent_opportunities`) travel through the cache.
+- **§4 write-back rule clarified** — `family` and `adjacent_opportunities` are not persisted to the DB.
+- **§5.7 expanded** — `_FAMILY_KEYWORD_WEIGHTS` sync invariant.
+- **§5.8 added** — `ensure_ascii=False` exception in Copilot serialization.
+
+### Common with Flavor 1
+
+Everything else: schema, slide contract, 3-tier resolution, parity audit, exceptions 5.1–5.6.
 
 ---
 

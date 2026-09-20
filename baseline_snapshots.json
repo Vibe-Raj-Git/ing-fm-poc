@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": "1.0",
-    "generated_at": "2026-09-18T19:44:39.091176Z",
+    "generated_at": "2026-09-20T07:00:25.750432Z",
     "client_count": 13,
     "note": "Complete snapshot of client-scoped and global tables. Client-scoped tables are keyed by client_id under 'clients'. Global tables are at top level and are NOT reset per-client."
   },
@@ -529,10 +529,10 @@
           "est_revenue_eur_000": 5500.0,
           "propensity_score": 90,
           "value_score": 95,
-          "priority_score": 94,
+          "priority_score": 93,
           "rank": 2,
           "next_best_action": "We propose a \u20ac1.0bn dual-tranche senior unsecured issuance, strategically leveraging Enel's \u20ac3.5bn green asset pool through a \u20ac600m 7Y Green bond priced at Mid-swap + 73 bps (net of -5 bps greenium), complemented by a \u20ac400m 10Y Sustainability-Linked Bond. To ensure an optimal funding mix and swift execution, we recommend an immediate meeting with Treasury to finalize the funding calendar and sustainable finance readiness.",
-          "why_now_nlg": "Enel faces a critical \u20ac10.13bn debt maturity wall in 2026-2027, necessitating proactive refinancing despite its robust \u20ac14.2bn liquidity buffer, particularly amidst rising interest rates. The current market, featuring a 5Y EUR swap rate of 2.62% and an indicative -5 bps greenium, offers a timely opportunity to optimize funding costs and leverage Enel's sustainable finance capabilities."
+          "why_now_nlg": "Enel faces a critical \u20ac10.13bn debt maturity wall in 2026-2027, necessitating proactive refinancing despite its robust \u20ac14.2bn liquidity buffer. The current market, featuring a 5Y EUR swap rate of 2.62% and an indicative -5 bps greenium, offers a timely opportunity to optimize funding costs and leverage Enel's sustainable finance capabilities."
         }
       ],
       "digital_twin_signals": [
@@ -1829,28 +1829,6 @@
       ],
       "ext_company_filings": [
         {
-          "filing_id": "FILING-CLI103-13327",
-          "client_id": "CLI103",
-          "reporting_period": "FY2024 / Q2 2026",
-          "net_debt_eur_m": 16200.0,
-          "liquidity_eur_m": 7800.0,
-          "ebitda_eur_m": null,
-          "reported_revenue_eur_m": null,
-          "debt_maturing_24m_eur_m": 3000.0,
-          "notes": "Pristine snapshot restoration"
-        },
-        {
-          "filing_id": "FILING-CLI103-50942",
-          "client_id": "CLI103",
-          "reporting_period": "FY2024 / Q2 2026",
-          "net_debt_eur_m": 16200.0,
-          "liquidity_eur_m": 7800.0,
-          "ebitda_eur_m": null,
-          "reported_revenue_eur_m": null,
-          "debt_maturing_24m_eur_m": 3000.0,
-          "notes": "Pristine snapshot restoration"
-        },
-        {
           "filing_id": "FIL-CLI103-11",
           "client_id": "CLI103",
           "reporting_period": "FY2024 / Q2 2026",
@@ -1860,28 +1838,6 @@
           "reported_revenue_eur_m": 65000.0,
           "debt_maturing_24m_eur_m": 3000.0,
           "notes": "Sourced from Company annual report (illustrative) (Annual Report 2024)"
-        },
-        {
-          "filing_id": "FILING-CLI103-7774",
-          "client_id": "CLI103",
-          "reporting_period": "FY2024 / Q2 2026",
-          "net_debt_eur_m": 16200.0,
-          "liquidity_eur_m": 7800.0,
-          "ebitda_eur_m": null,
-          "reported_revenue_eur_m": null,
-          "debt_maturing_24m_eur_m": 3000.0,
-          "notes": "Pristine snapshot"
-        },
-        {
-          "filing_id": "FILING-CLI103-7949",
-          "client_id": "CLI103",
-          "reporting_period": "FY2024 / Q2 2026",
-          "net_debt_eur_m": 16200.0,
-          "liquidity_eur_m": 7800.0,
-          "ebitda_eur_m": null,
-          "reported_revenue_eur_m": null,
-          "debt_maturing_24m_eur_m": 3000.0,
-          "notes": "Pristine snapshot restoration"
         }
       ],
       "ca_opportunity_scoring": [

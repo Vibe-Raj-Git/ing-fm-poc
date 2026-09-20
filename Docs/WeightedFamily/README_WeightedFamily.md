@@ -48,6 +48,7 @@ Data architecture, ingestion pipeline, database schema, reset-to-pristine mechan
 | `Different_Signals_Different_Products_20Sep_WeightedFamily.md` | How Flavor 2 classifies multi-signal clients. Dominant family + adjacency paragraph. Multi-card architecture noted as a future option. |
 | `End_to_end_Pitchbook_data_20Sep_WeightedFamily.md` | End-to-end data binding from the dashboard to the pitchbook. Corrected slide count (11), four real families, known exceptions, Flavor 2-specific additions. |
 | `Explain_Left_Client_Section_20Sep_WeightedFamily.md` | Section walkthrough of the Client Opportunity Card — the 2×2 grid, the Synthesized Mandate section, the Priority Today sidebar, the Action Bar, and the family classifier. Includes a 30-second executive pitch. |
+| `Signals,_Opportunities_&_Pitchbook_Lifecycle_20Sep_WeightedFamily.md` | End-to-end lifecycle: signal arrival → accumulation → discovery → ranking → preview → PPTX → compliance. Includes the Flavor 2 classification and adjacent-opportunities additions. |
 
 ## Demo Talking Points
 

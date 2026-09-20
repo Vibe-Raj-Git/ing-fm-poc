@@ -1,9 +1,9 @@
 # Financial Markets Deal Origination Engine: Signals, Opportunities & Pitchbook Lifecycle
 
-**Version:** 20 September 2026 — Baseline (Flavor 1)
-**Flavor:** Baseline (Flavor 1)
-**Parallel flavor:** Weighted-Family + Adjacencies (Flavor 2) at `Docs/WeightedFamily/Signals,_Opportunities_&_Pitchbook_Lifecycle_20Sep_WeightedFamily.md`
-**Branch:** `feat/dulcet-reset-pristine-semantic-dedup-all-UI-RM-HV-Slide2_LLM_Summary_Slide3_WhyNow_Action_17-Sep`
+**Version:** 20 September 2026 — Weighted-Family + Adjacencies
+**Flavor:** Weighted-Family + Adjacencies (Flavor 2)
+**Parallel flavor:** Baseline (Flavor 1) at `Docs/Signals,_Opportunities_&_Pitchbook_Lifecycle.md`
+**Branch:** `feat/dulcet-20Sep-demo-Weighted-LLMProductFamilyIdentification-AdjOppS3`
 **Audience:** Engineers, Business Analysts
 
 ---
@@ -149,23 +149,15 @@ Purpose: the signals in ca.digital_twin_signals describe evidence and context, b
 
 Flow:
 
-Read why_now_nlg and next_best_action from ca.ca_opportunity_scoring (the anchor)
-
-Check the TTL cache (_MANDATE_SYNTH_CACHE, 300-second expiry, keyed by client_id). In Flavor 1, entries are 6-tuples: (expiry, why_now, action, why_now_summary, action_summary, priority_score).
-
-On cache miss and client in _DEMO_CLIENT_IDS:
-
-Fetch the 20 most recent signals for the client
-
-Call gemini-2.5-flash with the anchor placed first in the prompt
-
-Receive JSON with five keys: why_now, action, why_now_summary, action_summary, priority_score
-
-Apply the drift guard (tenor conflict check)
-
-UPDATE ca.ca_opportunity_scoring.priority_score — only the score is written back; why_now_nlg and next_best_action are curated fields and are protected from LLM overwrite
-
-Populate the cache only after conn.commit() succeeds; on failure, pop the cache entry (the cache/DB consistency invariant, commit 9cfeb42)
+1. Read why_now_nlg and next_best_action from ca.ca_opportunity_scoring (the anchor)
+2. Check the TTL cache (`_MANDATE_SYNTH_CACHE`, 300-second expiry, keyed by `client_id`). In Flavor 2, entries are **8-tuples**: `(expiry, why_now, action, why_now_summary, action_summary, priority_score, family, adjacent_opportunities)`.
+3. On cache miss and client in `_DEMO_CLIENT_IDS`:
+   - Fetch the 20 most recent signals for the client
+   - Call `gemini-2.5-flash` with the anchor placed first in the prompt
+   - Receive JSON with seven keys: `why_now`, `action`, `why_now_summary`, `action_summary`, `priority_score`, `family`, `adjacent_opportunities`
+   - Apply the drift guard (tenor conflict check)
+   - UPDATE `ca.ca_opportunity_scoring.priority_score` — only the score is written back; `family` and `adjacent_opportunities` are not persisted (no columns exist)
+   - Populate the cache only after `conn.commit()` succeeds; on failure, pop the cache entry
 
 On cache hit or non-whitelisted client: use the DB row directly
 
@@ -202,6 +194,33 @@ High-priority clients	high_priority_clients	COUNT(DISTINCT client_id) in ca.ca_o
 Clients in database	clients_in_database	COUNT(*) in ca.client_master	Full book (not whitelist-scoped)
 The prior "Avg. time to first draft" tile — which displayed < 15s / ▼ 99% vs manual — was hardcoded with no underlying measurement. It was removed; the platform does not record draft generation. Its replacement is "Active signals."
 
+### 3.6 Product family classification (Flavor 2)
+
+The synthesis LLM returns `family` as one of the seven keys. `detect_product_family(ctx)` in `pitchbook_builder.py` validates the proposal against a weighted anchor score computed from `_FAMILY_KEYWORD_WEIGHTS`.
+
+- Strong product signals weight 5 (`green bond`, `slb`, `emtn`, `irs pre-hedge`, `fx collar`).
+- Weak context words weight 1–2 (`refinancing`, `maturity wall`, `dual-tranche`, `senior unsecured`).
+- If the weighted score is ≥ 5 with a margin ≥ 3 over the runner-up → weights override. Deterministic.
+- Otherwise → trust the LLM.
+- If both are silent → narrative keyword fallback.
+
+**Observed:**
+
+| Client | Anchor score | Margin | Outcome |
+|---|---|---|---|
+| Enel (`CLI101`) | 15 GREEN_ESG vs 5 DCM_REFI | 10 | Decisive — guaranteed `GREEN_ESG` |
+| BASF (`CLI103`) | 8 DCM_REFI vs 5 RATES_HEDGE | 3 | At threshold — LLM decides |
+
+The `family` field is not persisted. It travels via the 8-tuple cache, the `/api/opportunities` response, and the pitchbook bundle. See `Data_or_Fabrication_20Sep_WeightedFamily.md` §6.8.
+
+### 3.7 Adjacent opportunities (Flavor 2)
+
+The synthesis LLM returns `adjacent_opportunities` as the seventh key — an 80–140 word paragraph identifying up to 3 grounded cross-sell angles beyond the primary mandate. The prompt enforces: each adjacency cites a specific signal; no invention; no repetition of the primary; max 3 angles; no marketing language.
+
+**Lifecycle:** produced on a cache miss; exposed in `/api/opportunities`; rendered on Slide 3 as the third card; included in the Copilot `slide_3` payload; read by `handle_pitchbook_generation` from `_MANDATE_SYNTH_CACHE[cid][7]` and set on the bundle before `build_pitchbook`.
+
+**Non-determinism:** like `priority_score`, the paragraph varies across runs. Multiple grounded variants observed for Enel, all citing rate, FX, and DCM angles in different phrasings. See `Data_or_Fabrication_20Sep_WeightedFamily.md` §6.9.
+
 ## 4. Pitchbook Creation: UI Preview & Document Generation
 ### 4.1 The 11-Slide Deck
 The pitchbook has 11 slides. Slide titles vary by product family (FX / Green / Rates / DCM). The table below shows the Green/ESG variant (Enel's deck).
@@ -219,6 +238,7 @@ The pitchbook has 11 slides. Slide titles vary by product family (FX / Green / R
 10	SPO & Syndicate Plan	Family-branched template
 11	ICMA Disclosures	overrides.disclaimers + family fallback
 Note: earlier versions of this doc cited ca.regulatory_notices as slide 11's source. That table does not exist. Slide 11 reads overrides and family fallbacks.
+**Slide 3 (Executive Summary) — Flavor 2 layout.** The four pillars are rendered inside the left orange panel; the right column holds three stacked full-width cards: Catalyst Rationale, Proposed Execution, and **Adjacent Opportunities** (new). The third card reads `ctx["adjacent_opportunities"]`. Deck and preview layout coordinates in `architecture_flow_20Sep_WeightedFamily.md` §6.5.
 
 Full mapping of all four families in architecture_flow_20Sep.md §6.2.
 
@@ -291,7 +311,10 @@ Stage 2: Signal Accumulation
 Stage 3: Opportunity Discovery
     /api/opportunities joins client + filings + markets + signals
     Synthesis (whitelisted clients) anchors to ca_opportunity_scoring
-    Cache populated only after DB commit; priority_score written back
+    Returns 7 keys: why_now, action, why_now_summary, action_summary,
+    priority_score, family, adjacent_opportunities
+    Only priority_score persisted
+    Cache populated only after DB commit
     ↓
 Stage 4: Priority Ranking
     /api/metrics sorts by _effective_score, takes top 4, appends
@@ -299,7 +322,7 @@ Stage 4: Priority Ranking
     Frontend filters to ACTIVE_UI_CLIENT_IDS
     ↓
 Stage 5: Pitchbook Preview
-    11-slide canvas rendered from the same bundle
+    11-slide canvas; Slide 3 has three cards (adds Adjacent Opportunities)
     Copilot state mutations via /api/copilot/chat
     ↓
 Stage 6: PPTX Export
@@ -320,40 +343,27 @@ The DB holds 13 clients. The whitelist is a demo-scoped decision, not an archite
 The mandate synthesis cache is in-memory. It requires max-instances=1 on Cloud Run. If the service ever scales horizontally, the cache would need to move to a shared store.
 
 ### 7.3 LLM-derived scores
-priority_score is computed by the synthesis LLM against a weighted rubric (signal strength 40% / balance-sheet pressure 30% / market window 30%). The value is non-deterministic across synthesis runs. A post-demo improvement is to replace it with a fully deterministic formula computed in code — making the score reproducible.
 
-## 8. Changelog — 20 Sep 2026 (Flavor 1 — Baseline)
-Corrected (this version)
-§1 demo scope. _DEMO_CLIENT_IDS is now {"CLI101", "CLI103"}, not {"CLI101"}. Same for ACTIVE_UI_CLIENT_IDS.
+`priority_score` is computed by the synthesis LLM against a weighted rubric. **Flavor 2 also has an LLM-classified `family`, validated by a weighted anchor score.** Both the score and the family are non-deterministic across synthesis runs — but for the demo client (Enel) the family is deterministic because the weighted margin is decisive (10). See §3.6.
 
-§2.3 dedup corrected. Two-layer dedup guard (signal-level + channel-scoped semantic). The prior doc mentioned only the signal-level check.
+A post-demo improvement is to replace the score with a fully deterministic formula. A separate backlog item is to refine `_FAMILY_KEYWORD_WEIGHTS` statistically as the platform accumulates classified anchors.
 
-§3.2 rewritten. The priority score is not a legacy frozen value. It is computed by the synthesis LLM against a weighted rubric and recomputed on every cache miss (13721ca). Non-determinism characteristics documented.
+## 8. Changelog — 20 Sep 2026 (Flavor 2 — Weighted-Family + Adjacencies)
 
-§3.3 clarified. Only priority_score is written back; the anchor narratives are protected from LLM overwrite. Cache/DB consistency invariant documented.
+Changes since the Flavor 1 (Baseline) version. Flavor 1 is documented separately at `Docs/Signals,_Opportunities_&_Pitchbook_Lifecycle.md`.
 
-§3.4 ACTIVE_UI_CLIENT_IDS updated. The frozen "current cohort scores" table was removed — scores recompute.
+### Added
 
-§3.5 added. The four tiles on /api/metrics, rewritten in f9f8eeb.
+- **§3.3 updated** — cache tuple 6 → 8; prompt returns 7 keys; only `priority_score` persisted.
+- **§3.6 added** — product family classification. LLM proposal validated by `_FAMILY_KEYWORD_WEIGHTS`. Decision logic and observed outcomes.
+- **§3.7 added** — adjacent opportunities paragraph. Prompt rules, lifecycle, non-determinism.
+- **§4.1 slide 3 layout note added.**
+- **§6 lifecycle diagram updated** — Stage 3 shows 7-key return and persistence rules; Stage 5 shows three-card Slide 3.
+- **§7.3 rewritten** — family classification non-determinism; the statistical refinement backlog item.
 
-§4.1 slide 11 source corrected. ca.regulatory_notices does not exist. Slide 11 reads overrides + family fallback. The cross-reference now points at architecture_flow_20Sep.md.
+### Common with Flavor 1
 
-§4.4 notes the 19-20 Sep preview/PPTX parity verification.
-
-§7.1 whitelist updated. Now {"CLI101", "CLI103"}.
-
-§7.3 rewritten. The score is now computed against a rubric; the post-demo improvement is to make it fully deterministic.
-
-§8 changelog. This section.
-
-Preserved from the 14 Sep version
-- Hybrid architecture diagram and reasoning.
-- Multi-channel ingestion gateways.
-- Multi-signal extraction description.
-- Anchor pattern.
-- Drift guard.
-- Compliance regimes.
-- Regulatory regimes (MiFID II, MAR, EuGB, EMIR).
+Data architecture, ingestion pipeline, DB schema, reset-to-pristine, defensive fallbacks, compliance architecture, deployment topology, anchor pattern, drift guard. Unchanged.
 
 ---
 

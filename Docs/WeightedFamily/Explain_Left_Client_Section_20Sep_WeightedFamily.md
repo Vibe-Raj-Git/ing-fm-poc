@@ -1,9 +1,9 @@
 # The Client Opportunity Card — Section Walkthrough
 
-**Version:** 20 September 2026 — Baseline (Flavor 1)
-**Flavor:** Baseline (Flavor 1)
-**Parallel flavor:** Weighted-Family + Adjacencies (Flavor 2) at `Docs/WeightedFamily/Explain_Left_Client_Section_20Sep_WeightedFamily.md`
-**Branch:** `feat/dulcet-reset-pristine-semantic-dedup-all-UI-RM-HV-Slide2_LLM_Summary_Slide3_WhyNow_Action_17-Sep`
+**Version:** 20 September 2026 — Weighted-Family + Adjacencies
+**Flavor:** Weighted-Family + Adjacencies (Flavor 2)
+**Parallel flavor:** Baseline (Flavor 1) at `Docs/Explain_Left_Client_Section.md`
+**Branch:** `feat/dulcet-20Sep-demo-Weighted-LLMProductFamilyIdentification-AdjOppS3`
 **Audience:** Coverage leadership, product stakeholders
 
 ---
@@ -131,36 +131,56 @@ The `handleDownloadDeck` path sends the current overrides (including `why_now`, 
 
 ---
 
-## 7. Family Selection (Flavor 1)
+## 7. Family Selection (Flavor 2)
 
-When the RM opens the draft pitchbook, the deck template is chosen by `detect_product_family(ctx)` in `pitchbook_builder.py`. In Flavor 1, the classification runs on the concatenation of `opportunity_type`, `product_family`, `type`, `next_best_action`, `trigger_catalyst`, and `why_now_nlg` — checked in a fixed keyword order.
+When the RM opens the draft pitchbook, the deck template is chosen by `detect_product_family(ctx)` in `pitchbook_builder.py`. In Flavor 2, the classification combines two signals:
 
-The frontend mirrors this in `App.jsx` (lines 627–629) with its own keyword branches, and passes the result as `product_family` in the deck generation request.
+1. **LLM proposal.** The synthesis prompt returns `family` as the 6th of 7 keys — one of `FX_HEDGE`, `GREEN_ESG`, `RATES_HEDGE`, `DCM_REFI`. The LLM bases this on the anchor's `next_best_action`, choosing the dominant product (not purpose or feature) with a notional tiebreaker.
 
-**For Enel, the family is `GREEN_ESG`.** The deck renders the Green/ESG template.
+2. **Weighted anchor validation.** `detect_product_family` scores `why_now_nlg + " " + next_best_action` against `_FAMILY_KEYWORD_WEIGHTS`. Strong product signals weight 5 (`green bond`, `slb`, `emtn`, `irs pre-hedge`, `fx collar`); weak context words weight 1–2 (`refinancing`, `maturity wall`, `dual-tranche`, `senior unsecured`).
 
----
+**Decision:**
 
-## 8. The 30-Second Executive Pitch
+- Weighted score **≥ 5 with a margin ≥ 3** over the runner-up → weights override. Deterministic.
+- Otherwise → trust the LLM's proposal.
+- If both are silent → narrative keyword fallback.
+
+**Observed:**
+
+| Client | Anchor score | Margin | Outcome |
+|---|---|---|---|
+| Enel (`CLI101`) | 15 GREEN_ESG vs 5 DCM_REFI | 10 | Decisive — guaranteed `GREEN_ESG` |
+| BASF (`CLI103`) | 8 DCM_REFI vs 5 RATES_HEDGE | 3 | At threshold — LLM decides |
+
+**For Enel, the family is `GREEN_ESG`.** The deck renders the Green/ESG template. The `family` field is exposed in `/api/opportunities`; the frontend reads `activeClient.family` — the pre-20Sep frontend keyword branches (lines 627–629) have been removed.
+
+## 8. The Pitchbook Preview — Flavor 2 Additions
+
+The `Open draft pitchbook ↗` button leads to an 11-slide preview canvas, same as Flavor 1. **Slide 3 (Executive Summary) has a Flavor 2 layout rework:**
+
+- Four pillars relocated into the left orange panel
+- Three stacked full-width cards in the right column: Catalyst Rationale, Proposed Execution, and **Adjacent Opportunities** (new)
+
+The Adjacent Opportunities card renders the `adjacent_opportunities` field from the bundle — an LLM-written 80–140 word paragraph identifying up to 3 grounded cross-sell angles. See `master_persona_20Sep_WeightedFamily.md` §5 for the layout, `Data_or_Fabrication_20Sep_WeightedFamily.md` §6.9 for the lifecycle.
+
+## 9. The 30-Second Executive Pitch
 
 > *"This is our Real-Time Client Opportunity Twin. Instead of an RM manually cross-referencing a client's balance sheet, live market rates, and news feeds, this card unifies all three in one view.*
 >
-> *The Client Data segment shows Enel's €58.5bn net debt and €14.2bn liquidity buffer, sourced directly from `ca.ext_company_filings`. The Market Data segment shows the live 5Y EUR swap at 2.62% and the 5Y credit spread at 78 bps — the market backdrop that makes today the execution window.*
+> *The Client Data segment shows Enel's €58.5bn net debt and €14.2bn liquidity buffer. The Market Data segment shows the live 5Y EUR swap at 2.62% and the 5Y credit spread at 78 bps. The Synthesized Mandate below gives the headline recommendation: a €1.0bn dual-tranche green issuance refinancing the €10.13bn maturity wall.*
 >
-> *The Synthesized Mandate below gives the headline recommendation: a €1.0bn dual-tranche green issuance refinancing the €10.13bn maturity wall, with a Mid-swap + 73 bps pricing net of a -5 bps greenium. Match confidence: High · 94.*
+> *Behind the scenes, the platform has processed every ingested signal and classified Enel into the Green/ESG product family — validated by a weighted taxonomy, deterministic for the demo. One click on Open draft pitchbook generates an 11-slide deck. Slide 3 shows the primary pitch plus an Adjacent Opportunities card, summarising the cross-sell angles we've identified — a rate pre-hedge, an FX exposure review, possible liability management.*
 >
-> *One click on Open draft pitchbook generates the 11-slide deck — preview, compliance audit, and .pptx download. Every number on this card traces to a specific row in a specific table, filtered by client_id."*
+> *Every number on this card traces to a specific row in a specific table, filtered by client_id."*
 
----
-
-## 9. Cross-References
+## 10. Cross-References
 
 | Document | Relevant sections |
 |---|---|
-| `master_persona_20Sep.md` | §2 Demo Scope, §4 Component Map, §5 Slide Library |
-| `architecture_flow_20Sep.md` | §4 DB Schema, §5 Mandate Synthesis |
-| `Data_or_Fabrication.md` | §3 UI Lineage, §6 Priority Score, §11.7 Rating Exception |
-| `data_population.md` | Full field-by-field lineage |
+| `Docs/WeightedFamily/master_persona_20Sep_WeightedFamily.md` | §2.1 Flavor Differential, §5 Slide 3, §6 Pipeline Behavior |
+| `Docs/WeightedFamily/architecture_flow_20Sep_WeightedFamily.md` | §5.6, §5.7, §6.5 |
+| `Docs/WeightedFamily/Data_or_Fabrication_20Sep_WeightedFamily.md` | §6.2, §6.8, §6.9, §11.10 |
+| `Docs/WeightedFamily/Different_Signals_Different_Products_20Sep_WeightedFamily.md` | Multi-family classification |
 
 ---
 

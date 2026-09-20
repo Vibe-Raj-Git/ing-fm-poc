@@ -124,8 +124,16 @@ An LLM returns different outputs across runs for the same input. With temperatur
 same signals can rank differently on successive requests. This breaks cohort consistency: an
 RM and a coverage head refreshing the dashboard a minute apart would see different orderings.
 
-The hybrid model avoids this: the priority score is fixed in the DB, the mandate narrative
-is cached for 5 minutes, and the ranking is deterministic.
+The hybrid model reduces this: the priority score is recomputed only on synthesis runs
+(cache misses), then cached for 5 minutes and written to a traceable column. Within a cache
+window, every viewer is served the same score. Across windows, the score can drift — observed
+values for CLI101 across a single session were 85, 88, 91, 93, 94 — because the underlying
+LLM is non-deterministic even at temperature=0.0.
+
+The audit trail is deterministic; the value is not. This is the correct trade-off for a demo.
+If reproducibility is required, pin priority_score to the anchor's curated value, the same
+treatment the narratives receive. That would make both the score and the ranking fully
+deterministic, at the cost of not refreshing the score against new signals.
 
 ### 4.3 Auditability
 
@@ -133,12 +141,20 @@ is cached for 5 minutes, and the ranking is deterministic.
 
 **LLM-only answer:** "Because the model decided so."
 
-**Hybrid answer:** "Because `ca_opportunity_scoring.priority_score = 94`, which exceeds the
-`≥85 = High` threshold. The value was written during the last ingestion that populated the
-opportunity row."
+**Hybrid answer:** "Because `ca_opportunity_scoring.priority_score = 94`, written by the
+synthesis run that produced this display, and exceeding the `≥85 = High` threshold. The
+synthesis prompt returns priority_score as one of five keys; the value is persisted with
+the write-back to ca_opportunity_scoring."
 
-The hybrid answer is auditable. It cites a specific column, a specific value, and a specific
-rule. That's the standard that internal audit and model risk management expect.
+The hybrid answer cites a specific column, a specific value, and a specific rule — the audit
+standard that internal audit and model risk management expect. Note: the value is not static.
+Synthesis reruns on cache misses (TTL 300s), and the LLM is non-deterministic even at
+temperature=0.0. An audit that revisits the row an hour later may see a different score.
+The audit trail is the write-back history, not a fixed number.
+
+The point of the hybrid model is not that the value never changes — it's that any value has a
+traceable source and a deterministic rule applied to it. That's the difference from LLM-only,
+where the answer is "the model decided."
 
 ### 4.4 Constraint awareness
 
@@ -161,7 +177,7 @@ The current architecture implements the hybrid model as follows:
 | Layer | LLM responsibility | Code responsibility |
 |---|---|---|
 | Ingestion | Extract `detected_signals[]` from source text | Persist signals, dedup by `(client_id, trigger_summary)` |
-| Scoring | Provide a priority estimate during extraction (legacy path) | Threshold classification (`≥85 → High`) |
+| Scoring | Return `priority_score` from synthesis with a weighted rubric (signal strength 40% / balance-sheet pressure 30% / market window 30%) | Threshold classification (`≥85 → High`), write-back to `ca_opportunity_scoring`, cache populated only after commit |
 | Synthesis | Produce `why_now` and `action`, anchored to the DB row | Drift guard, TTL cache, whitelist scoping, DB write-back |
 | Pitchbook | None | Template rendering, product-family branching, 1:1 PPTX parity |
 | Copilot | Natural-language reasoning over hydrated slides | Prompt structure, JSON contract, state mutation reducer |
@@ -248,9 +264,13 @@ traceable to a specific row in a specific table for every displayed value.
 
 ## 9. Post-Demo Backlog Related To This Decision
 
-1. **Introduce a real priority formula.** Replace the LLM-estimated `priority_score` with
-   a computation over the accumulated signal corpus plus balance-sheet data. This would make
-   the score auditable and reproducible, satisfying model risk requirements.
+1. **Replace the structured LLM estimate with a real formula.** The current `priority_score`
+is produced by an LLM with an explicit weighted rubric (signal strength 40% / balance-sheet
+pressure 30% / market window 30%). This is an improvement over the prior unfixed estimate,
+but the value is still non-deterministic across runs. A fully deterministic formula —
+computed in code over the accumulated signal corpus plus balance-sheet data — would
+satisfy model risk requirements and make the score reproducible. Requires deciding the
+formula.
 
 2. **Extend anchored synthesis to all clients.** Move from a whitelist to per-client anchors
    in `ca_opportunity_scoring`. Then every client gets coherent, anchored synthesis.
@@ -264,7 +284,49 @@ traceable to a specific row in a specific table for every displayed value.
 5. **Persist the synthesis cache in a shared store.** Currently in-memory, which requires
    `max-instances=1`. Moving to Redis or a DB-backed cache allows horizontal scaling.
 
-None of these block the current demo. They represent the natural next layer of investment.
+*None of these block the current demo. They represent the natural next layer of investment.*
+
+---
+
+## 10. Changelog — 20 Sep 2026
+
+Corrections to the reasoning in light of the 19-20 Sep session. The decision (§8) is
+unchanged — hybrid over LLM-only.
+
+### §4.2 Reproducibility
+
+- The prior text claimed "the priority score is fixed in the DB" and "the ranking is
+  deterministic." Both were inaccurate after commit `13721ca`.
+- The score is recomputed on every synthesis run and written back to
+  `ca_opportunity_scoring`. It is not fixed.
+- Within a cache window (300s), all viewers receive the same score. Across windows, the
+  score drifts even at `temperature=0.0`. Observed values for `CLI101` across a single
+  session: 85, 88, 91, 93, 94.
+- The reproducibility claim is now scoped to the cache window.
+
+### §4.3 Auditability
+
+- The prior example cited "the last ingestion that populated the opportunity row."
+- The value is written by the last synthesis run, not ingestion.
+- Added a note that the value is not static — the audit trail is the write-back history.
+
+### §5 Current Hybrid Realization
+
+- The Scoring row now reflects that `priority_score` is a synthesis output, not an
+  extraction artifact. The rubric is cited. The cache-after-commit invariant is noted.
+
+### §9 Post-Demo Backlog
+
+- Item 1 reframed. The current state is a "structured LLM estimate with a weighted rubric,"
+  an intermediate between the prior unfixed estimate and a fully deterministic formula.
+
+### Related session work
+
+- `13721ca` — LLM-computed priority_score with weighted rubric + whitelist guarantee.
+- `9cfeb42` — cache populated only after successful DB persist.
+- `f9f8eeb` — display consistency fixes across card, preview, generated deck, and Copilot.
+- `master_persona_20Sep.md` §7.8, §7.9, §8.1, §13 — full detail on the cache/DB invariant,
+  the credit rating dict, and the session changelog.
 
 ---
 

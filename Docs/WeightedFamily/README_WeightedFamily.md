@@ -45,8 +45,8 @@ Data architecture, ingestion pipeline, database schema, reset-to-pristine mechan
 | `architecture_flow_20Sep_WeightedFamily.md` | Complete architecture reference. §5.6 (product family classification), §5.7 (adjacent opportunities), §6.5 (Slide 3 layout), §7.2 (Copilot additions), §11 (principles 11–13). |
 | `Data_or_Fabrication_20Sep_WeightedFamily.md` | Zero-fabrication spec. §6.2 (7-key prompt), §6.8 (product family), §6.9 (adjacent opportunities), §9 (Copilot additions), §11.10 (`_FAMILY_KEYWORD_WEIGHTS` sync). |
 | `data_population_20Sep_WeightedFamily.md` | Field-by-field UI lineage. §2.1 (family-derived predicates), §4.6 (Slide 3 update). |
-
-Common documentation lives at the `Docs/` root — `Architecture_Decision_Hybrid_vs_LLM_Only.md`, `Context_Fabric_Integration_Production.md`, `Table_details.md`, and the operations docs.
+| `Different_Signals_Different_Products_20Sep_WeightedFamily.md` | How Flavor 2 classifies multi-signal clients. Dominant family + adjacency paragraph. Multi-card architecture noted as a future option. |
+| `End_to_end_Pitchbook_data_20Sep_WeightedFamily.md` | End-to-end data binding from the dashboard to the pitchbook. Corrected slide count (11), four real families, known exceptions, Flavor 2-specific additions. |
 
 ## Demo Talking Points
 
@@ -78,28 +78,39 @@ for o in d:
     if o.get('id') in ('CLI101', 'CLI103'):
         print(o.get('id'), '| family:', o.get('family'), '| adjacent present:', bool(o.get('adjacent_opportunities')))
 "
-Expected: CLI101 | family: GREEN_ESG | adjacent present: True and CLI103 | family: DCM_REFI | adjacent present: True.
+```
 
-2. Slide 3 preview shows three cards. Open the pitchbook preview in the browser, navigate to Slide 3. Verify: four pillars inside the orange panel; three stacked cards on the right (Catalyst Rationale, Proposed Execution, Adjacent Opportunities).
+Expected output:
 
-3. Copilot answers about adjacencies. Load the UI to populate the cache, then ask the Copilot: "explain Slide 3." The reply should include the three mandatory sections plus an Adjacent Opportunities section. Verify the euro sign renders as €, not \u20ac, and monetary amounts are bolded.
+```
+CLI101 | family: GREEN_ESG | adjacent present: True
+CLI103 | family: DCM_REFI | adjacent present: True
+```
 
-Related Commits
-Commit	Content
-1a04960	Flavor 2 feature — LLM family + adjacent opportunities, Slide 3 rework, Copilot additions
-f76bdc0	Flavor 1 HEAD — the branch point
-f9f8eeb, 13721ca, 9cfeb42	Common commits from the 18–20 Sep session
+**2. Slide 3 preview shows three cards.**
 
-End of document.
+Open the pitchbook preview in the browser, navigate to Slide 3. Verify:
 
-## What Changed
+- Four pillars inside the orange panel
+- Three stacked cards on the right: Catalyst Rationale, Proposed Execution, Adjacent Opportunities
 
-| # | Fix |
+**3. Copilot answers about adjacencies.**
+
+Load the UI to populate the cache, then ask the Copilot: *"explain Slide 3."*
+
+The reply should include the three mandatory sections plus an **Adjacent Opportunities** section. Verify:
+
+- The euro sign renders as `€`, not `\u20ac`
+- Monetary amounts are bolded in the "Key Mechanics & Deal Metrics" section
+
+## Related Commits
+
+| Commit | Content |
 |---|---|
-| 1 | `## Related Commits` — added the `##` heading marker |
-| 2 | Related Commits table — restored pipe-delimited markdown table format |
-| 3 | Verification #1 — restored the ` ```bash ` fence around the curl block |
-| 4 | Verification #1 — separated the "Expected output:" line into its own code block |
-| 5 | Verification #2 — restored bullet markers for the two list items |
-| 6 | Verification #3 — restored italic formatting on the Copilot question and bullet list for the checks |
-| 7 | End of document — wrapped in `---` separators and italic markers |
+| `1a04960` | Flavor 2 feature — LLM family + adjacent opportunities, Slide 3 rework, Copilot additions |
+| `f76bdc0` | Flavor 1 HEAD — the branch point |
+| `f9f8eeb`, `13721ca`, `9cfeb42` | Common commits from the 18–20 Sep session |
+
+---
+
+*End of document.*

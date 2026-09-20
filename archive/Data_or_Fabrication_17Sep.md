@@ -1,8 +1,12 @@
+Here is the full updated document. Save it as `Docs/Data_or_Fabrication.md`, replacing the current version.
+
+---
+
 # Data Integrity, Dynamic State Lineage & Zero-Fabrication Architecture
 
-**Version:** 20 September 2026
+**Version:** 17 September 2026
 **Status:** Authoritative
-**Supersedes:** `Data_or_Fabrication.md` (17 Sep 2026), `Data_or_Fabrication.md` (14 Sep 2026)
+**Supersedes:** `Data_or_Fabrication.md` (14 Sep 2026)
 **Audience:** Engineers, Business Analysts, Model Risk, Compliance
 
 ---
@@ -13,9 +17,7 @@ The ING Financial Markets Deal Intelligence Platform is built on a **Zero-Fabric
 
 No literal client values exist in the presentation layer. No hardcoded fee pools. No invented deal sizes. Where the platform displays a number or a claim, that number or claim has a source.
 
-This document describes the actual pipeline as implemented, including the reset-to-pristine mechanism that lets a demo environment be restored to a curated baseline on demand without destroying user-ingested content. Where an earlier version of this doc described aspirational features (a composite scoring formula, a two-model LLM architecture), those sections have been corrected or removed. A summary of what changed is in §13.
-
-**Corrections in the 20 Sep version** reflect the 19-20 Sep session, which changed the `priority_score` lifecycle (§6.2) and added code-level curated exceptions for credit ratings (§11.7) and frontend fallbacks (§11.8).
+This document describes the actual pipeline as implemented, including the reset-to-pristine mechanism that lets a demo environment be restored to a curated baseline on demand without destroying user-ingested content. Where an earlier version of this doc described aspirational features (a composite scoring formula, a two-model LLM architecture), those sections have been corrected or removed. A summary of what changed is in §12.
 
 ---
 
@@ -52,13 +54,12 @@ This document describes the actual pipeline as implemented, including the reset-
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
 │  SYNTHESIS (Read-time, whitelisted clients only)                                         │
 │  • Read anchor from ca.ca_opportunity_scoring                                            │
-│  • Check TTL cache (300s, keyed by client_id, 6-tuple entry)                             │
+│  • Check TTL cache (300s, keyed by client_id)                                            │
 │  • On cache miss and client in _DEMO_CLIENT_IDS:                                         │
 │      – Fetch 20 most recent signals                                                      │
-│      – Call gemini-2.5-flash with the anchor first; 5-key JSON return                    │
+│      – Call gemini-2.5-flash with the anchor first                                       │
 │      – Apply drift guard                                                                 │
-│      – UPDATE ca.ca_opportunity_scoring.priority_score, then commit                      │
-│      – Populate _MANDATE_SYNTH_CACHE only after commit succeeds                          │
+│      – Write to cache and back to ca.ca_opportunity_scoring                              │
 │  • On cache hit or non-whitelisted client: use DB row directly                           │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -67,7 +68,7 @@ This document describes the actual pipeline as implemented, including the reset-
 │  RENDERING                                                                               │
 │  • React preview canvas                                                                  │
 │  • python-pptx export                                                                    │
-│  • Both consume the same deckOverrides payload; slides 4, 5, 6 verified 1:1 on 20 Sep     │
+│  • Both consume the same deckOverrides payload                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -75,23 +76,18 @@ Every arrow in this diagram maps to a specific function in `main.py` and a speci
 
 The **reset-to-pristine** mechanism (§8) is a separate, non-destructive path that restores curated baseline content from `baseline_snapshots.json`. It does not remove user-ingested rows; it refreshes the pristine rows' timestamps so they win the `created_at DESC` sort.
 
-**Note on `priority_score`:** the synthesis step produces `priority_score` as one of five keys. It is written back to the anchor table on every cache miss for whitelisted clients. See §6.2.
-
 ---
 
 ## 3. UI Section → API → Table Mapping
 
-Every visual element on the dashboard sources from live tables. Nothing is hardcoded (with two documented code-level exceptions: the credit rating dict in §11.7 and the frontend `default*` fallbacks in §11.8).
+Every visual element on the dashboard sources from live tables. Nothing is hardcoded.
 
 | UI Section | API Endpoint | Tables Read | Channel Filters |
 |---|---|---|---|
-| **This Week** — Clients with signals | `GET /api/metrics` | `ca.digital_twin_signals` | Whitelist-scoped |
-| **This Week** — Active signals | `GET /api/metrics` | `ca.digital_twin_signals` | Whitelist-scoped; value = all-time, change = 7-day |
-| **This Week** — High-priority clients | `GET /api/metrics` | `ca.ca_opportunity_scoring` | Whitelist-scoped; `priority_score >= 85` |
-| **This Week** — Clients in database | `GET /api/metrics` | `ca.client_master` | Full book (not whitelist-scoped) |
+| **This Week** metrics strip | `GET /api/metrics` | `ca.digital_twin_signals`, `ca.ca_opportunity_scoring`, `ca.client_master` | — |
 | **Live Signal Feed** marquee | `GET /api/signals` | `ca.digital_twin_signals`, `ca.client_master` | Filtered to `_DEMO_CLIENT_IDS` |
 | **Priority Today** sidebar | `GET /api/metrics` (priorities field) | `ca.ca_opportunity_scoring`, `ca.client_master` | — |
-| **Client Data** segment | `GET /api/opportunities` | `ca.client_master`, `ca.ext_company_filings`, `ca.coverage_teams`, `_CREDIT_RATINGS` (dict) | — |
+| **Client Data** segment | `GET /api/opportunities` | `ca.client_master`, `ca.ext_company_filings`, `ca.coverage_teams` | — |
 | **Market Data** segment | `GET /api/opportunities` | `ca.mkt_rates_curves`, `ca.ext_credit_spreads` | — |
 | **Context Fabric** segment (chips) | `GET /api/opportunities` | `ca.document_vector_chunks` | `source_channel IN ('WORKFABRIC_MEMO', 'CONTEXT_FABRIC', 'ANALYST_NOTE', 'TEAMS_CHAT', 'CLIENT_EMAIL')` |
 | **Context Fabric** segment (Desk Signal) | `GET /api/opportunities` | `ca.document_vector_chunks` | `source_channel = 'WORKFABRIC_MEMO'` |
@@ -104,13 +100,12 @@ Every visual element on the dashboard sources from live tables. Nothing is hardc
 | **Pitchbook .pptx** | `POST /api/pitchbook/generate` | Same bundle as canvas | — |
 | **Reset-to-pristine** | `POST /api/system/reset-baseline` | `baseline_snapshots.json` → upserts into 8 client-scoped tables | Whitelist via request body |
 
-**Three notes on multi-channel and code-level sources:**
+**Two important multi-channel details:**
 
-1. **Context Fabric chips accept five channel names.** `ANALYST_NOTE`, `CONTEXT_FABRIC`, and `MEMO` are standardized to `WORKFABRIC_MEMO` at display time. The analyst note channel merges into the WorkFabric chip rather than producing a separate chip.
+1. **Context Fabric chips accept five channel names.** `ANALYST_NOTE`, `CONTEXT_FABRIC`, and `MEMO` are standardized to `WORKFABRIC_MEMO` at display time. This means the analyst note channel merges into the WorkFabric chip rather than producing a separate chip.
 2. **Live Verified News accepts four channel aliases.** `NEWS_RSS`, `LIVE_RSS_NEWS`, `LIVE RSS News`, and `News RSS` are all queried, sorted together by `created_at DESC, chunk_id DESC`. The current ingestion pipeline writes `LIVE_RSS_NEWS`; the other three are legacy aliases retained for compatibility.
-3. **The Client Data segment's rating field is a code-level curated exception.** `credit_rating` is read from `_CREDIT_RATINGS` in `main.py:89` (and mirrored in `pitchbook_builder.py:6`), not from a DB column. `ca.client_master` has no `credit_rating` column. See §11.7.
 
-**The `This Week` tiles were replaced in the 20 Sep session** (commit `f9f8eeb`). The prior "Avg. time to first draft" tile was hardcoded and unmeasurable; the prior three tiles (`Active drafts`, `Deals pending review`, `Cohort matches`) all rendered a frontend render count with no backend source. All four now read whitelist-scoped SQL values via `/api/metrics`.
+---
 
 ## 4. Actual Database Schema
 
@@ -136,8 +131,6 @@ All tables live in the `ca` schema of the Cloud SQL PostgreSQL 15 instance.
 | `rm_name` | varchar | Fallback RM if no `coverage_teams` row |
 | `base_ccy` | varchar | |
 
-**No `credit_rating` column.** The rating shown on the client card and pitchbook cover comes from a code-level dict (`_CREDIT_RATINGS`). See §11.7.
-
 #### `ca.ext_company_filings`
 
 | Column | Type | Notes |
@@ -152,8 +145,6 @@ All tables live in the `ca` schema of the Cloud SQL PostgreSQL 15 instance.
 | `debt_maturing_24m_eur_m` | numeric | |
 | `notes` | text | |
 
-**Multi-row hazard (added 20 Sep, §11.9).** This table can contain multiple rows per client with identical `reporting_period` values. Most rows carry NULL for `reported_revenue_eur_m` and `ebitda_eur_m`; one row carries the populated values. Reads that pick "the latest row" via `ORDER BY reporting_period DESC LIMIT 1` can land on a NULL row. The 20 Sep cleanup deleted 4 NULL-revenue BASF rows, leaving 1 populated row.
-
 #### `ca.debt_maturity_schedule`
 
 | Column | Type | Notes |
@@ -167,8 +158,6 @@ All tables live in the `ca` schema of the Cloud SQL PostgreSQL 15 instance.
 | `currency` | varchar | |
 
 **No PK** — the reset endpoint handles this table with delete-by-client + insert (§8).
-
-**Feeds slide 5/10.** The tranche ladder and "Total Maturity Profile" sum both read from this table per client. See §11.1.
 
 #### `ca.mkt_rates_curves`
 
@@ -210,7 +199,7 @@ All tables live in the `ca` schema of the Cloud SQL PostgreSQL 15 instance.
 | `est_revenue_eur_000` | numeric | Fee estimate (thousands EUR) |
 | `propensity_score` | integer | LLM-derived; used only as an ORDER BY tiebreaker in the pitchbook bundle read |
 | `value_score` | integer | LLM-derived; not read by any current code path |
-| `priority_score` | integer | Displayed as `<Label> · <Score>`. **Recomputed on every synthesis run.** See §6. |
+| `priority_score` | integer | Displayed as `<Label> · <Score>`. See §6. |
 | `rank` | integer | **Not read by any code path.** Populated inconsistently. The presentation rank is computed at request time |
 | `next_best_action` | text | **Anchor field** |
 | `why_now_nlg` | text | **Anchor field** |
@@ -274,12 +263,10 @@ All live tables use canonical IDs (`CLI001`, `CLI002`, ... `CLI105`). Legacy IDs
 
 **Distribution pattern:** The demo corpus is concentrated on two clients:
 
-- **CLI101 (Enel)** — carries the original curated demo content
+- **CLI101 (Enel)** — carries the original curated demo content (42 signals, ~13 chunks)
 - **CLI103 (BASF)** — carries the newer curated demo content plus user-ingestion test content
 
-The remaining 11 clients have baseline data in `client_master`, `ext_company_filings`, `ca_opportunity_scoring`, and `debt_maturity_schedule` (for a subset), but minimal signal and chunk history. This is intentional — the demo whitelists clients via `_DEMO_CLIENT_IDS` and `ACTIVE_UI_CLIENT_IDS`.
-
-**Current whitelist (20 Sep 2026):** `{"CLI101", "CLI103"}` on both backend and frontend. Enel is the primary demo; BASF is a testable secondary. For an Enel-primary demo, revert both to `{"CLI101"}`.
+The remaining 11 clients have baseline data in `client_master`, `ext_company_filings`, `ca_opportunity_scoring`, and `debt_maturity_schedule` (for a subset), but minimal signal and chunk history. This is intentional — the demo whitelists one client at a time via `_DEMO_CLIENT_IDS` and `ACTIVE_UI_CLIENT_IDS`.
 
 Specific counts are not documented here because they drift with every ingestion. Use the live DB as the source of truth, or regenerate `baseline_snapshots.json` via `dump_baseline.py` (§8.2).
 
@@ -295,8 +282,6 @@ Client-scoped ING track record. One row per historical deal. Not read by any cur
 | `volume_eur_m` | numeric |
 | `role` | varchar |
 | `deal_date` | date |
-
-Currently 3 rows (2 for `CLI101`, 1 for `CLI103`).
 
 ---
 
@@ -321,8 +306,6 @@ Every ingestion is tagged with a `source_channel` value in `ca.document_vector_c
 `EMAIL`, `EMAIL_INGESTION`, `TEAMS`, `CHAT`, `HOUSEVIEW_TEXT`, `NEWS`, `LIVE_RSS_NEWS`, `TREASURY_EMAIL`, `ANALYST_NOTE`, `CONTEXT_FABRIC`.
 
 **Important:** the read paths query a **superset** of what the current pipeline produces. For example, the Live Verified News read queries four aliases (`NEWS_RSS`, `LIVE_RSS_NEWS`, `LIVE RSS News`, `News RSS`). This is deliberate backward compatibility — legacy rows must remain readable even as the pipeline evolves.
-
-**Webhook integrations must send canonical values.** The Context Fabric integration spec (`Context_Fabric_Integration_Production.md`) requires `source_channel="WORKFABRIC_MEMO"`, not the legacy `"CONTEXT_FABRIC"`. New channel eras add read-path complexity; canonical values avoid that.
 
 ### 5.2 Multi-signal extraction
 
@@ -392,6 +375,8 @@ Result: one chunk, zero new signals.
 
 **Operational note:** cleanup queries must search on the extracted `trigger_summary` or `description`, not the raw input text. Gemini may rewrite the trigger summary during extraction, so the raw text may not appear verbatim in the DB.
 
+---
+
 ## 6. Priority Score — What It Actually Is
 
 ### 6.1 Not a formula
@@ -402,44 +387,26 @@ An earlier version of this document described a four-factor weighted composite s
 Priority Score = w_mat · S_mat + w_curve · S_curve + w_lev · S_lev + w_sig · S_sig
 ```
 
-**That formula does not exist in the code.** It was documented aspirationally but never implemented.
+**That formula does not exist in the code.** It was documented aspirationally but never implemented. A code search for the weights (0.35, 0.25, 0.20, 0.20) returns nothing.
 
 ### 6.2 What the score actually is
 
-`ca.ca_opportunity_scoring.priority_score` is an **LLM-derived estimate**, produced during **mandate synthesis** (not ingestion). Two paths have written it over the platform's history:
+`ca.ca_opportunity_scoring.priority_score` is a **single LLM-derived estimate**, produced during ingestion. When the ingestion extraction ran under an earlier prompt schema, Gemini included a `priority_score` value in its structured output. That value was written to the row.
 
-1. **Legacy path (pre-14-Sep ingestion era).** The old single-signal ingestion prompt included `priority_score` in its structured output. Values from that era are frozen unless overwritten.
+**Current state:** the ingestion pipeline was refactored on 14 Sep 2026 to extract `detected_signals[]` arrays. The new prompt schema no longer includes `priority_score`. That means the score in the DB is now a **legacy value** from the last time the old single-signal pipeline ran.
 
-2. **Current path (18 Sep 2026, commit `13721ca`).** The synthesis prompt (`synthesize_mandate_catalyst`) returns `priority_score` as one of **five keys** — alongside `why_now`, `action`, `why_now_summary`, `action_summary`. The rubric is explicit:
+For Enel, `priority_score = 94`. For BASF, `priority_score = 94`. These values will not change until either:
 
-   - Signal strength — 40%
-   - Balance-sheet pressure — 30%
-   - Market window — 30%
-
-   The LLM's value is written back to `ca.ca_opportunity_scoring.priority_score` on every synthesis cache miss for whitelisted clients.
-
-**The current value is not a frozen legacy number.** It reflects the last synthesis run for the client. Because the cache TTL is 300s, the score refreshes at most every 5 minutes per whitelisted client.
-
-**Non-determinism.** Even at `temperature=0.0`, `gemini-2.5-flash` produces slightly different scores across synthesis runs. Observed values for `CLI101` across a single session:
-
-| Run | Score |
-|---|---|
-| 1 | 85 |
-| 2 | 88 |
-| 3 | 91 |
-| 4 | 93 |
-| 5 | 94 |
-
-This is a property of the model, not a bug. If a stable score is required for a demo, pin `priority_score` to the anchor's curated value, the same treatment the narratives receive. That would make the score and the ranking fully deterministic.
+- The score is manually set, or
+- A future scoring mechanism is introduced
 
 ### 6.3 Threshold classification
 
-The card label is derived from the score by a fixed rule in `/api/opportunities` (`main.py:812–814`):
+The card label is derived from `priority_score` by a fixed rule in `/api/opportunities`:
 
 ```python
-_effective_score = int(final_priority_score) if final_priority_score is not None else int(score_num)
-score_level = "High" if _effective_score >= 85 else ("Medium" if _effective_score >= 70 else "Low")
-score_val = f"{score_level} · {_effective_score}"
+score_level = "High" if int(score_num) >= 85 else ("Medium" if int(score_num) >= 70 else "Low")
+score_val = f"{score_level} · {score_num}"
 ```
 
 | Score range | Label |
@@ -448,15 +415,11 @@ score_val = f"{score_level} · {_effective_score}"
 | 70 – 84 | Medium |
 | < 70 | Low |
 
-**Score preference chain.** `_effective_score` prefers the fresh synthesis value (`final_priority_score`) when present, and falls back to the DB value (`score_num`) when synthesis was skipped (cache hit or non-whitelisted client).
-
-This means the score shown in the Priority Today sidebar and the score shown on the client card are the same value — both read through the same `_effective_score` chain.
-
 ### 6.4 The other two scores
 
 `ca.ca_opportunity_scoring` also has `propensity_score` and `value_score` columns. Both are LLM outputs from earlier ingestion runs.
 
-- `propensity_score` is read by `pitchbook_builder.py` as an **ORDER BY tiebreaker** in `fetch_pitchbook_bundle`. It does not affect the display value, but it does determine which row resolves when a client has multiple scoring rows.
+- `propensity_score` is read by `pitchbook_builder.py` as an **ORDER BY tiebreaker** in `fetch_pitchbook_bundle` (lines 307, 365). It does not affect the display value, but it does determine which row resolves when a client has multiple scoring rows.
 - `value_score` is not read by any current code path.
 
 ### 6.5 Display provenance
@@ -471,24 +434,22 @@ This is honest — it states the score is an LLM estimate, not a computed metric
 
 - Not a compliance score
 - Not a risk score
-- Not derived from a formula in code
+- Not derived from a formula
+- Not updated per request
 - Not the sum of weighted dimensions
-- Not frozen — it refreshes on synthesis runs
 
 ### 6.7 Known open item — `COALESCE(priority_score, 75)` fallback
 
 Two live read sites substitute a fabricated score when the DB has no value:
 
-- `main.py:225` — `/api/metrics` priorities query (`COALESCE(o.priority_score, 75) as score`)
-- `main.py:727` — `/api/opportunities` main query (`COALESCE(os.priority_score, 75)`)
+- `main.py:214` — `/api/metrics` priorities query
+- `main.py:666` — `/api/opportunities` client rows
 
-Both use a fallback of `75`. A client with no scoring row would be displayed with a fake score of 75, classified as "Medium" by the §6.3 threshold rule. This **violates the zero-fabrication principle** stated in §1.
+Both use the pattern `COALESCE(priority_score, 75)`. This **violates the zero-fabrication principle** stated in §1. A client with no scoring row would be displayed with a fake score of 75, which would then be classified as "Medium" by the §6.3 threshold rule.
 
 **Currently dormant:** all 13 clients in the DB have a scoring row, so the fallback never fires.
 
-**Mitigation (18 Sep, `13721ca`):** the `/api/metrics` endpoint now guarantees that whitelisted clients appear in the priorities list even when their score ranks below the top-4 slice. This prevents silent dropouts from the sidebar but does not remove the fallback score.
-
-**Backlog fix:** replace `COALESCE(priority_score, 75)` with a null-preserving read. Null-safety handling needed downstream in `_effective_score` (line 812) and the response construction (line 1166), both of which currently assume `score_num` is an integer. The design decision — filter unscored clients vs. render them with an "Unscored" label — should be made before implementation. This is a read-path change only; no schema change required.
+**Recommended fix (backlog):** replace `COALESCE(priority_score, 75)` with a null-preserving read, filter out unscored clients from the rank table, or render them with an explicit "Unscored" label. The design decision (filter vs. display) should be made before implementation. This is a read-path change only — no schema change required.
 
 ---
 
@@ -500,7 +461,7 @@ Both use a fallback of `75`. A client with no scoring row would be displayed wit
 
 **Which one is live, precisely:**
 
-- **First definition** — carries `_DEMO_CLIENT_IDS` filter, client-name normalization, `LIMIT 40` SQL, `[:12]` Python slice, `(client_name, headline)` dedup
+- **First definition** (whichever line number it currently sits at) — carries `_DEMO_CLIENT_IDS` filter, client-name normalization, `LIMIT 40` SQL, `[:12]` Python slice, `(client_name, headline)` dedup
 - **Second definition** — plain SQL, `LIMIT 15`, no whitelist, no dedup, not connected to any route
 
 The second definition is a maintenance hazard. Deleting the wrong one would restore the whitelist filter (`[:12]`) but remove it from the served endpoint, changing runtime behavior. Cleanup is a backlog item.
@@ -545,27 +506,13 @@ Fallback values are read-only. They are never written back to the database. A cl
 
 ### 7.5 RSS synthetic article fallback
 
-`/api/rss/feed` returns two synthetic articles per client when Google News returns no rows. These articles are returned to the Ingestion Engine modal only. They are **never persisted** to the DB and **never surface** on the opportunity card.
+`/api/rss/feed` returns two synthetic articles per client when Google News returns no rows (see `main.py:~1248` for the BASF branch, and the analogous Enel branch above it). These articles are returned to the Ingestion Engine modal only. They are **never persisted** to the DB and **never surface** on the opportunity card.
 
 The purpose is graceful degradation: the modal has something to show rather than an empty list. This is not a zero-fabrication concern because these articles never become display data — they are inputs the user may choose to ingest. If ingested, the regular pipeline processes them, and any resulting signals or chunks are subject to the normal dedup and validation guards.
 
-**Caveat:** the synthetic articles look identical to real ones. There is no visual marker distinguishing a synthetic fallback article from a real Google News result. A future improvement would be to label fallback articles in the modal UI (e.g., `[Sample] ...`), but this is not a correctness issue.
+**Caveat:** the synthetic articles look identical to real ones. There is no visual marker distinguishing a synthetic fallback article from a real Google News result. A future improvement would be to label fallback articles in the modal UI (e.g., "[Sample] ..."), but this is not a correctness issue.
 
-### 7.6 Synthesis fallback path
-
-If the synthesis LLM call throws (network error, model unavailable, malformed JSON), `get_opportunities` falls through to a deterministic fallback:
-
-```python
-final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
-final_action = action or "Proactive capital markets advisory and rate hedging review."
-final_why_now_summary = ""
-final_action_summary = ""
-final_priority_score = None
-```
-
-The fallback uses the anchor's `why_now_nlg` / `next_best_action` from the DB (`why_now` and `action` in the code above), or a family-neutral statement if those are empty. `final_priority_score = None` means the response construction falls back to the DB's `score_num` value rather than a fresh synthesis score.
-
-No fabricated deal structure is introduced — the fallback either uses the DB's curated anchor or a generic statement.
+---
 
 ## 8. Reset-to-Pristine Baseline
 
@@ -625,8 +572,6 @@ COPY main.py pitchbook_builder.py baseline_snapshots.json ./
 
 Without this line, the endpoint would return `"baseline_snapshots.json not found"` on Cloud Run.
 
-**`ca.ext_company_filings` is not currently in the snapshot.** Row-level cleanups to that table (e.g. the 20 Sep BASF NULL-row deletion, §11.9) are therefore **durable across reset**. If a future version of the snapshot includes the table, this behavior changes.
-
 ### 8.3 The reset endpoint
 
 `POST /api/system/reset-baseline` — defined in `main.py` as `reset_baseline`.
@@ -675,7 +620,6 @@ Without this line, the endpoint would return `"baseline_snapshots.json not found
 - **Does not modify user-ingested rows.** No UPDATE touches rows the user created.
 - **Does not touch global tables.** `ca.mkt_rates_curves` and `ca.ext_credit_spreads` are not client-scoped and are not reset. They cannot be modified by ingestion, so they remain pristine by default.
 - **Does not touch non-whitelisted clients.** Only the client IDs in the request body are reset.
-- **Does not touch `ca.ext_company_filings`.** Not in the snapshot (see §8.2).
 
 ### 8.5 The `chunk_id` tiebreak convention
 
@@ -692,7 +636,7 @@ Current curated chunks for BASF (`CLI103`):
 | 9000003 | `CLIENT_EMAIL` | BASF Group Treasury (Claudia Meier) |
 | 9000004 | `TEAMS_CHAT` | European Chemicals Coverage (#deal-coverage-basf) |
 
-**Analogous convention for signals:** curated signals use IDs in the form `SIG_BASF_*` (or client-specific prefixes) so they are visibly distinguishable from ingestion-generated `SIG-<uuid>` IDs.
+**Analogous convention for signals:** curated signals should use IDs in the form `SIG_BASF_*` (or client-specific prefixes) so they are visibly distinguishable from ingestion-generated `SIG-<uuid>` IDs.
 
 The curated content is regenerated by `enrich_basf_baseline.py`, an idempotent utility that inserts the curated signals and chunks for BASF. It uses `ON CONFLICT (signal_id) DO UPDATE` for signals and a lookup-then-insert guard for chunks, so re-running it does not produce duplicates.
 
@@ -735,8 +679,6 @@ Both are serialized into the system instruction. The LLM cannot answer from memo
 
 Compliance with this pattern is validated by the test suite in `Copilot_Test_Suite.md`.
 
-**Wall and rating in the Copilot context (20 Sep update).** The Copilot's `db_wall_str` reads `debt_maturing_24m_bn` (billions format) from the bundle, and the rating reads `_CREDIT_RATINGS` via the shared dict. Prior to the 19-20 Sep fixes, the Copilot context computed these independently and drifted from the deck.
-
 ---
 
 ## 10. Compliance — LLM-Driven, Not Regex
@@ -764,34 +706,23 @@ Wiring the regex filter as a pre-filter before the LLM call would:
 
 This is a backlog item, not a current defect.
 
+---
+
 ## 11. Known Data Inconsistencies
 
 ### 11.1 Two maturity sources for the same client
 
-Two tables carry "what's maturing" for each client, measuring different things:
-
-**Enel (`CLI101`):**
-
-| Source | Value | Meaning |
+| Source | Value (Enel) | Meaning |
 |---|---|---|
 | `ca.ext_company_filings.debt_maturing_24m_eur_m` | €10,127M | Balance-sheet reported 24-month maturity wall |
-| `ca.debt_maturity_schedule` (2026-2028 itemized) | €7,100M (2026+2027 only) | Itemized instruments by year |
-
-**BASF (`CLI103`):**
-
-| Source | Value | Meaning |
-|---|---|---|
-| `ca.ext_company_filings.debt_maturing_24m_eur_m` | €3,000M | Balance-sheet reported 24-month maturity wall |
-| `ca.debt_maturity_schedule` (2026-2028 itemized) | €9,097M | Itemized instruments by year |
+| `ca.debt_maturity_schedule` (2026-2027) | €7,100M | Itemized instruments maturing in 2026 or 2027 |
 
 These are not the same thing:
 
-- The **balance-sheet figure** is the reported 24-month aggregate. It drives the client card's "24M Maturity Wall" and the mandate narrative.
-- The **itemized schedule** is what appears in slide 5/10's per-tranche ladder and sums to "Total Maturity Profile."
+- The balance-sheet figure is what the pitchbook references as "24-month maturity wall" (headline statements)
+- The schedule is what appears in slide 5's per-tranche ladder (line-item breakdowns)
 
-**Both are correct for their own definition.** For BASF, the two differ significantly (€3.00bn vs €9,097M) because the itemized schedule extends to 2028 while the aggregate is 24-month scoped. Do not treat the difference as a bug.
-
-**20 Sep fix:** slide 5/10's total line now shows the itemized sum with the "Total Maturity Profile" label (§8.5, slide 5 changes). The card and mandate narrative continue to show the aggregate. Different labels, both honest.
+Both are accurate for their own definition. The gap (€3.03bn for Enel) is a definitional difference, not a bug.
 
 ### 11.2 Structured metadata format variance
 
@@ -824,131 +755,77 @@ Two clients share the display name "ASML Holding N.V.":
 
 They are distinct records with distinct IDs. The duplication is a data entry issue, not a code defect. Documented here so future engineers do not treat it as a bug.
 
-### 11.7 Credit rating as a code-level dict (added 20 Sep)
-
-`ca.client_master` has **no `credit_rating` column**. The client card and pitchbook cover display a rating sourced from a curated `_CREDIT_RATINGS` dict:
-
-**`main.py:89`** and **`pitchbook_builder.py:6`**:
-
-```python
-_CREDIT_RATINGS = {
-    "CLI101": "S&P | BBB | Positive",   # Enel S.p.A.
-    "CLI103": "S&P | A- | Stable",      # BASF SE
-}
-```
-
-The frontend reads `opp.credit_rating` from the API response — no client-side rating logic. Adding a new demo client requires adding its rating to **both** dicts.
-
-**Prior implementation (superseded):** before 20 Sep, the rating was a per-client `if cid == "CLI101"` branch in three places (`main.py`, `pitchbook_builder.py`, and `App.jsx`). For any non-Enel client, the display fell through to `tier` — a coverage classification, not a credit rating. Fixed in commit `f9f8eeb`.
-
-**Why a dict, not a DB column:** §7.2 forbids DDL. If the schema unlocks, a `credit_rating` column on `ca.client_master` is the correct home for this data.
-
-**Sync invariant:** the two `_CREDIT_RATINGS` dicts (`main.py`, `pitchbook_builder.py`) must remain identical. A mismatch produces a card-vs-deck-cover inconsistency. See `master_persona_20Sep.md` §7.9.
-
-### 11.8 Frontend `default*` constants (added 20 Sep)
-
-`App.jsx` defines four per-family hardcoded fallbacks:
-
-```jsx
-const defaultNetDebt = isGreen ? "€58,500M" : isRates ? "€16,200M" : "€3,192M";
-const defaultLiquidity = isGreen ? "€14,200M" : isRates ? "€7,800M" : "€1,008M";
-const defaultRevenue = isGreen ? "€95,000M" : isRates ? "€65,000M" : "€28,300M";
-const defaultEbitda = isGreen ? "€20,900M" : isRates ? "€14,300M" : "€6,226M";
-```
-
-These fire when the API response doesn't supply the corresponding field. `/api/opportunities` currently does **not** expose `revenue_str`, `ebitda_str`, or `liquidity_str` for the client card — so the pitchbook preview slide 4 reads the `default*` constants.
-
-**For the current two clients the constants are coincidence-correct** — they match the DB values. But they are hardcodes: if the DB values change, the preview will not.
-
-**Full fix (backlog):** extend `/api/opportunities` to expose the four fields (`revenue_str`, `ebitda_str`, `net_debt_str`, `liquidity_str`) and remove the `default*` constants. Requires adding `reported_revenue_eur_m` and `ebitda_eur_m` to the `fl` lateral join in `get_opportunities`. Read-path change only.
-
-**Related dormant fallbacks:**
-
-- `pitchbook_builder.py:1045` — hardcoded `'€65,000M'` / `'€14,300M'` fallback when `revenue_str` / `ebitda_str` resolve to `'N/A'`. Dormant now that the bundle returns populated values.
-- `main.py:602` — hardcoded swap pre-hedge fallback string. Fires only when `current_action` is empty for a GREEN_ESG client. Does not fire for Enel (the curated narrative is populated).
-
-### 11.9 `ca.ext_company_filings` multi-row hazard (added 20 Sep)
-
-`ca.ext_company_filings` can contain multiple rows per client with identical `reporting_period` values. Observed for BASF: 5 rows, of which 4 had NULL `reported_revenue_eur_m` and `ebitda_eur_m`, and 1 had populated values.
-
-**Failure mode:** reads that pick "the latest row" via `ORDER BY reporting_period DESC LIMIT 1` can land on a NULL row. The downstream code then silently falls through to `client_master` values, producing a display inconsistency between the preview and the generated deck.
-
-Observed in the 19 Sep review: BASF's generated deck showed `€68,900M` revenue (from `client_master.revenue_eur_m`) while the preview showed `€65,000M` (from `defaultRevenue`). Both were "correct" for their source; neither was the reported filings value.
-
-**Fix applied (20 Sep):** deleted 4 NULL-revenue duplicate rows for `CLI103`, leaving 1 populated row. Additionally, `fetch_pitchbook_bundle` now filters `AND reported_revenue_eur_m IS NOT NULL` so the query only picks populated rows.
-
-**Root cause:** the ingestion pipeline writes duplicate rows to `ca.ext_company_filings` instead of upserting. Fixing the pipeline is a backlog item — until fixed, the pattern can recur.
-
-**Durability:** `ca.ext_company_filings` is **not** in `baseline_snapshots.json`, so the cleanup survives a reset (§8.2).
-
 ---
 
-## 12. Cross-References to Other Documents
+## 12. Changelog — 17 Sep 2026
 
-This document is one of a set. Related documents:
+Changes since the 14 Sep 2026 version:
 
-| Document | Relationship |
-|---|---|
-| `master_persona_20Sep.md` | Session persona and architectural context. §7.8 (cache/DB consistency), §7.9 (rating dict sync), §7.10 (filings multi-row), §8.1 (rating exception), §8.4-8.6 (frontend fallbacks) |
-| `architecture_flow_20Sep.md` | Architecture reference. §5.5 (cache invariant), §6.3 (preview/PPTX parity), §11 (principles) |
-| `Architecture_Decision_Hybrid_vs_LLM_Only.md` | Decision record. §4.2 (reproducibility), §4.3 (auditability), §10 (20 Sep changelog) |
-| `Context_Fabric_Integration_Production.md` | Webhook ingestion spec. Uses the same canonical client IDs and `WORKFABRIC_MEMO` channel |
-| `Table_details.md` | Database schema catalog — companion reference |
-| `data_population.md` | Field-by-field lineage of every UI element |
-
----
-
-## 13. Changelog — 20 Sep 2026
-
-Changes since the 17 Sep 2026 version. Corrections reflect the 19-20 Sep session, which changed the `priority_score` lifecycle and added two code-level curated exceptions.
-
-### Corrected
-
-- **§6.2 rewritten.** The 17 Sep version stated `priority_score` was a "legacy frozen value" that would not change. That is false after commit `13721ca` (18 Sep). The synthesis prompt now returns `priority_score` as a fifth key with an explicit weighted rubric, and the value is written back on every synthesis cache miss. Non-determinism at `temperature=0.0` documented (observed 85-94 for `CLI101` in one session).
-- **§6.3 updated.** The `_effective_score` preference chain (fresh synthesis over DB value) is now documented. Line numbers corrected to `main.py:812–814`.
-- **§6.7 line numbers corrected.** Was `main.py:214` / `main.py:666`; now `main.py:225` / `main.py:727`. Whitelist-guarantee mitigation from `13721ca` documented.
-- **§3 UI table refreshed.** "This Week" tiles re-sourced with the four new metrics (`clients_with_signals`, `active_signals`, `high_priority_clients`, `clients_in_database`). Client Data segment notes the `credit_rating` code-level source.
-- **§4.1 `ca.client_master`** — noted no `credit_rating` column, cross-referenced to §11.7.
-- **§4.1 `ca.ext_company_filings`** — added multi-row hazard note, cross-referenced to §11.9.
-- **§4.1 `ca.ca_opportunity_scoring`** — `priority_score` description updated ("recomputed on every synthesis run").
-- **§4.1 `ca.debt_maturity_schedule`** — noted it feeds slide 5/10 tranche ladder.
-- **§4.3** — whitelist state updated (two clients), Enel-primary framing.
-- **§5.1** — added canonical-vs-legacy channel guidance for webhook integrations.
-- **§8.2 and §8.4** — noted `ca.ext_company_filings` is not in the snapshot; cleanups durable across reset.
-- **§9** — added 20 Sep update on the Copilot's `db_wall_str` and rating sources.
-
-### Added
-
-- **§6.2 non-determinism table** — five observed values for `CLI101`.
-- **§7.6 Synthesis fallback path** — the deterministic fallback when the LLM call throws.
-- **§11.1** — the two-maturity-sources table now includes BASF alongside Enel, with the definitional difference noted.
-- **§11.7 Credit rating as a code-level dict** — the `_CREDIT_RATINGS` mechanism, why a dict, sync invariant.
-- **§11.8 Frontend `default*` constants** — the four per-family fallbacks, the full fix path, related dormant fallbacks.
-- **§11.9 `ca.ext_company_filings` multi-row hazard** — the observed failure mode, the 20 Sep cleanup, root cause, durability.
-- **§12 Cross-References** — a table linking this doc to the other five in the set.
-- **§13 Changelog** — this section.
-
-### Related commits
-
-- `13721ca` — LLM-computed `priority_score` with weighted rubric + whitelist guarantee
-- `9cfeb42` — cache populated only after successful DB commit
-- `f9f8eeb` — THIS WEEK tiles + client display fabrication fixes
-- `1c1657b`, `b061c14` — persona 20Sep added and personas consolidated
-- `c33c573` — architecture_flow_20Sep
-- `bd23131` — decision record amended
-- `16e1465` — Context Fabric spec updated
-
-### Backlog confirmed in this version
-
-1. `COALESCE(priority_score, 75)` at `main.py:225, 727` (§6.7)
-2. Frontend `default*` constants in `App.jsx` (§11.8)
-3. `pitchbook_builder.py:1045` revenue/EBITDA fallback (§11.8)
-4. `main.py:602` swap pre-hedge fallback (§11.8)
-5. Ingestion pipeline duplicate-row write to `ca.ext_company_filings` (§11.9)
-6. LLM `priority_score` non-determinism at `temperature=0.0` (§6.2)
-7. Two `get_live_signals` definitions (§7.1)
-8. Compliance regex pre-filter not wired (§10.3)
+- **Reset-to-pristine mechanism documented (§8).** New top-level section covering the endpoint, the `baseline_snapshots.json` snapshot, the `chunk_id >= 9000000` convention, and the effect on the UI. Previously absent.
+- **Two live read sites with `COALESCE(priority_score, 75)` fallbacks flagged (§6.7).** Dormant but a violation of the zero-fabrication principle. Backlog item.
+- **`propensity_score` read at `pitchbook_builder.py:307, 365`** — corrected from "not read by any current code path" to "used as ORDER BY tiebreaker in the pitchbook bundle read."
+- **Primary-key absence on `debt_maturity_schedule` and `coverage_teams` documented (§11.4).** Explains the reset endpoint's delete-by-client pattern for those tables.
+- **Client ID distribution (§4.3) reframed.** Specific counts removed in favor of a pattern statement, since counts drift with each ingestion.
+- **Channel classification (§5.1) expanded.** Historical channel aliases documented. Read paths now explicitly noted as querying a superset of the current pipeline's output.
+- **Multi-channel reads in §3 updated.** Context Fabric chips and Live Verified News now show their full channel `IN` lists.
+- **RSS synthetic fallback documented (§7.5).** Notes that `/api/rss/feed` returns synthetic articles when Google News fails, and that these are never persisted or surfaced on the opportunity card.
+- **Dedup layered into two guards (§5.4).** Signal-level `(client_id, trigger_summary)` and chunk-level semantic. The semantic guard is channel-scoped.
+- **`metric_value` contract documented (§8.5).** For `BOARD_AUTHORIZATION` signals, the value must be a bare number; the read path appends `" financing capacity"` at display time.
+- **`ca.ext_deals` promoted to §4.4** with its schema.
+- **Section numbers shifted.** The 14 Sep version's §8 Copilot State Grounding, §9 Compliance, and §10 Known Data Inconsistencies are now §9, §10, §11 respectively.
 
 ---
 
 *End of document.*
+
+---
+
+## Where To Save It
+
+```bash
+cd ~/ing-fm-poc
+
+# Back up the current version
+cp Docs/Data_or_Fabrication.md Docs/Data_or_Fabrication.md.bak.$(date +%s)
+
+# Save the new content as Docs/Data_or_Fabrication.md
+```
+
+## Verification After Saving
+
+```bash
+cd ~/ing-fm-poc
+
+echo "=== Verify header and key sections ==="
+grep -n "^# \|^## " Docs/Data_or_Fabrication.md | head -30
+
+echo ""
+echo "=== Verify the new §8 is present ==="
+grep -c "Reset-to-Pristine Baseline" Docs/Data_or_Fabrication.md
+
+echo ""
+echo "=== Verify §6.7 is present ==="
+grep -c "Known open item" Docs/Data_or_Fabrication.md
+
+echo ""
+echo "=== Verify changelog mentions 17 Sep ==="
+grep -c "17 Sep 2026" Docs/Data_or_Fabrication.md
+```
+
+Expected:
+
+- Header shows the new §8, §9, §10, §11, §12 numbering
+- "Reset-to-Pristine Baseline" appears **≥ 1** time
+- "Known open item" appears **≥ 1** time
+- "17 Sep 2026" appears **≥ 1** time
+
+## What's Next
+
+After this doc lands, the remaining documentation work:
+
+1. **`Reset_Baseline.md`** — I'd argue this is now optional given the depth of §8. Unless you want a standalone spec, the coverage in `Data_or_Fabrication.md` should suffice.
+2. **`data_population.md`** — update §2.4 for the four-channel news read.
+3. **`Table_details.md`** — add the `chunk_id >= 9000000` convention and PK-absence notes.
+4. **`Ranks.md`** — still a transcript; needs a rewrite.
+
+Say the word on which one next.

@@ -1,12 +1,8 @@
-Here's the updated `data_population.md`. Save it as `Docs/data_population.md`, replacing the current version.
-
----
-
 # Data Population & UI Lineage
 
-**Version:** 17 September 2026
+**Version:** 20 September 2026
 **Status:** Authoritative
-**Supersedes:** `data_population.md` (14 Sep 2026)
+**Supersedes:** `data_population.md` (17 Sep 2026), `data_population.md` (14 Sep 2026)
 **Audience:** Engineers, Business Analysts
 
 ---
@@ -18,6 +14,12 @@ This doc traces every visible field on the opportunity card and pitchbook back t
 The platform follows a strict principle: **no value is rendered without a database source.** Fallbacks exist for missing data but never substitute invented values. Client-specific metrics — net debt, liquidity, maturities, credit spreads, ratings — all trace to rows in the `ca` schema filtered by `client_id`.
 
 The reset-to-pristine mechanism (documented in `Data_or_Fabrication.md` §8) does not change these read paths. It changes which rows win the `created_at DESC` sort after a reset, which shifts the visible values without altering the lineage. See §2.8 for the effect.
+
+Two documented exceptions to "no hardcoded display values" exist as of 20 Sep 2026:
+- **`_CREDIT_RATINGS`** — a curated credit rating dict in `main.py` and `pitchbook_builder.py` (§2.1)
+- **Frontend `default*` constants** — per-family fallbacks in `App.jsx` for net debt, liquidity, revenue, EBITDA (§2.1 note)
+
+Both are documented in `Data_or_Fabrication.md` §11.7 and §11.8.
 
 ---
 
@@ -36,15 +38,21 @@ Below the grid, a full-width **Synthesized Mandate & AI Catalyst** section rende
 
 ### 2.1 Segment 1 — Client Data
 
-| Field | Table | Column | Transformation |
-|---|---|---|---|
-| Coverage RM | `ca.coverage_teams` | `banker_name` WHERE `role_title ILIKE '%Relationship Manager%'` LIMIT 1 | Fallback: `ca.client_master.rm_name` |
-| External ratings | `ca.client_master` | `tier` | Displayed as-is, **except for CLI101 (Enel)**, where the value is hardcoded as "S&P \| BBB \| Positive" — see `Data_or_Fabrication.md` §8.1 for the documented exception. For other clients, the `tier` column holds a coverage classification ("Tier 1"), not a credit rating |
-| Net Debt | `ca.ext_company_filings` | `net_debt_eur_m` | Latest row by `reporting_period DESC`, formatted as `€{X}bn` if ≥ 1000, else `€{X}M` |
-| Available Liquidity | `ca.ext_company_filings` | `liquidity_eur_m` | Same formatting rule |
-| Potential debt maturities within 24 months | `ca.ext_company_filings` | `debt_maturing_24m_eur_m` | Formatted as `€{X}bn`. **This is the balance-sheet figure**, not the schedule sum |
+| Field | Source | Transformation |
+|---|---|---|
+| Coverage RM | `ca.coverage_teams.banker_name` WHERE `role_title ILIKE '%Relationship Manager%'` LIMIT 1 | Fallback: `ca.client_master.rm_name` |
+| **External ratings** | `_CREDIT_RATINGS` dict (`main.py:89`) | Curated string per client. `ca.client_master` has **no `credit_rating` column**. Non-curated clients render `"—"`. The frontend reads `opp.credit_rating` from the API. See `Data_or_Fabrication.md` §11.7 |
+| Net Debt | `ca.ext_company_filings.net_debt_eur_m` | Latest row by `reporting_period DESC`; formatted `€{X}bn` if ≥ 1000, else `€{X}M` |
+| Available Liquidity | `ca.ext_company_filings.liquidity_eur_m` | Same formatting rule |
+| Potential debt maturities within 24 months | `ca.ext_company_filings.debt_maturing_24m_eur_m` | Formatted `€{X}bn`. **This is the balance-sheet figure**, not the schedule sum. Frontend reads `opp.debt_maturing_24m_bn` |
 
-**Note on maturities:** `ca.ext_company_filings.debt_maturing_24m_eur_m` and `ca.debt_maturity_schedule` measure different things. The balance-sheet field is the reported 24-month maturity wall. The schedule is itemized instruments. See §5 for details.
+**Note on credit ratings.** `ca.client_master.tier` holds a coverage classification ("Tier 1"), not a credit rating. The rating shown is a curated string from `_CREDIT_RATINGS`. Two dicts exist (one in `main.py`, one in `pitchbook_builder.py`) and must remain identical. Adding a demo client requires updating both. See `Data_or_Fabrication.md` §11.7 for the mechanism.
+
+**Note on maturities.** `ca.ext_company_filings.debt_maturing_24m_eur_m` and `ca.debt_maturity_schedule` measure different things. The balance-sheet field is the reported 24-month maturity wall. The schedule is itemized instruments by year. See §5 for details.
+
+**Multi-row hazard.** `ca.ext_company_filings` can contain multiple rows per client with identical `reporting_period` values. Reads with `ORDER BY reporting_period DESC LIMIT 1` can land on a NULL row. `fetch_pitchbook_bundle` filters `AND reported_revenue_eur_m IS NOT NULL`. The 20 Sep cleanup deleted 4 NULL-revenue BASF rows (5 → 1). See `Data_or_Fabrication.md` §11.9.
+
+**Frontend `default*` constants.** The pitchbook preview canvas (`App.jsx`) defines per-family fallbacks (`defaultNetDebt`, `defaultLiquidity`, `defaultRevenue`, `defaultEbitda`) that fire when the API response doesn't supply a value. `/api/opportunities` currently does **not** expose revenue or EBITDA for the client card. For the current two clients the constants are coincidence-correct; they are documented as an exception in `Data_or_Fabrication.md` §11.8.
 
 ### 2.2 Segment 2 — Market Data
 
@@ -195,6 +203,8 @@ Tile 4 reads the same chunk as the houseview chip (highest `chunk_id` among `PDF
 | Pitchbook Ready | Static | "11 Slides Generated" | Display-only |
 | Multi-Signal Lineage Verified | Static | Badge label | Display-only |
 
+**Note on `priority_score`.** As of 18 Sep (`13721ca`), the mandate synthesis prompt also returns `priority_score` as a fifth key, written back to `ca.ca_opportunity_scoring` on every cache miss. See §2.6 and `Data_or_Fabrication.md` §6.
+
 #### 2.5.5 Tile tooltips
 
 Each lineage tile carries a `title=` attribute with a business-language description:
@@ -212,24 +222,46 @@ No schema names appear in any user-visible tooltip.
 
 | Field | Table | Column | Notes |
 |---|---|---|---|
-| Rank badge | Computed | Enumerate index over priorities sorted by `priority_score DESC` | "RANK #1 (SCORE 94)" |
+| Rank badge | Computed | Enumerate index over priorities | Score source: `_effective_score = final_priority_score if present else score_num` (`main.py:812`). The score shown in the sidebar can differ from the card if synthesis produced a new value |
 | Client name | `ca.client_master` | `client_name` | |
 | Description | `ca.ca_opportunity_scoring` | `why_now_nlg` | Truncated |
 | Action | `ca.ca_opportunity_scoring` | `next_best_action` | Truncated |
 | Fee estimate | `ca.ca_opportunity_scoring` | `est_revenue_eur_000` | Formatted as `€{X.X}M` or `€{X}k` |
 
-**Note on the `rank` column:** `ca.ca_opportunity_scoring.rank` exists but is not read by any code path. The presentation rank is computed at request time by enumerating sorted rows.
+**Score preference chain.** `_effective_score` prefers the fresh synthesis value (`final_priority_score`) when present; falls back to the DB value (`score_num`) when synthesis was skipped. This means the card and the sidebar read the same effective score.
 
-**Note on `COALESCE(priority_score, 75)`:** the sidebar query substitutes a fabricated score of 75 when a client has no scoring row. This is a known open item — see `Data_or_Fabrication.md` §6.7.
+**Whitelist guarantee (18 Sep, `13721ca`).** After the top-4 slice, the endpoint appends any whitelisted client not already present. This ensures the demo client always renders in the sidebar, even if its score drops below the slice threshold.
+
+**Note on the `rank` column.** `ca.ca_opportunity_scoring.rank` exists but is not read by any code path. The presentation rank is computed at request time by enumerating sorted rows.
+
+**Note on `COALESCE(priority_score, 75)`.** The sidebar query substitutes a fabricated score of 75 when a client has no scoring row. This is a known open item — see `Data_or_Fabrication.md` §6.7.
 
 ### 2.7 This Week Metrics Strip
 
-| Field | Table | Query |
-|---|---|---|
-| Active drafts | `ca.digital_twin_signals` | `COUNT(DISTINCT client_id)` |
-| Avg. time to first draft | Static | "less than 15s" (display-only) |
-| Deals pending review | `ca.ca_opportunity_scoring` | `COUNT(DISTINCT client_id) WHERE priority_score >= 85` |
-| Cohort matches | `ca.client_master` | `COUNT(*)` |
+Replaced in the 20 Sep session (commit `f9f8eeb`). The prior tiles (`Active drafts`, `Avg. time to first draft`, `Deals pending review`, `Cohort matches`) were fabricated — either hardcoded or rendered from a frontend render count. All four tiles now read whitelist-scoped SQL values via `/api/metrics`.
+
+| Tile | Backend key | Query | Scope |
+|---|---|---|---|
+| **Clients with signals** | `clients_with_signals` | `COUNT(DISTINCT client_id)` in `ca.digital_twin_signals` | Whitelist-scoped |
+| **Active signals** | `active_signals` | `COUNT(*)` in `ca.digital_twin_signals` (all-time); change line shows 7-day count | Whitelist-scoped |
+| **High-priority clients** | `high_priority_clients` | `COUNT(DISTINCT client_id)` in `ca.ca_opportunity_scoring` WHERE `priority_score >= 85` | Whitelist-scoped |
+| **Clients in database** | `clients_in_database` | `COUNT(*)` in `ca.client_master` | Full book (NOT whitelist-scoped) |
+
+**Response shape per tile:**
+
+```json
+{
+  "value": "<count>",
+  "change": "<trend line>",
+  "label": "<human-readable label>"
+}
+```
+
+For "Active signals," the change line is `"▲ N this week"` where N is the 7-day count, or `"No new this week"` when N is 0.
+
+**Fallbacks are `"0"`**, not `"1"` or a hardcoded count. If the metric is missing from the response, the frontend renders `"0"`.
+
+**The old `<15s` tile is removed.** It was unmeasurable — the platform does not record draft generation. See `Data_or_Fabrication.md` §13 backlog for the removed metric's history.
 
 ### 2.8 Reset Effect On Lineage
 
@@ -238,15 +270,16 @@ The reset-to-pristine endpoint (`Data_or_Fabrication.md` §8) does not change th
 After a reset:
 
 - Pristine rows in `ca.digital_twin_signals` and `ca.document_vector_chunks` have `created_at = NOW()`, so they outrank any previously-ingested rows.
-- The `chunk_id >= 9000000` convention (§8.5 in `Data_or_Fabrication.md`) ensures curated chunks win ties against organic chunks with higher sequence-assigned IDs.
+- The `chunk_id >= 9000000` convention (`Data_or_Fabrication.md` §8.5) ensures curated chunks win ties against organic chunks with higher sequence-assigned IDs.
 - The Context Fabric chips, Desk Signal, Latent list, Houseviews body, Live Verified News, and the two tiles that read chunk data all shift to reflect the pristine state.
 - User-ingested content remains in the DB, outranked but preserved.
 - The Synthesized Mandate cache is invalidated, so the narrative re-synthesizes from the pristine anchor on the next read.
 
 The specific post-reset values for a given client are the curated values captured in `baseline_snapshots.json`, not invented. See `Data_or_Fabrication.md` §8.6 for the full before/after comparison.
 
----
+**Reset does not touch `ca.ext_company_filings`** — not in the snapshot. Any row-level cleanup to filings survives reset. See `Data_or_Fabrication.md` §8.2.
 
+---
 ## 3. Continuous Live Signal Feed
 
 The marquee at the top of the page reads from `ca.digital_twin_signals`.
@@ -283,7 +316,7 @@ LIMIT 40;
 
 Followed by a Python-level dedup and a `[:12]` slice. The `ANY(%s)` binds to the demo client whitelist (`_DEMO_CLIENT_IDS`).
 
-**Note on the duplicate definition:** the file contains two `def get_live_signals()` definitions. The one decorated with `@app.get("/api/signals")` is bound to the route and is the live handler. The second is dead code — Python rebinds the module-level name at load, but the route holds a reference to the first function object. See `Data_or_Fabrication.md` §7.1.
+**Note on the duplicate definition.** The file contains two `def get_live_signals()` definitions. The one decorated with `@app.get("/api/signals")` is bound to the route and is the live handler. The second is dead code — Python rebinds the module-level name at load, but the route holds a reference to the first function object. See `Data_or_Fabrication.md` §7.1.
 
 The frontend applies a second dedup pass on `(client_name, headline)` before rendering. Final visible count: at most 12 unique signals.
 
@@ -382,9 +415,15 @@ The palette is defined in `pitchbook_builder.py`:
 
 ### 4.6 Slide count and structure
 
-The deck has **11 slides** (not 10). The React canvas maps them via `case 0` through `case 10` in `App.jsx`. Slide 5 is the debt maturity profile; slide 8 is the term sheet.
+The deck has **11 slides** (not 10). The React canvas maps them via `case 0` through `case 10` in `App.jsx`.
 
-Slide titles vary by product family (FX / Green / Rates / DCM). The full mapping is in `architecture_flow_14Sep.md` §6.2.
+**Slide 5 (debt maturity profile) — 20 Sep update.** The tranche ladder reads `ctx["maturities"]` (populated from `ca.debt_maturity_schedule` per client). The total line is labeled "Total Maturity Profile" and shows the sum of the row values, not the 24-month aggregate. Previously the rows were hardcoded; the sum is now the itemized schedule sum. For BASF this changed the total from `€3,000M` to `€9,097M` — same instrument data, previously not shown in aggregate. See §5 for the two-source distinction.
+
+**Slide 4 (Capital Structure / ESG Balance Sheet) — 20 Sep update.** The maturity wall and credit rating now read the billions-formatted field (`debt_maturing_24m_bn`) and the `_CREDIT_RATINGS` dict respectively. Prior to the fix, the preview and generated views computed these independently and drifted for non-Enel clients.
+
+**Slide 6 (Rate Shift / Refinancing Sensitivity) — 20 Sep update.** The scenario narrative reads `activeClient.credit_rating` (short-form extraction) and `activeClient.debt_maturing_24m_bn`. The phrasing was changed from "A {rating} rated issuer..." to "An issuer rated {rating}..." to avoid article collisions for multi-word ratings.
+
+Slide titles vary by product family (FX / Green / Rates / DCM). The full mapping is in `architecture_flow_20Sep.md` §6.2.
 
 ---
 
@@ -392,27 +431,38 @@ Slide titles vary by product family (FX / Green / Rates / DCM). The full mapping
 
 Two sources of truth exist for "what's maturing":
 
-| Source | Value (Enel) | Meaning |
+**Enel (`CLI101`):**
+
+| Source | Value | Meaning |
 |---|---|---|
 | `ca.ext_company_filings.debt_maturing_24m_eur_m` | €10,127M | Balance-sheet reported 24-month maturity wall |
 | `ca.debt_maturity_schedule` (2026-2027) | €7,100M | Itemized instruments maturing in 2026 or 2027 |
 
+**BASF (`CLI103`):**
+
+| Source | Value | Meaning |
+|---|---|---|
+| `ca.ext_company_filings.debt_maturing_24m_eur_m` | €3,000M | Balance-sheet reported 24-month maturity wall |
+| `ca.debt_maturity_schedule` (2026-2028) | €9,097M | Itemized instruments by year: 2026 €600M, 2027 €3,000M, 2028 €5,497M |
+
 These are **not the same thing**:
 
 - The balance-sheet figure is a reported aggregate that a client discloses. It includes all debt maturing in a 24-month window as defined by the reporting period.
-- The schedule is an itemized list of specific ISINs with specific maturity years.
+- The schedule is an itemized list of specific instruments with specific maturity years. It can extend beyond the 24-month window.
 
-The gap (€3.03bn for Enel) represents the difference in definitions. Neither is "wrong."
+For BASF, the two differ significantly (€3.00bn vs €9,097M) because the itemized schedule extends to 2028 while the aggregate is 24-month scoped. For Enel, the itemized schedule is closer to the aggregate (€10.13bn vs €7,100M across 2026-2027, the difference reflecting debt maturing beyond 2027 that the 24-month aggregate captures).
 
 **Where each is used:**
 
 | UI Element | Source |
 |---|---|
-| Segment 1 — "Potential debt maturities within 24 months" | Balance sheet (`debt_maturing_24m_eur_m`) |
+| Segment 1 — "Potential debt maturities within 24 months" | Balance sheet (`debt_maturing_24m_eur_m` → `debt_maturing_24m_bn` for display) |
 | Lineage Tile 1 — "Liquidity Buffer" | Balance sheet (`liquidity_eur_m`) |
 | Lineage Tile 3 — "Context Fabric" | `ca.digital_twin_signals.metric_value` WHERE `signal_type IN ('BOARD_AUTHORIZATION', 'Funding Capacity Authorisation')` |
-| Slide 5 — per-tranche ladder | Schedule (`debt_maturity_schedule`) |
-| Mandate narrative | Balance sheet figure (references "€10.13bn maturity wall") |
+| Slide 4 — "24M Maturity Wall" card | Balance sheet (`debt_maturing_24m_bn`) |
+| Slide 5 / 10 — per-tranche ladder | Schedule (`ca.debt_maturity_schedule`, `ctx["maturities"]`) |
+| Slide 5 / 10 — "Total Maturity Profile" line | Sum of schedule rows |
+| Mandate narrative | Balance sheet figure (references "€10.13bn maturity wall" for Enel) |
 
 ---
 
@@ -428,29 +478,35 @@ Some fields exist in the DB and are read by code, but do not appear as display v
 | `metric_value` | `ca.digital_twin_signals` | Read for Lineage Tile 3 (with the bare-number contract in §2.5.2). Also read for signal display in some paths. |
 | `catalog_family` | `ca.digital_twin_signals` | Not displayed. Used as a filter in the Desk Signal fallback read and in mandate synthesis. |
 | `notes` | `ca.ext_company_filings` | Not displayed. |
+| `tier` | `ca.client_master` | Used for the card subtitle ("Tier 1 (Chemicals)"). **Not** the credit rating — see §2.1. |
 
 ---
 
-## 7. Changelog — 17 Sep 2026
+## 7. Changelog — 20 Sep 2026
 
-Corrections and additions since the 14 Sep 2026 version:
+Corrections and additions since the 17 Sep 2026 version. Reflects the 19-20 Sep session.
 
-- **Context Fabric chip read corrected.** Full `IN` list documented (five channels, not three). Channel standardization to `WORKFABRIC_MEMO` documented.
-- **Desk Signal read order corrected.** Now documents that the primary read is a `WORKFABRIC_MEMO` chunk, with `ca.digital_twin_signals` as a fallback — not the other way around.
-- **Houseview body fallback documented.** Falls back to truncated `text_content` when `structured_metadata.executive_summary` is absent.
-- **Live Verified News read corrected.** Four channel aliases documented (`NEWS_RSS`, `LIVE_RSS_NEWS`, `LIVE RSS News`, `News RSS`). Sort is `created_at DESC, chunk_id DESC`.
-- **Boundary isolation noted.** Internal research queries exclude news channels with `NOT IN ('NEWS_RSS', 'LIVE_RSS_NEWS')`.
-- **Lineage Tile 3 format contract documented (§2.5.2).** Bare-number requirement for `metric_value`, suffix-append behavior, `.0bn` normalization.
-- **Lineage Tile 4 fallback chain documented (§2.5.3).** Full four-step fallback.
-- **Reset effect on lineage documented (§2.8).** Cross-references `Data_or_Fabrication.md` §8.
-- **`propensity_score` classification corrected.** Now documented as read by `pitchbook_builder.py` as an ORDER BY tiebreaker.
-- **Line number references removed.** Function-name references retained; line numbers drift with every code change.
-- **Section 2.3 restructured** into sub-sections (chips, Desk Signal, Latent list) for clarity.
-- **Section 2.4 restructured** into sub-sections (houseview, Live Verified News).
-- **Section 2.5 restructured** into sub-sections (tiles, tile-3 contract, tile-4 fallback chain, narrative fields, tooltips).
-- **`COALESCE(priority_score, 75)` noted** in §2.6 with a cross-reference to `Data_or_Fabrication.md` §6.7.
-- **Dead `get_live_signals` definition noted** in §3.1 with a cross-reference to `Data_or_Fabrication.md` §7.1.
-- **Section 6 reclassified.** Now distinguishes "read by code" from "entirely dormant" fields.
+### Corrected
+
+- **§2.7 This Week Metrics Strip — full rewrite.** The four tiles were replaced in commit `f9f8eeb`. Old tiles (`Active drafts`, `Avg. time to first draft`, `Deals pending review`, `Cohort matches`) were fabricated. New tiles: `Clients with signals`, `Active signals`, `High-priority clients`, `Clients in database`. All read whitelist-scoped SQL values via `/api/metrics`.
+- **§2.1 External ratings.** Was documented as a per-client `if cid == "CLI101"` hardcode; now the `_CREDIT_RATINGS` dict (`main.py:89`). The frontend reads `opp.credit_rating` from the API. `tier` is no longer used for ratings.
+- **§2.1 Net Debt / Liquidity / Maturities.** Added the multi-row hazard note (files with NULL rows can win the sort), the 20 Sep BASF cleanup, and the frontend `default*` constants exception.
+- **§2.6 Priority Today.** Score source is now `_effective_score` (fresh synthesis preferred over DB). Whitelist guarantee documented (whitelisted clients always appended).
+- **§4.6 Slide references.** Noted slide 4, 5, and 6 updates from the 19-20 Sep session.
+- **§5 Maturity Source Ambiguity.** Added BASF alongside Enel. Slide 5 "Total Maturity Profile" row added.
+- **§6 Non-Display Fields.** Added `tier` row noting it feeds the subtitle, not the rating.
+
+### Added
+
+- **§1 Overview** — the two documented exceptions to "no hardcoded display values": `_CREDIT_RATINGS` and frontend `default*`.
+- **§2.5.4 Note on `priority_score`** — cross-reference to `Data_or_Fabrication.md` §6.
+- **§2.7 Response shape** — the `{value, change, label}` structure per tile.
+- **§2.8 Reset effect** — noted that `ca.ext_company_filings` is not in the snapshot.
+- **§4.6 Slide 5, 4, 6 notes** — the specific 20 Sep fixes.
+
+### Section numbering
+
+Section numbering unchanged from 17 Sep. The changelog moved from §7 to §7 (still the last section).
 
 ---
 

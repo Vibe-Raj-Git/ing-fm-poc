@@ -839,7 +839,8 @@ All endpoints served from the FastAPI application. Base URL is the Cloud Run ser
 | GET | `/healthz` | Liveness check. Note: returns 404 when accessed via Cloud Run (intercepted path); prefer `/api/opportunities` for reachability checks. |
 | GET | `/api/metrics` | Dashboard metrics: `clients_with_signals`, `active_signals`, `high_priority_clients`, `clients_in_database`, `priorities` (all whitelist-scoped except the last) |
 | GET | `/api/signals` | Live signal marquee feed. Filtered to `_DEMO_CLIENT_IDS`. |
-| GET | `/api/opportunities` | Opportunity cards with mandate synthesis |
+| GET | `/api/brand` | Runtime brand profile (branding branch). Returns the active brand's display strings, logo filenames, colour palette, and title — excludes server-side-only `prompt_*` and `download_prefix` keys. See `Brand_Toggle_Implementation.md` §4.3 |
+| GET | `/api/opportunities` | Opportunity cards with mandate synthesis. Text fields pass through `_brand_substitute` on the read path (see the Flavor 2 guardrail doc §4) |
 | GET | `/api/client/{client_id}/maturities` | Debt maturity ladder for one client |
 | GET | `/api/rss/feed?client_id=...` | Live Google News RSS for a client |
 | POST | `/api/ingest/text` | Ingest text from any channel |
@@ -863,7 +864,7 @@ All endpoints served from the FastAPI application. Base URL is the Cloud Run ser
 
 | Setting | Value |
 |---|---|
-| Service | `ing-fm-poc-service` |
+| Service | Two services: `ing-fm-poc-service` (ING) and `bfs-ai-lab-service` (BFS AI Lab) |
 | Region | `europe-west1` |
 | CPU | 1000m (1 vCPU) |
 | Memory | 512 MiB |
@@ -871,6 +872,8 @@ All endpoints served from the FastAPI application. Base URL is the Cloud Run ser
 | Max instances | 1 |
 | Container port | 8080 |
 | Ingress | Public (allUsers granted `roles/run.invoker`) |
+
+**Two services, one image.** The same Docker image runs as two Cloud Run services — `ing-fm-poc-service` with `BRAND=ING` and `bfs-ai-lab-service` with `BRAND=BFS_AI_LAB`. Both share the same Cloud SQL instance. Brand-specific display strings, colours, logos, and footers are selected at service startup from the `BRAND` env var. When unset, the code defaults to ING. See `Brand_Toggle_Implementation.md` for the full specification.
 
 **Why min/max = 1:** The mandate synthesis cache (`_MANDATE_SYNTH_CACHE`) is in-memory.
 Multiple instances would each have their own empty cache, defeating the TTL caching strategy.
@@ -904,17 +907,19 @@ DB_USER=postgres
 DB_NAME=postgres
 GCP_PROJECT=dulcet-radar-508218-c5
 REGION=europe-west1
+BRAND=ING          # or BFS_AI_LAB on the second service
 ```
 
-DB password is mounted from Secret Manager (`db-postgres-pass`).
+DB password is mounted from Secret Manager (`db-postgres-pass`). `BRAND` is set explicitly on both services — the ING service carries `BRAND=ING` for intent clarity, not relying on the code default.
 
-### 10.5 Deployment Command
+### 10.5 Deployment Commands
 
 ```
-deploy-poc
+deploy-poc   → ing-fm-poc-service    with BRAND=ING
+deploy-bfs   → bfs-ai-lab-service    with BRAND=BFS_AI_LAB
 ```
 
-This is a shell alias for:
+Both aliases run the same gcloud command — the differences are the service name and the BRAND value. The original `deploy-poc` alias:
 
 ```
 gcloud run deploy ing-fm-poc-service \
@@ -929,6 +934,32 @@ gcloud run deploy ing-fm-poc-service \
 The Dockerfile uses a two-stage build: node:20-alpine compiles the React frontend into
 `/app/frontend/dist`, then python:3.11-slim installs requirements and copies `main.py`,
 `pitchbook_builder.py`, and `assets/`.
+
+### 10.6 Public Access on the BFS Service
+
+New Cloud Run services default to private. The ING service was granted `allUsers` invoker access earlier. The BFS service needs the same grant to be reachable from a browser:
+
+```
+gcloud run services add-iam-policy-binding bfs-ai-lab-service \
+    --region=europe-west1 \
+    --project=dulcet-radar-508218-c5 \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+```
+
+Remove the binding to make the BFS service private again:
+
+```
+gcloud run services remove-iam-policy-binding bfs-ai-lab-service \
+    --region=europe-west1 \
+    --project=dulcet-radar-508218-c5 \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+```
+
+### 10.7 Database Impact of the Branding Branch
+
+No schema change. No DB mutation. Both services read the same `ca.*` tables. The brand substitution happens in Python after the row is fetched — no `UPDATE`, no `INSERT`, no `DELETE`. The `reset-baseline` endpoint is unaffected.
 
 ---
 

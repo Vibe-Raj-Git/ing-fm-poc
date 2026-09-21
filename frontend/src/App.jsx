@@ -22,6 +22,24 @@ import {
 } from "lucide-react";
 
 // =============================================================================
+// Brand Fallback - used if /api/brand fetch fails
+// =============================================================================
+const ING_FALLBACK = {
+  name: "ING",
+  full_name: "ING Wholesale Banking",
+  copilot_name: "ING Copilot",
+  logo_white: "ing_logo_white.png",
+  logo_orange: "ing_logo_orange.png",
+  footer: "ING Wholesale Banking • Strictly Confidential",
+  attribution: "ING Desk Research & Market Intelligence",
+  api_title: "ING FM Insights API",
+  houseview_default_source: "ING FM Research",
+  houseview_fallback: "No ING houseview published for this client in the current reporting cycle.",
+  rss_fallback_url: "https://think.ing.com",
+  download_prefix: "ING_FM",
+};
+
+// =============================================================================
 // FormattedChatText Component - Handles markdown-like formatting
 // =============================================================================
 
@@ -157,6 +175,7 @@ export default function App() {
   const [loadingClient, setLoadingClient] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [brand, setBrand] = useState(null);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [activeClient, setActiveClient] = useState(null);
@@ -264,6 +283,22 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/brand")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setBrand(data);
+      })
+      .catch((err) => {
+        console.warn("Brand fetch failed, using ING fallback:", err);
+        if (!cancelled) setBrand(ING_FALLBACK);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -399,7 +434,7 @@ export default function App() {
     setChatMessages([
       {
         sender: "bot",
-        text: `Hello! I am your ING Copilot for **${opp.name}**.\n\nYou can ask questions, run regulatory audits, or instruct me to adjust parameters:\n• **"Run MiFID II, MAR & EU Green Bond Standard compliance audit"**\n• **"In Slide 7, update Bund yield to 2.65%"**\n• **"In Slide 6, adjust the greenium concession to 7 bps"**`,
+        text: `Hello! I am your ${brand.copilot_name} for **${opp.name}**.\n\nYou can ask questions, run regulatory audits, or instruct me to adjust parameters:\n• **"Run MiFID II, MAR & EU Green Bond Standard compliance audit"**\n• **"In Slide 7, update Bund yield to 2.65%"**\n• **"In Slide 6, adjust the greenium concession to 7 bps"**`,
         time: new Date().toLocaleTimeString("en-GB", { timeZone: "Europe/Amsterdam", hour: "2-digit", minute: "2-digit", hour12: false })
       }
     ]);
@@ -699,7 +734,7 @@ export default function App() {
           <div className="h-full flex flex-col justify-between bg-[#0C112B] text-white p-8 rounded-lg relative overflow-hidden border-l-8 border-[#FF6200]">
             <div className="flex justify-end items-start">
               <div className="text-right flex flex-col items-end">
-                <img src="/assets/ing_logo_white.png" alt="ING" className="h-7 object-contain mb-1" />
+                <img src={`/assets/${brand.logo_white}`} alt={brand.name} className="h-7 object-contain mb-1" />
                 <span className="text-[10px] text-gray-400 font-medium tracking-wide">Financial Markets Origination</span>
               </div>
             </div>
@@ -735,7 +770,7 @@ export default function App() {
                      isRates ? "Rate Path Volatility & IRS Pre-Hedge Catalyst" : "Executive Context & Opportunity Rationale"}
                   </h2>
                 </div>
-                <img src="/assets/ing_logo_orange.png" alt="ING" className="h-6 object-contain" />
+                <img src={`/assets/${brand.logo_orange}`} alt={brand.name} className="h-6 object-contain" />
               </div>
               <div className="grid grid-cols-3 gap-3 text-[11px]">
                 <div className="p-3 bg-orange-50/60 rounded border border-orange-200">
@@ -773,7 +808,7 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">ING Wholesale Banking • Strictly Confidential</div>
+            <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">{brand.footer}</div>
           </div>
         );
 
@@ -804,13 +839,13 @@ export default function App() {
                   const pillars = isFX ? [
                     { t: "Exposure-led Architecture", d: `Addressing the ${unhedgedGapVal} USD hedge gap from commercial revenue expansion.` },
                     { t: "Multi-Tenor Layered Corridors", d: topLatentSummary ? `WorkFabric Trigger: ${topLatentSummary}. Dynamic participating collars protecting margins.` : "Rolling 12M–24M zero-cost participating collars protecting gross margins." },
-                    { t: "Electronic Desk Execution", d: "Automated liquidity sourcing through ING global FX electronic trading desk." },
+                    { t: "Electronic Desk Execution", d: `Automated liquidity sourcing through ${brand.name} global FX electronic trading desk.` },
                     { t: "Dedicated Coverage", d: `Sector coverage led by ${rmName} with IFRS 9 hedge accounting support.` }
                   ] : isGreen ? [
                     { t: "Green Framework Alignment", d: "Alignment with ICMA Green Bond Principles and EU Taxonomy standards." },
                     { t: "Use of Proceeds Pool", d: topLatentSummary ? `${topLatentSummary}. Ring-fenced eligible green asset pool.` : "Ring-fenced eligible asset pool with annual impact & allocation verification." },
                     { t: "Greenium Advantage", d: "Potential pricing benefit from access to dedicated sustainable-investment demand." },
-                    { t: "Sole ESG Structurer", d: "ING leading SPO documentation, investor roadshow, and syndicate execution." }
+                    { t: "Sole ESG Structurer", d: `${brand.name} leading SPO documentation, investor roadshow, and syndicate execution.` }
                   ] : isRates ? [
                     { t: "Rate Risk Assessment", d: `Quantifying interest rate repricing risk across the ${maturityVal} debt horizon.` },
                     { t: "Pre-Hedge Swap Overlay", d: topLatentSummary ? `WorkFabric Pre-Hedge Trigger: ${topLatentSummary}. Forward-starting IRS execution window.` : "Forward-starting IRS and swaptions to lock in current benchmark yield curve." },
@@ -840,7 +875,7 @@ export default function App() {
               </div>
               <div className="col-span-9 flex flex-col px-5 pt-3 pb-3">
                 <div className="flex justify-end mb-1 flex-shrink-0">
-                  <img src="/assets/ing_logo_orange.png" alt="ING" className="h-5 object-contain" />
+                  <img src={`/assets/${brand.logo_orange}`} alt={brand.name} className="h-5 object-contain" />
                 </div>
                 <div className="flex-1 flex flex-col gap-2 min-h-0">
                   <div className="border border-orange-200 bg-orange-50/30 rounded-lg p-2.5 flex flex-col overflow-hidden" style={{flex: "0 0 28%"}}>
@@ -888,7 +923,7 @@ export default function App() {
                      isRates ? "Capital Structure & Liquidity Snapshot" : "Capital Structure & Treasury Health Profile"}
                   </h2>
                 </div>
-                <img src="/assets/ing_logo_orange.png" alt="ING" className="h-6 object-contain" />
+                <img src={`/assets/${brand.logo_orange}`} alt={brand.name} className="h-6 object-contain" />
               </div>
               <div className="grid grid-cols-4 gap-3 text-center mb-3">
                 <div className="p-2.5 bg-gray-50 rounded border border-gray-200">
@@ -914,7 +949,7 @@ export default function App() {
                 <p>• Robust liquidity buffer of {liquidityVal} provides substantial capacity to execute structured financing and risk management operations.</p>
               </div>
             </div>
-            <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">ING Wholesale Banking • Strictly Confidential</div>
+            <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">{brand.footer}</div>
           </div>
         );
 
@@ -933,7 +968,7 @@ export default function App() {
                      isRates ? "Debt Maturity Profile & Swap Refinancing Horizon" : "Debt Maturity Profile & Refinancing Horizon"}
                   </h2>
                 </div>
-                <img src="/assets/ing_logo_orange.png" alt="ING" className="h-6 object-contain" />
+                <img src={`/assets/${brand.logo_orange}`} alt={brand.name} className="h-6 object-contain" />
               </div>
               <div className="grid grid-cols-2 gap-4 my-auto">
                 <div className="p-3 bg-gray-50 rounded border border-gray-200">
@@ -986,7 +1021,7 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">ING Wholesale Banking • Strictly Confidential</div>
+            <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">{brand.footer}</div>
           </div>
         );
 
@@ -1042,7 +1077,7 @@ export default function App() {
                        isRates ? "Rationale of our Proposal & Rate Sensitivity" : "Rationale of our Proposal & Refinancing Analysis"}
                     </h2>
                   </div>
-                  <img src="/assets/ing_logo_orange.png" alt="ING" className="h-6 object-contain" />
+                  <img src={`/assets/${brand.logo_orange}`} alt={brand.name} className="h-6 object-contain" />
                 </div>
 
                 <div className="grid grid-cols-12 gap-3 items-start">
@@ -1130,7 +1165,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
-              <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">ING Wholesale Banking • Strictly Confidential</div>
+              <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">{brand.footer}</div>
             </div>
           );
         }
@@ -1147,7 +1182,7 @@ export default function App() {
                      isRates ? "Benchmark Yields & Swap Curve Backdrop" : "Benchmark Yields & Credit Spread Backdrop"}
                   </h2>
                 </div>
-                <img src="/assets/ing_logo_orange.png" alt="ING" className="h-6 object-contain" />
+                <img src={`/assets/${brand.logo_orange}`} alt={brand.name} className="h-6 object-contain" />
               </div>
                 <div className="grid grid-cols-4 gap-2 text-center mb-2">
                   <div className="p-1.5 bg-gray-50 rounded border border-gray-200">
@@ -1200,7 +1235,7 @@ export default function App() {
                   <p>• {isFX ? "Positive EUR/USD forward carry (+185 pts) enhances layered forward hedging." : isGreen ? "High ESG subscription ratios (3.8x book cover) provide attractive new-issue pricing compression." : "Tightening European investment grade credit spreads support attractive execution windows."}</p>
                 </div>
             </div>
-            <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">ING Wholesale Banking • Strictly Confidential</div>
+            <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">{brand.footer}</div>
           </div>
         );
 
@@ -1274,7 +1309,7 @@ export default function App() {
                     <span className="text-[9px] font-mono text-[#FF6200] uppercase font-bold tracking-wider">PROPOSAL FEATURES</span>
                     <h2 className="text-base font-bold text-[#000066] mt-0.5">Proposal features</h2>
                   </div>
-                  <img src="/assets/ing_logo_orange.png" alt="ING" className="h-6 object-contain" />
+                  <img src={`/assets/${brand.logo_orange}`} alt={brand.name} className="h-6 object-contain" />
                 </div>
                 
                 <div className="border border-gray-200 rounded overflow-hidden text-[9.5px]">
@@ -1342,7 +1377,7 @@ export default function App() {
                   </p>
                 </div>
               </div>
-              <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">ING Wholesale Banking • Strictly Confidential</div>
+              <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">{brand.footer}</div>
             </div>
           );
         }
@@ -1389,7 +1424,7 @@ export default function App() {
                     <h2 className="text-xl font-bold text-gray-900 tracking-tight mt-0.5">Franchise Capabilities & Syndicate Strength</h2>
                     <div className="h-0.5 w-12 bg-[#FF6200] mt-1.5 rounded-full"></div>
                   </div>
-                  <img src="/assets/ing_logo_orange.png" alt="ING" className="h-6 object-contain" />
+                  <img src={`/assets/${brand.logo_orange}`} alt={brand.name} className="h-6 object-contain" />
                 </div>
 
                 <div className="grid grid-cols-3 gap-3.5 mt-2">
@@ -1407,7 +1442,7 @@ export default function App() {
                 </div>
               </div>
               <div className="text-center text-[10px] text-gray-400 border-t border-gray-100 pt-1.5 font-medium">
-                ING Wholesale Banking • Strictly Confidential
+                {brand.footer}
               </div>
             </div>
           );
@@ -1426,13 +1461,13 @@ export default function App() {
                      isRates ? "ISDA Schedule, CSA & Execution Timeline" : "Roadmap & Syndicate Timeline"}
                   </h2>
                 </div>
-                <img src="/assets/ing_logo_orange.png" alt="ING" className="h-6 object-contain" />
+                <img src={`/assets/${brand.logo_orange}`} alt={brand.name} className="h-6 object-contain" />
               </div>
               <div className="grid grid-cols-4 gap-2 text-[10px] text-center">
                 {(isFX ? [
                   "T - 2 Weeks: Exposure Calibration: Reconcile commercial USD inflows",
                   "T - 1 Week: Strike Setting: Calibrate 1.0850 floor / 1.0450 cap",
-                  "T-Day: Electronic Execution: Execute Tranche 1 via ING FX desk",
+                  `T-Day: Electronic Execution: Execute Tranche 1 via ${brand.name} FX desk`,
                   "Post-Trade: Roll Schedule: Quarterly roll & IFRS 9 hedge accounting"
                 ] : isGreen ? [
                   "T - 6 Weeks: Framework Drafting: Establish Green Financing Framework aligned with EU Taxonomy & ICMA.",
@@ -1459,7 +1494,7 @@ export default function App() {
                 ))}
               </div>
             </div>
-            <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">ING Wholesale Banking • Strictly Confidential</div>
+            <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">{brand.footer}</div>
           </div>
         );
 
@@ -1476,7 +1511,7 @@ export default function App() {
                      "Regulatory Notices & Target Market Classification"}
                   </h2>
                 </div>
-                <img src="/assets/ing_logo_orange.png" alt="ING" className="h-6 object-contain" />
+                <img src={`/assets/${brand.logo_orange}`} alt={brand.name} className="h-6 object-contain" />
               </div>
               <div className="bg-gray-50 p-3 rounded border border-gray-200 text-[9px] space-y-1.5 text-gray-600">
                 {deckOverrides.disclaimers.map((disc, idx) => (
@@ -1484,7 +1519,7 @@ export default function App() {
                 ))}
               </div>
             </div>
-            <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">ING Wholesale Banking • Strictly Confidential</div>
+            <div className="text-center text-[9px] text-gray-400 border-t border-gray-100 pt-1.5">{brand.footer}</div>
           </div>
         );
 
@@ -1532,12 +1567,12 @@ export default function App() {
     }
   };
 
-  if (isLoading) {
+  if (!brand || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#FF6200] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading ING Financial Markets platform...</p>
+          <p className="text-gray-600 font-medium">Loading platform...</p>
         </div>
       </div>
     );
@@ -1571,7 +1606,7 @@ export default function App() {
           <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <span className="bg-[#FF6200] text-white font-extrabold px-2.5 py-1 rounded text-sm tracking-wider">
-                ING
+                {brand.name}
               </span>
               <span className="text-[#000066] font-bold text-lg tracking-tight">
                 Financial Markets Analytics
@@ -1907,9 +1942,9 @@ ${chip.preview}`}
                                <div className="flex flex-wrap gap-1 mb-2">
                                  <span 
                                    className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-purple-50 text-purple-900 border border-purple-200 cursor-help hover:bg-purple-100"
-                                   title={"ING FM Research / Houseview Source: " + (opp.hv_doc_title || "ING_Utilities_Strategy_Q3.pdf")}
+                                   title={`${brand.houseview_default_source} / Houseview Source: ` + (opp.hv_doc_title || "Houseview_Strategy_Q3.pdf")}
                                  >
-                                   📄 ING FM Research
+                                   📄 {brand.houseview_default_source}
                                  </span>
                                  {opp.news_headline && (
                                    <span 
@@ -1924,9 +1959,9 @@ ${chip.preview}`}
                                {/* Ingested Research Excerpt */}
                                <div
                                  className="text-[10.5px] text-gray-700 leading-snug line-clamp-3 mb-2 bg-white p-2 rounded border border-gray-200 shadow-2xs cursor-help hover:border-purple-400 hover:shadow-xs transition-all"
-                                 title={opp.hv_doc_summary || "ING Strategy Desk: Utilities sector debt wall favors pre-hedging 2026-2027 tenors at 2.62% 5Y EUR swap benchmark."}
+                                 title={opp.hv_doc_summary || `${brand.name} Strategy Desk: Utilities sector debt wall favors pre-hedging 2026-2027 tenors at 2.62% 5Y EUR swap benchmark.`}
                                >
-                                 <span className="font-bold text-purple-950">ING Houseview: </span>
+                                 <span className="font-bold text-purple-950">{brand.name} Houseview: </span>
                                  {opp.hv_doc_summary || "Utilities Sector Strategy recommends locking in 5Y swap benchmark at 2.62% with pre-hedge overlay ahead of ECB policy shift."}
                                </div>
 
@@ -1946,8 +1981,8 @@ ${chip.preview}`}
 
                              {/* Ingested Source Attribution */}
                              <div className="mt-2 pt-1.5 border-t border-gray-200 text-[9.5px] text-gray-500 truncate flex items-center justify-between">
-                               <span className="truncate" title="ING Wholesale Banking Research Desk + Bloomberg Feed">
-                                 📊 ING Desk Research & Market Intelligence
+                               <span className="truncate" title={`${brand.full_name} Research Desk + Bloomberg Feed`}>
+                                 📊 {brand.attribution}
                                </span>
                              </div>
                            </div>
@@ -2530,7 +2565,7 @@ ${chip.preview}`}
               
               <div className="h-14 border-b border-gray-200 px-6 flex items-center justify-between bg-white shrink-0">
                 <div className="flex items-center space-x-3">
-                  <span className="bg-[#FF6200] text-white font-extrabold px-2 py-0.5 rounded text-xs">ING</span>
+                  <span className="bg-[#FF6200] text-white font-extrabold px-2 py-0.5 rounded text-xs">{brand.name}</span>
                   <div>
                     <h3 className="font-bold text-gray-900 text-sm">
                       {activeClient.name} — Pitchbook & Deal Copilot
@@ -2674,7 +2709,7 @@ ${chip.preview}`}
                       </div>
                       <div>
                         <div className="flex items-center space-x-1.5">
-                            <h4 className="text-xs font-bold text-gray-900">ING Copilot</h4>
+                            <h4 className="text-xs font-bold text-gray-900">{brand.copilot_name}</h4>
                             <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[8px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                               <span className="w-1 h-1 rounded-full bg-emerald-500 mr-1 animate-pulse"></span>
                               Live
@@ -2715,7 +2750,7 @@ ${chip.preview}`}
                       >
                         <div className="flex items-center space-x-1 mb-1">
                           <span className="text-[9px] font-bold text-gray-400 uppercase">
-                            {msg.sender === "user" ? "You" : "ING Copilot"}
+                            {msg.sender === "user" ? "You" : brand.copilot_name}
                           </span>
                           <span className="text-[9px] text-gray-400">· {msg.time}</span>
                         </div>

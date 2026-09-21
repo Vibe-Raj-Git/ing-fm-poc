@@ -112,6 +112,29 @@ from pptx.chart.data import CategoryChartData
 
 logger = logging.getLogger("pitchbook_builder")
 
+# -- Runtime brand slot (set by main.py before build_pitchbook) ---------------
+_ACTIVE_BRAND = None
+
+
+def _set_active_brand(brand):
+    """Called by main.py before build_pitchbook()."""
+    global _ACTIVE_BRAND
+    _ACTIVE_BRAND = brand
+
+
+def _brand():
+    """Return the active brand dict, or a minimal ING fallback if never set."""
+    if _ACTIVE_BRAND is not None:
+        return _ACTIVE_BRAND
+    return {
+        "name": "ING",
+        "full_name": "ING Wholesale Banking",
+        "logo_white": "ing_logo_white.png",
+        "logo_orange": "ing_logo_orange.png",
+        "footer": "ING Wholesale Banking • Strictly Confidential",
+    }
+# -- End runtime brand slot ---------------------------------------------------
+
 # =============================================================================
 # ING Brand Colors
 # =============================================================================
@@ -157,7 +180,9 @@ def add_header(slide, title, category="FINANCIAL MARKETS ORIGINATION", is_white=
 
 def add_logo(slide, is_white=False):
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    logo_filename = os.path.join(base_dir, "assets", "ing_logo_white.png") if is_white else os.path.join(base_dir, "assets", "ing_logo_orange.png")
+    _b = _brand()
+    _logo_name = _b["logo_white"] if is_white else _b["logo_orange"]
+    logo_filename = os.path.join(base_dir, "assets", _logo_name)
     if os.path.exists(logo_filename):
         try:
             # Render logo with explicit height constraint to prevent vertical overflow
@@ -168,7 +193,7 @@ def add_logo(slide, is_white=False):
     tb = slide.shapes.add_textbox(Inches(11.4), Inches(0.35), Inches(1.2), Inches(0.4))
     tf = tb.text_frame
     p = tf.paragraphs[0]
-    p.text = "ING"
+    p.text = _brand()["name"]
     p.alignment = PP_ALIGN.RIGHT
     p.font.bold = True
     p.font.size = Pt(18)
@@ -179,7 +204,7 @@ def add_footer(slide, is_white=False):
     tb = slide.shapes.add_textbox(Inches(0.8), Inches(6.85), Inches(11.733), Inches(0.3))
     tf = tb.text_frame
     p = tf.paragraphs[0]
-    p.text = "ING Wholesale Banking • Strictly Confidential"
+    p.text = _brand()["footer"]
     p.alignment = PP_ALIGN.CENTER
     p.font.size = Pt(9)
     p.font.color.rgb = RGBColor(160, 175, 200) if is_white else TEXT_MUTED
@@ -284,7 +309,7 @@ def get_product_pillars(p_fam, ctx, ov):
         return [
             ("1", "Exposure-led Architecture", f"Addressing the {unhedged_gap} USD hedge gap from commercial revenue expansion."),
             ("2", "Multi-Tenor Layered Corridors", pillar2_desc),
-            ("3", "Electronic Desk Execution", "Automated liquidity sourcing through ING global FX electronic trading desk."),
+            ("3", "Electronic Desk Execution", f"Automated liquidity sourcing through {_brand()['name']} global FX electronic trading desk."),
             ("4", "Dedicated Coverage", f"Sector coverage led by {rm_name} with IFRS 9 hedge accounting support.")
         ]
     elif p_fam == "GREEN_ESG":
@@ -295,7 +320,7 @@ def get_product_pillars(p_fam, ctx, ov):
             ("1", "Green Framework Alignment", "Alignment with ICMA Green Bond Principles and EU Taxonomy standards."),
             ("2", "Use of Proceeds Pool", pillar2_desc),
             ("3", "Greenium Advantage", "Potential pricing benefit from access to dedicated sustainable-investment demand."),
-            ("4", "Sole ESG Structurer", "ING leading SPO documentation, investor roadshow, and syndicate execution.")
+            ("4", "Sole ESG Structurer", f"{_brand()['name']} leading SPO documentation, investor roadshow, and syndicate execution.")
         ]
     elif p_fam == "RATES_HEDGE":
         pillar2_desc = "Forward-starting IRS and swaptions to lock in current benchmark yield curve."

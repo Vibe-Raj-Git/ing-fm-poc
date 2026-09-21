@@ -71,6 +71,69 @@ from pitchbook_builder import fetch_pitchbook_bundle, build_pitchbook
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ing_fm_backend")
 
+# -- Brand configuration (runtime toggle via BRAND env var) -------------------
+BRAND_PROFILES = {
+    "ING": {
+        "name": "ING",
+        "full_name": "ING Wholesale Banking",
+        "copilot_name": "ING Copilot",
+        "logo_white": "ing_logo_white.png",
+        "logo_orange": "ing_logo_orange.png",
+        "footer": "ING Wholesale Banking • Strictly Confidential",
+        "attribution": "ING Desk Research & Market Intelligence",
+        "api_title": "ING FM Insights API",
+        "download_prefix": "ING_FM",
+        "houseview_default_source": "ING FM Research",
+        "houseview_fallback": "No ING houseview published for this client in the current reporting cycle.",
+        "rss_fallback_url": "https://think.ing.com",
+        "prompt_capital_markets_persona": "You are an Executive Director in ING Wholesale Banking Capital Markets & Advisory.",
+        "prompt_proposal_ref": "The following is ING's current proposal.",
+        "prompt_compliance_persona": "You are the Senior Executive Director of EU Financial Regulatory Compliance at ING Wholesale Banking.",
+        "prompt_copilot_persona_prefix": "You are the senior ING Financial Markets Origination, Structuring & Regulatory Compliance Copilot for",
+        "prompt_adjacent_phrase": "ING has identified",
+    },
+    "BFS_AI_LAB": {
+        "name": "BFS AI Lab",
+        "full_name": "BFS AI Lab",
+        "copilot_name": "BFS AI Lab Copilot",
+        "logo_white": "bfs_ai_lab_logo_white.png",
+        "logo_orange": "bfs_ai_lab_logo_orange.png",
+        "footer": "BFS AI Lab • Strictly Confidential",
+        "attribution": "BFS AI Lab Desk Research & Market Intelligence",
+        "api_title": "BFS AI Lab FM Insights API",
+        "download_prefix": "BFS_AI_LAB",
+        "houseview_default_source": "BFS AI Lab Research",
+        "houseview_fallback": "No BFS AI Lab houseview published for this client in the current reporting cycle.",
+        "rss_fallback_url": "https://think.ing.com",
+        "prompt_capital_markets_persona": "You are an Executive Director in Capital Markets & Advisory.",
+        "prompt_proposal_ref": "The following is the current proposal.",
+        "prompt_compliance_persona": "You are the Senior Executive Director of EU Financial Regulatory Compliance.",
+        "prompt_copilot_persona_prefix": "You are the senior Financial Markets Origination, Structuring & Regulatory Compliance Copilot for",
+        "prompt_adjacent_phrase": "identified",
+    },
+}
+
+_raw_brand = os.getenv("BRAND", "ING").upper()
+if _raw_brand not in BRAND_PROFILES:
+    logger.warning(
+        "Unrecognized BRAND='%s' - valid options: %s. Falling back to ING.",
+        _raw_brand, list(BRAND_PROFILES.keys())
+    )
+    _raw_brand = "ING"
+ACTIVE_BRAND = BRAND_PROFILES[_raw_brand]
+logger.info("Active brand: %s", ACTIVE_BRAND["name"])
+
+
+def _brand_substitute(text):
+    """Word-boundary substitution of ING with the active brand name.
+    No-op when brand is ING. Emails (@ing.) are intentionally not touched."""
+    if text is None or not isinstance(text, str):
+        return text
+    if ACTIVE_BRAND["name"] == "ING":
+        return text
+    return re.sub(r'\bING\b', ACTIVE_BRAND["name"], text)
+# -- End brand configuration ---------------------------------------------------
+
 
 def _format_signal_type(raw_type) -> str:
     """Normalise signal_type for display: underscores -> spaces, uppercase."""
@@ -134,7 +197,7 @@ _MANDATE_SYNTH_CACHE_TTL = 300  # seconds (5 minutes)
 #_DEMO_CLIENT_IDS = {"CLI101"}
 _DEMO_CLIENT_IDS = {"CLI101", "CLI103"}
 
-app = FastAPI(title="ING FM Insights API", version="1.0.0")
+app = FastAPI(title=ACTIVE_BRAND["api_title"], version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -218,6 +281,13 @@ class ComplianceAuditRequest(BaseModel):
 @app.get("/healthz")
 def healthz():
     return {"status": "healthy"}
+
+
+@app.get("/api/brand")
+def get_brand():
+    """Return the active brand profile for the frontend.
+    Excludes server-side-only keys: prompt_* and download_prefix."""
+    return {k: v for k, v in ACTIVE_BRAND.items() if not k.startswith("prompt_") and k != "download_prefix"}
 
 
 @app.get("/api/metrics")
@@ -649,7 +719,7 @@ def synthesize_mandate_catalyst(
         else:
             product_specific_driver = '5. Refinancing Catalyst: Standard institutional debt capital markets distribution.'
 
-        prompt = f"""You are an Executive Director in ING Wholesale Banking Capital Markets & Advisory.
+        prompt = f"""{ACTIVE_BRAND["prompt_capital_markets_persona"]}
 Synthesize the provided database-grounded signals into two authoritative, desk-ready sentences for an executive pitchbook.
 
 CLIENT: {client_name}
@@ -658,7 +728,7 @@ TARGET PRODUCT FAMILY: {product_family}
 =========================================================================
 MANDATORY STRUCTURE — READ THIS FIRST. THIS OVERRIDES ALL OTHER INPUTS.
 =========================================================================
-The following is ING's current proposal. Every number in it — tranche sizes,
+{ACTIVE_BRAND["prompt_proposal_ref"]} Every number in it — tranche sizes,
 tenors, and structure — is a business decision already made by the desk.
 Your synthesis MUST preserve these exact values. Do not change them, even
 if the signals below reference different tenors or notionals.
@@ -861,8 +931,8 @@ def get_opportunities():
                 cf_latent = "Pre-hedge interest rate swap window and bond issuance advisory."
                 cf_author = "Luca Moretti (DCM Origination)"
                 attrib_author = "Luca Moretti (DCM Origination)"
-                hv_doc_title = "ING FM Research"
-                hv_doc_summary = "No ING houseview published for this client in the current reporting cycle."
+                hv_doc_title = ACTIVE_BRAND["houseview_default_source"]
+                hv_doc_summary = ACTIVE_BRAND["houseview_fallback"]
                 news_source = "Capital Market News / Bloomberg"
                 news_headline = f"{name_str} capital markets update: Monitoring debt maturity wall and rate pre-hedge window."
                 
@@ -1201,23 +1271,23 @@ def get_opportunities():
                     "score": score_val,
                     "score_num": int(final_priority_score) if final_priority_score is not None else int(score_num),
                     "family": final_family,
-                    "adjacent_opportunities": final_adjacent_opportunities,
+                    "adjacent_opportunities": _brand_substitute(final_adjacent_opportunities),
                     "chips": chips,
                     "callout": f"{final_why_now} {final_action}".strip(),
-                    "why_now": final_why_now,
-                    "action": final_action,
-                    "why_now_summary": final_why_now_summary,
-                    "action_summary": final_action_summary,
+                    "why_now": _brand_substitute(final_why_now),
+                    "action": _brand_substitute(final_action),
+                    "why_now_summary": _brand_substitute(final_why_now_summary),
+                    "action_summary": _brand_substitute(final_action_summary),
                     "trigger_source": str(trigger_source_val or ""),
-                    "cf_description": cf_desc,
-                    "cf_latent": cf_latent,
+                    "cf_description": _brand_substitute(cf_desc),
+                    "cf_latent": _brand_substitute(cf_latent),
                     "cf_latent_list": cf_latent_list,
                     "cf_author": cf_author,
                     "cf_source_chips": cf_source_chips,
-                    "hv_doc_title": hv_doc_title,
-                    "hv_doc_summary": hv_doc_summary,
+                    "hv_doc_title": _brand_substitute(hv_doc_title),
+                    "hv_doc_summary": _brand_substitute(hv_doc_summary),
                     "news_source": news_source,
-                    "news_headline": news_headline,
+                    "news_headline": _brand_substitute(news_headline),
                     "houseview_label": houseview_label,
                     "ingestion_channels": [c["channel"] for c in cf_source_chips],
                     "attribution_author": attrib_author,
@@ -1365,7 +1435,7 @@ def get_client_rss_feed(client_id: str, query: Optional[str] = None):
                 },
                 {
                     "title": f"European Power & Utilities Sector Faces Elevated Refinancing Calendar Across 2026–2027",
-                    "link": "https://think.ing.com",
+                    "link": ACTIVE_BRAND["rss_fallback_url"],
                     "published": now_str,
                     "summary": "Secondary credit spreads trade range-bound while forward swap pre-hedges gain momentum across Tier 1 European power utilities."
                 }
@@ -1380,7 +1450,7 @@ def get_client_rss_feed(client_id: str, query: Optional[str] = None):
                 },
                 {
                     "title": f"European Chemicals Sector Outlook: Financing Costs Stabilize Around 5Y EUR Swap 2.62%",
-                    "link": "https://think.ing.com",
+                    "link": ACTIVE_BRAND["rss_fallback_url"],
                     "published": now_str,
                     "summary": "Credit analysts highlight liability management opportunities for BBB-rated corporate issuers."
                 }
@@ -1732,7 +1802,7 @@ async def check_compliance_endpoint(req: Request):
 
     green_pool_data = "Total Eligible Pool: €3,500M (Renewables: €1,850M, Smart Grids: €1,100M, Storage: €550M)" if is_green else "Refinancing Debt Maturity Profile"
 
-    compliance_prompt = f"""You are the Senior Executive Director of EU Financial Regulatory Compliance at ING Wholesale Banking.
+    compliance_prompt = f"""{ACTIVE_BRAND["prompt_compliance_persona"]}
 Conduct an authoritative compliance audit of the 11-slide institutional pitchbook for {client_name} ({p_family}).
 
 REGULATORY CRITERIA:
@@ -2166,7 +2236,7 @@ def copilot_chat_endpoint(req: CopilotMessage):
         ]
     }
 
-    system_instruction = f"""You are the senior ING Financial Markets Origination, Structuring & Regulatory Compliance Copilot for {client_name} ({p_family}).
+    system_instruction = f"""{ACTIVE_BRAND["prompt_copilot_persona_prefix"]} {client_name} ({p_family}).
 INGESTED MULTI-STREAM SIGNALS (WORKFABRIC & CHANNEL TELEMETRY):
 {json.dumps(ingested_signals_block, indent=2)}
 
@@ -2188,7 +2258,7 @@ RESPONSE ARCHITECTURE & STYLE GUIDELINES:
    - **Strategic Objective**: Explain the strategic purpose of this slide and why it matters to the corporate treasury of {client_name}.
    - **Key Mechanics & Deal Metrics**: Contextualize the exact figures, notionals, spreads, ratings, or milestones from the active slide into an analytical narrative.
    - **CFO Pitch / Talking Points**: Provide 1-2 sharp, actionable talking points the RM can deliver directly to {client_name}'s CFO / Group Treasurer.
-   - **Adjacent Opportunities** (CONDITIONAL — only include this section when the active slide payload contains a non-empty "adjacent_opportunities" field; if the field is empty or absent, omit this section entirely): Summarise the cross-sell angles ING has identified beyond the primary mandate, using ONLY the text in the "adjacent_opportunities" field. Do not invent, embellish, or extrapolate. 2-3 sentences.
+   - **Adjacent Opportunities** (CONDITIONAL — only include this section when the active slide payload contains a non-empty "adjacent_opportunities" field; if the field is empty or absent, omit this section entirely): Summarise the cross-sell angles {ACTIVE_BRAND["prompt_adjacent_phrase"]} beyond the primary mandate, using ONLY the text in the "adjacent_opportunities" field. Do not invent, embellish, or extrapolate. 2-3 sentences.
 3. **Formatting Consistency for Slide Explanations**: In every section above, render all monetary amounts, percentages, and tenors in **bold** (e.g. **€10.13bn**, **2.62%**, **7Y**, **-5 bps**). Always use the € symbol for euro amounts — never "EUR" and never the escaped form "\u20ac". This applies uniformly to every slide, ensuring consistent visual emphasis across the deck.
 3. **EU Regulatory Compliance & Remediation**:
    When the user asks to "Apply compliance recommendations", "Remediate", or adjust compliance standards:
@@ -2387,6 +2457,8 @@ async def handle_pitchbook_generation(
 
         # 4. Generate PPTX
         compliance_bullets = overrides.get("disclaimers") or overrides.get("compliance_bullets")
+        import pitchbook_builder as _pb_brand
+        _pb_brand._set_active_brand(ACTIVE_BRAND)
         pptx_buf = build_pitchbook(bundle, opp_meta, compliance_bullets=compliance_bullets, overrides=overrides)
         
         clean_filename = f"ING_{str(client_name).replace(' ', '_')}_Pitchbook.pptx"

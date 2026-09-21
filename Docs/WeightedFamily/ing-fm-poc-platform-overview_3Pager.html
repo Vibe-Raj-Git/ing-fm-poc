@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Financial Markets Deal Intelligence Platform — Overview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #0F172A;
+    background: #F3F4F6;
+    line-height: 1.6;
+    font-size: 14px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .page {
+    max-width: 1180px;
+    margin: 28px auto;
+    padding: 48px 56px 56px;
+    background: #FFFFFF;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    border-radius: 8px;
+  }
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 3px solid #FF6200;
+    padding-bottom: 14px;
+    margin-bottom: 28px;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .page-header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0F172A;
+    letter-spacing: -0.4px;
+    line-height: 1.3;
+  }
+
+  .page-header h1 span { color: #FF6200; }
+
+  .page-header .badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #FFFFFF;
+    background: #FF6200;
+    padding: 6px 14px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    align-self: center;
+  }
+
+  .page-footer {
+    margin-top: 36px;
+    padding-top: 14px;
+    border-top: 1px solid #E5E7EB;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #94A3B8;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .lead {
+    font-size: 15px;
+    color: #1E293B;
+    margin-bottom: 28px;
+    line-height: 1.7;
+    max-width: 950px;
+  }
+
+  h2 {
+    font-size: 17px;
+    font-weight: 700;
+    color: #0F172A;
+    margin-top: 32px;
+    margin-bottom: 14px;
+    letter-spacing: -0.2px;
+    display: flex;
+    align-items: baseline;
+  }
+
+  h2:first-of-type { margin-top: 0; }
+
+  h2 .num {
+    color: #FF6200;
+    margin-right: 10px;
+    font-weight: 800;
+  }
+
+  p {
+    color: #334155;
+    margin-bottom: 12px;
+  }
+
+  p:last-child { margin-bottom: 0; }
+
+  code {
+    background: #F1F5F9;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12.5px;
+    color: #0F172A;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 22px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+  }
+
+  .card {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 18px 20px;
+    background: #FFFFFF;
+    transition: box-shadow 0.15s ease;
+  }
+
+  .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+  .card.tinted {
+    background: #FFF8F3;
+    border-color: #FFE0CC;
+  }
+
+  .card h3 {
+    font-size: 12px;
+    font-weight: 700;
+    color: #FF6200;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 10px;
+  }
+
+  .card p {
+    font-size: 13.5px;
+    margin-bottom: 8px;
+    color: #334155;
+    line-height: 1.6;
+  }
+
+  .card p:last-child { margin-bottom: 0; }
+
+  ul {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  ul li {
+    color: #334155;
+    padding-left: 22px;
+    position: relative;
+    margin-bottom: 10px;
+    line-height: 1.65;
+  }
+
+  ul li::before {
+    content: "▪";
+    color: #FF6200;
+    position: absolute;
+    left: 6px;
+    top: 0;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  ul li strong { color: #0F172A; }
+
+  .metric-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .metric {
+    border-left: 4px solid #FF6200;
+    padding: 10px 16px;
+    background: #F8FAFC;
+    border-radius: 0 6px 6px 0;
+  }
+
+  .metric .value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+  }
+
+  .metric .label {
+    font-size: 10.5px;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0 22px;
+    flex-wrap: wrap;
+  }
+
+  .flow .step {
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+    border-radius: 6px;
+    padding: 10px 14px;
+    flex: 1;
+    min-width: 110px;
+    text-align: center;
+    color: #334155;
+    font-weight: 600;
+    font-size: 12.5px;
+  }
+
+  .flow .arrow {
+    color: #94A3B8;
+    font-weight: 700;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .benefits-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 0 32px;
+  }
+
+  @media (max-width: 720px) {
+    .page { padding: 32px 24px; margin: 12px auto; border-radius: 0; }
+    .page-header h1 { font-size: 19px; }
+    .lead { font-size: 14px; }
+    h2 { font-size: 15.5px; }
+    .flow .step { min-width: 90px; padding: 8px 10px; font-size: 11.5px; }
+  }
+
+  @media print {
+    @page { size: A4 landscape; margin: 10mm; }
+    body { background: #FFFFFF; font-size: 11px; }
+    .page {
+      max-width: 100%;
+      margin: 0;
+      padding: 16mm 14mm;
+      box-shadow: none;
+      border-radius: 0;
+      page-break-after: always;
+      break-after: page;
+    }
+    .page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+    .page-header h1 { font-size: 18px; }
+    h2 { font-size: 13px; margin-top: 18px; }
+    .lead { font-size: 11.5px; margin-bottom: 16px; }
+    .card { padding: 12px 14px; }
+    .card p { font-size: 10.5px; }
+    .card h3 { font-size: 10px; margin-bottom: 6px; }
+    ul li { font-size: 10.5px; margin-bottom: 6px; }
+    .metric .value { font-size: 16px; }
+    .metric .label { font-size: 9px; }
+    .flow .step { padding: 6px 8px; font-size: 10px; min-width: 80px; }
+    .grid-3 { gap: 12px; }
+    .grid-2 { gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ PAGE 1 — CONTEXT & PROBLEM ═══════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h1>Financial Markets <span>Deal Intelligence</span> Platform</h1>
+    <div class="badge">Page 1 of 3 · Context</div>
+  </div>
+
+  <p class="lead">A multi-agent AI platform for wholesale banking origination. It ingests unstructured corporate signals, extracts structured intelligence via LLM, synthesises a grounded mandate narrative anchored to verified balance sheet data, and produces a client-ready 11-slide pitchbook in minutes.</p>
+
+  <div class="metric-row">
+    <div class="metric"><div class="value">5</div><div class="label">Ingestion channels</div></div>
+    <div class="metric"><div class="value">11</div><div class="label">Pitchbook slides</div></div>
+    <div class="metric"><div class="value">4</div><div class="label">Product families</div></div>
+    <div class="metric"><div class="value">7</div><div class="label">Synthesis keys</div></div>
+    <div class="metric"><div class="value">0</div><div class="label">Invented numbers</div></div>
+  </div>
+
+  <h2><span class="num">01</span>The Origination Gap</h2>
+  <div class="grid-2">
+    <div>
+      <p>Relationship Managers in Financial Markets origination spend hours each week assembling client pitchbooks manually. The work is repetitive, but the inputs are not standardised:</p>
+      <ul>
+        <li>Signals arrive scattered across emails, chat, news feeds, and internal memos</li>
+        <li>Market data lives in one system, balance sheet data in another</li>
+        <li>Every client needs a fresh narrative, fresh pricing, fresh compliance language</li>
+        <li>By the time a deck is drafted, the market window may have shifted</li>
+      </ul>
+    </div>
+    <div>
+      <p>The cost is not just time. It is missed origination. A treasurer who needs a refinancing decision now does not wait three days for a draft. The RM who responds first usually wins the mandate.</p>
+      <p>The platform closes that gap. It reads the full signal corpus per client, anchors to the curated mandate already approved by the desk, and produces a deck that is ready for the client conversation, not for another round of internal editing.</p>
+    </div>
+  </div>
+
+  <h2><span class="num">02</span>What the Platform Does</h2>
+  <div class="flow">
+    <div class="step">Ingest</div>
+    <div class="arrow">→</div>
+    <div class="step">Extract</div>
+    <div class="arrow">→</div>
+    <div class="step">Accumulate</div>
+    <div class="arrow">→</div>
+    <div class="step">Synthesise</div>
+    <div class="arrow">→</div>
+    <div class="step">Generate</div>
+    <div class="arrow">→</div>
+    <div class="step">Explain</div>
+  </div>
+  <div class="grid-3">
+    <div class="card tinted">
+      <h3>Unstructured Input</h3>
+      <p>Five channels: live RSS news, Treasury emails, Teams chat, Houseview decks, and WorkFabric desk memos. Each ingestion yields multiple signals via Gemini 2.5 Flash.</p>
+    </div>
+    <div class="card tinted">
+      <h3>Structured Input</h3>
+      <p>Client balance sheet, debt maturity schedules, live market rates, and credit spreads. All from audited PostgreSQL tables filtered by <code>client_id</code>.</p>
+    </div>
+    <div class="card tinted">
+      <h3>Grounded Output</h3>
+      <p>An 11-slide pitchbook anchored to the curated mandate. Copilot answers questions, runs compliance checks, edits the deck through chat.</p>
+    </div>
+  </div>
+
+  <h2><span class="num">03</span>Why It Matters</h2>
+  <div class="grid-3">
+    <div class="card">
+      <h3>Zero Fabrication</h3>
+      <p>Every value traces to a specific database row. The LLM extracts and synthesises; it never invents. Anchoring, drift guards, and read-path controls enforce this.</p>
+    </div>
+    <div class="card">
+      <h3>Compliance Baked In</h3>
+      <p>MiFID II, MAR, and EU Green Bond Standard checks run at the deck level. The Copilot flags gaps and can apply remediations in-session.</p>
+    </div>
+    <div class="card">
+      <h3>Full Corpus, Not Just Headlines</h3>
+      <p>Beyond the primary mandate, the platform surfaces adjacent opportunities grounded in the same signal corpus. Nothing extra is invented, everything is cited.</p>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Financial Markets Deal Intelligence Platform · Internal</span>
+    <span>Page 1 of 3</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 2 — SOLUTION ARCHITECTURE ═══════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h1>Solution <span>Architecture</span></h1>
+    <div class="badge">Page 2 of 3 · Architecture</div>
+  </div>
+
+  <p class="lead">Three-tier application on Google Cloud. Serverless compute, managed database, LLM orchestration on Vertex AI. Zero infrastructure to operate. Cold start under six seconds, warm response under one second.</p>
+
+  <h2><span class="num">04</span>Three-Tier Stack</h2>
+  <div class="grid-3">
+    <div class="card tinted">
+      <h3>Presentation</h3>
+      <p><strong>React 18 + Vite + Tailwind 3.4</strong></p>
+      <p>Single-page workspace: signal marquee, opportunity cards, 11-slide pitchbook preview, Copilot sidebar, ingestion modal, reset control.</p>
+      <p>Brand-aware: colours, logos, footers, and Copilot name follow the active brand profile served by <code>/api/brand</code>.</p>
+    </div>
+    <div class="card tinted">
+      <h3>Application</h3>
+      <p><strong>FastAPI + Python 3.11 + Uvicorn</strong></p>
+      <p>Sixteen endpoints covering ingestion, read APIs, mandate synthesis, compliance audit, Copilot chat, pitchbook generation, and reset.</p>
+      <p>Multi-agent LLM orchestration: extraction, synthesis, compliance, Copilot, all on Gemini 2.5 Flash.</p>
+    </div>
+    <div class="card tinted">
+      <h3>Data + AI</h3>
+      <p><strong>Cloud SQL PostgreSQL 15 + pgvector</strong></p>
+      <p>Twelve tables in schema <code>ca</code>: client master, balance sheet filings, debt maturity schedule, market rates, credit spreads, opportunity scoring, signals, chunks, coverage teams, track record.</p>
+      <p>Vertex AI: Gemini 2.5 Flash plus text-embedding-004 (768-dim vectors).</p>
+    </div>
+  </div>
+
+  <h2><span class="num">05</span>Request Flow</h2>
+  <div class="flow">
+    <div class="step">Browser</div>
+    <div class="arrow">→</div>
+    <div class="step">FastAPI on Cloud Run</div>
+    <div class="arrow">→</div>
+    <div class="step">Cloud SQL + Vertex AI</div>
+    <div class="arrow">→</div>
+    <div class="step">Grounded Response</div>
+  </div>
+  <div class="grid-2">
+    <div>
+      <p><strong>Read path.</strong> The frontend fetches <code>/api/brand</code> once on mount, then <code>/api/opportunities</code>. The backend reads from the database, applies brand substitution on ten text fields, and returns the client records.</p>
+      <p><strong>Deck generation.</strong> <code>POST /api/pitchbook/generate</code> calls <code>_set_active_brand</code> before <code>build_pitchbook</code>. The deck builder reads its colours, logo, footer, and pillar text from the module-level brand slot and produces an 11-slide PPTX.</p>
+    </div>
+    <div>
+      <p><strong>Mandate synthesis.</strong> On cache miss, the backend reads the curated anchor from <code>ca_opportunity_scoring</code>, fetches the twenty most recent signals, and calls Gemini with the anchor as the first instruction. The seven-key response travels through the cache to the API and the deck.</p>
+      <p><strong>Copilot.</strong> <code>POST /api/copilot/chat</code> hydrates the prompt with the active and baseline deck state, so the LLM reasons over exactly what the RM sees.</p>
+    </div>
+  </div>
+
+  <h2><span class="num">06</span>Multi-Agent LLM Layer</h2>
+  <div class="grid-3">
+    <div class="card">
+      <h3>Extraction</h3>
+      <p>Text in, structured signals out. Each ingestion yields multiple detected signals with metric, trigger, confidence, and urgency. Two-layer dedup prevents pollution.</p>
+    </div>
+    <div class="card">
+      <h3>Synthesis</h3>
+      <p>Anchor-first. The LLM produces the mandate narrative, a summary, a priority score, the product family, and an adjacent-opportunities paragraph. Drift guard replaces output with the anchor on tenor conflict.</p>
+    </div>
+    <div class="card">
+      <h3>Classification</h3>
+      <p>The LLM proposes a product family. A weighted keyword vocabulary validates the proposal. Decisive override at score ≥ 5 with margin ≥ 3. Deterministic for the primary client.</p>
+    </div>
+    <div class="card">
+      <h3>Compliance</h3>
+      <p>LLM audit of the full deck against MiFID II, MAR Article 11, and EU Green Bond Standard. Flags issues per slide and proposes remediations the RM can apply with one click.</p>
+    </div>
+    <div class="card">
+      <h3>Copilot</h3>
+      <p>Explains any slide, answers questions on the underlying data, runs audits, and edits the deck through chat. State mutations propagate to the preview and the exported deck.</p>
+    </div>
+    <div class="card">
+      <h3>Deck Metadata</h3>
+      <p>Every generated PPTX carries author, comments, creation timestamp, and title in its file properties, visible in File → Info on any desktop.</p>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Financial Markets Deal Intelligence Platform · Internal</span>
+    <span>Page 2 of 3</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 3 — KEY IMPLEMENTATIONS & BENEFITS ═══════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h1>Key Implementations <span>&amp; Benefits</span></h1>
+    <div class="badge">Page 3 of 3 · Outcomes</div>
+  </div>
+
+  <p class="lead">What was built, why it matters, and what comes next. Grounded engineering, deployed on Google Cloud, governed by the zero-fabrication principle at every layer.</p>
+
+  <h2><span class="num">07</span>Key Implementations</h2>
+  <div class="grid-3">
+    <div class="card tinted">
+      <h3>Zero Fabrication Discipline</h3>
+      <p>Every displayed value traces to a specific database row filtered by <code>client_id</code>. The LLM extracts and synthesises but never invents. Three enforcement layers: anchor-first prompt structure, deterministic drift guard, read-path validation.</p>
+    </div>
+    <div class="card tinted">
+      <h3>Anchor Pattern for Synthesis</h3>
+      <p>The curated mandate in <code>ca_opportunity_scoring</code> is the anchor. The LLM reads it first, then the signal corpus. A drift guard replaces output with the anchor verbatim if conflicting tenors are detected. Narratives cannot drift from the desk-approved structure.</p>
+    </div>
+    <div class="card tinted">
+      <h3>Weighted Family Classification</h3>
+      <p>The LLM proposes a product family. A curated weighted vocabulary validates it. Strong product signals (weight 5) dominate weak context words (weight 1 to 2). When decisive, the weights override the LLM. When not, the LLM's judgment stands.</p>
+    </div>
+    <div class="card tinted">
+      <h3>Grounded Adjacent Opportunities</h3>
+      <p>Beyond the primary mandate, the platform surfaces cross-sell angles from the same signal corpus. Each adjacency cites a specific signal. No invention, no repetition, no marketing language. Maximum three angles, prioritised by notional or urgency.</p>
+    </div>
+    <div class="card tinted">
+      <h3>Pitchbook Copilot</h3>
+      <p>Explains any slide in context, answers questions on the underlying data, runs MiFID II and MAR compliance checks, applies remediations, and edits the deck through chat. State mutations propagate to both the preview and the exported PPTX.</p>
+    </div>
+    <div class="card tinted">
+      <h3>Runtime Brand Toggle</h3>
+      <p>Same codebase, same database, two Cloud Run services. A single <code>BRAND</code> environment variable selects the profile: colours, logos, footers, Copilot name, prompt personas, download filename. ING remains the default when the variable is unset.</p>
+    </div>
+  </div>
+
+  <h2><span class="num">08</span>Business Benefits</h2>
+  <div class="benefits-list">
+    <ul>
+      <li><strong>Time to first draft</strong> — minutes instead of days. The RM goes into the client meeting with a grounded, compliance-aware deck already prepared.</li>
+      <li><strong>Zero fabrication risk</strong> — every number in the pitchbook is auditable back to a database row. No hallucinated metrics reach the client.</li>
+      <li><strong>Full-corpus origination</strong> — the platform surfaces adjacent opportunities the RM might miss, grounded in the same signal corpus.</li>
+      <li><strong>Compliance built in</strong> — MiFID II, MAR, and EU Green Bond Standard audits run at the deck level with one-click remediation.</li>
+    </ul>
+    <ul>
+      <li><strong>Regulatory transparency</strong> — the audit trail is deterministic. Every LLM call is anchored, every output is validated, every mutation is logged.</li>
+      <li><strong>Brand flexibility</strong> — the runtime toggle lets the same platform present as ING, BFS AI Lab, or a future brand without a code fork or a second database.</li>
+      <li><strong>Operational simplicity</strong> — the entire stack runs serverless. Zero infrastructure to maintain, cold start under six seconds.</li>
+      <li><strong>Extensible architecture</strong> — new signal channels, new product families, and new LLM capabilities plug in without rewriting the core pipeline.</li>
+    </ul>
+  </div>
+
+  <h2><span class="num">09</span>Deployment &amp; Delivery</h2>
+  <div class="grid-3">
+    <div class="card">
+      <h3>Infrastructure</h3>
+      <p>Google Cloud Run in <code>europe-west1</code>, 1 vCPU and 512 MiB per instance, single warm instance per service. Cloud SQL PostgreSQL 15 with pgvector. Vertex AI for all LLM and embedding calls. Secrets in Google Secret Manager.</p>
+    </div>
+    <div class="card">
+      <h3>Two Services, One Image</h3>
+      <p>The <code>ing-fm-poc-service</code> and <code>bfs-ai-lab-service</code> run the same Docker image, connect to the same database, and differ only by the <code>BRAND</code> environment variable. Both live, both verified end to end.</p>
+    </div>
+    <div class="card">
+      <h3>Operational Maturity</h3>
+      <p>Thirteen-gate parity audit runs before every deploy. Syntax verification, whitelist sync, dictionary sync, and structural checks all automated. Archive of recovery tags and local backups at every milestone.</p>
+    </div>
+  </div>
+
+  <h2><span class="num">10</span>What Comes Next</h2>
+  <div class="grid-2">
+    <div>
+      <p><strong>Real-time WorkFabric ingestion.</strong> The platform currently ingests WorkFabric signals and latent opportunities via the ingestion engine. The integration is designed for live API ingestion the moment an endpoint is exposed. No code change required, the ingestion engine already speaks the target shape.</p>
+      <p><strong>Live client data pipeline.</strong> The seed layer is populated today. The next step is a governed pipeline from the client's treasury systems into the read layer, keeping the zero-fabrication discipline intact.</p>
+    </div>
+    <div>
+      <p><strong>Multi-client scaling.</strong> The whitelist currently scopes the demo to one primary client. The synthesis cache, ingestion dedup, and brand substitution all support multiple clients, so the platform is ready to scale the demo corpus when needed.</p>
+      <p><strong>Statistical refinement of the family classifier.</strong> The weighted vocabulary is hand-curated and defensible today. As the platform accumulates classified anchors, the weights could be refined statistically without changing the interface.</p>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Financial Markets Deal Intelligence Platform · Internal</span>
+    <span>Page 3 of 3</span>
+  </div>
+</div>
+
+</body>
+</html>

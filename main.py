@@ -91,6 +91,16 @@ BRAND_PROFILES = {
         "prompt_compliance_persona": "You are the Senior Executive Director of EU Financial Regulatory Compliance at ING Wholesale Banking.",
         "prompt_copilot_persona_prefix": "You are the senior ING Financial Markets Origination, Structuring & Regulatory Compliance Copilot for",
         "prompt_adjacent_phrase": "ING has identified",
+        "accent_color": "#FF6200",
+        "accent_color_hover": "#E05500",
+        "accent_color_light": "#FFF0E6",
+        "accent_color_hover_alt": "#E55800",
+        "accent_color_tint": "#FFF0E6",
+        "navy_color_hover": "#1A224D",
+        "navy_color": "#000066",
+        "badge_color": "#FF6200",
+        "download_prefix_short": "ING",
+        "logo_height_inches": 0.45,
     },
     "BFS_AI_LAB": {
         "name": "BFS AI Lab",
@@ -110,6 +120,16 @@ BRAND_PROFILES = {
         "prompt_compliance_persona": "You are the Senior Executive Director of EU Financial Regulatory Compliance.",
         "prompt_copilot_persona_prefix": "You are the senior Financial Markets Origination, Structuring & Regulatory Compliance Copilot for",
         "prompt_adjacent_phrase": "identified",
+        "accent_color": "#10C4C0",
+        "accent_color_hover": "#0BA8A4",
+        "accent_color_light": "#DCF5F4",
+        "accent_color_hover_alt": "#0D9E9A",
+        "accent_color_tint": "#DCF5F4",
+        "navy_color_hover": "#153F7A",
+        "navy_color": "#0A3168",
+        "badge_color": "#0A3168",
+        "download_prefix_short": "BFS_AI_LAB",
+        "logo_height_inches": 0.60,
     },
 }
 
@@ -194,8 +214,8 @@ _MANDATE_SYNTH_CACHE_TTL = 300  # seconds (5 minutes)
 # Both lists must stay in sync — the backend whitelist controls synthesis,
 # the frontend whitelist controls rendering.
 # ---------------------------------------------------------------------------
-#_DEMO_CLIENT_IDS = {"CLI101"}
-_DEMO_CLIENT_IDS = {"CLI101", "CLI103"}
+_DEMO_CLIENT_IDS = {"CLI101"}
+#_DEMO_CLIENT_IDS = {"CLI101", "CLI103"}
 
 app = FastAPI(title=ACTIVE_BRAND["api_title"], version="1.0.0")
 
@@ -2461,7 +2481,7 @@ async def handle_pitchbook_generation(
         _pb_brand._set_active_brand(ACTIVE_BRAND)
         pptx_buf = build_pitchbook(bundle, opp_meta, compliance_bullets=compliance_bullets, overrides=overrides)
         
-        clean_filename = f"ING_{str(client_name).replace(' ', '_')}_Pitchbook.pptx"
+        clean_filename = f"{ACTIVE_BRAND['download_prefix_short']}_{str(client_name).replace(' ', '_')}_Pitchbook.pptx"
         content_bytes = pptx_buf.getvalue() if hasattr(pptx_buf, "getvalue") else pptx_buf
         
         return Response(

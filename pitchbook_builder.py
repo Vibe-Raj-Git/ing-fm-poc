@@ -186,7 +186,7 @@ def add_logo(slide, is_white=False):
     if os.path.exists(logo_filename):
         try:
             # Render logo with explicit height constraint to prevent vertical overflow
-            slide.shapes.add_picture(logo_filename, Inches(11.8), Inches(0.35), height=Inches(0.45))
+            slide.shapes.add_picture(logo_filename, Inches(11.8), Inches(0.35), height=Inches(_brand().get("logo_height_inches", 0.45)))
             return
         except Exception as exc:
             logger.warning(f"Could not insert logo: {exc}")
@@ -668,7 +668,18 @@ def get_slide_meta(p_fam):
     }
     return meta.get(p_fam, meta["DCM_REFI"])
 
+def _hex_to_rgb(hex_str):
+    """Convert '#RRGGBB' to an (R, G, B) tuple."""
+    h = hex_str.lstrip("#")
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+
 def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
+    global ING_ORANGE, ING_NAVY, ING_LIGHT_ORANGE
+    _b = _brand()
+    ING_ORANGE = RGBColor(*_hex_to_rgb(_b.get("accent_color", "#FF6200")))
+    ING_NAVY = RGBColor(*_hex_to_rgb(_b.get("navy_color", "#000066")))
+    ING_LIGHT_ORANGE = RGBColor(*_hex_to_rgb(_b.get("accent_color_light", "#FFEBDC")))
     """
     Build pitchbook using database data. No hardcoded client-specific values.
     """
@@ -762,7 +773,9 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
 
     # 3. Top-Right Logo & Desk Label
     add_logo(s1, is_white=True)
-    tb_desk = s1.shapes.add_textbox(Inches(8.5), Inches(0.85), Inches(4.0), Inches(0.35))
+    _logo_bottom = 0.35 + _brand().get("logo_height_inches", 0.45)
+    _desk_y = _logo_bottom + 0.05
+    tb_desk = s1.shapes.add_textbox(Inches(8.5), Inches(_desk_y), Inches(4.0), Inches(0.35))
     tf_desk = tb_desk.text_frame
     p_desk = tf_desk.paragraphs[0]
     p_desk.text = "Financial Markets Origination"

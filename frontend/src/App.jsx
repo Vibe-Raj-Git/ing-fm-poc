@@ -37,6 +37,16 @@ const ING_FALLBACK = {
   houseview_fallback: "No ING houseview published for this client in the current reporting cycle.",
   rss_fallback_url: "https://think.ing.com",
   download_prefix: "ING_FM",
+  download_prefix_short: "ING",
+  accent_color: "#FF6200",
+  accent_color_hover: "#E05500",
+  accent_color_hover_alt: "#E55800",
+  accent_color_light: "#FFF0E6",
+  accent_color_tint: "#FFF0E6",
+  navy_color: "#000066",
+  navy_color_hover: "#1A224D",
+  badge_color: "#FF6200",
+  logo_height_inches: 0.45,
 };
 
 // =============================================================================
@@ -72,7 +82,7 @@ function FormattedChatText({ content }) {
       
       // Code: `text`
       if (part.startsWith("`") && part.endsWith("`")) {
-        return <code key={pIdx} className="bg-gray-200/80 px-1 py-0.5 rounded text-[11px] font-mono text-[#000066]">{part.slice(1, -1)}</code>;
+        return <code key={pIdx} className="bg-gray-200/80 px-1 py-0.5 rounded text-[11px] font-mono text-[var(--navy)]">{part.slice(1, -1)}</code>;
       }
       
       // Italic: *text*
@@ -138,7 +148,7 @@ class ErrorBoundary extends React.Component {
             <p className="text-sm text-gray-600 mb-4">{this.state.error?.message || "An unexpected error occurred"}</p>
             <button
               onClick={() => window.location.reload()}
-              className="bg-[#FF6200] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#E05500] transition"
+              className="bg-[var(--accent)] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[var(--accent-hover)] transition"
             >
               Refresh Page
             </button>
@@ -157,8 +167,8 @@ class ErrorBoundary extends React.Component {
 // Whitelisted Client IDs for UI presentation (Backend DB retains all clients)
 // const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
 // const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"];
-//const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
-const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"];
+const ACTIVE_UI_CLIENT_IDS = ["CLI101"];
+//const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"];
 
 export default function App() {
   const [opportunities, setOpportunities] = useState([]);
@@ -290,11 +300,31 @@ export default function App() {
     fetch("/api/brand")
       .then((r) => r.json())
       .then((data) => {
-        if (!cancelled) setBrand(data);
+        if (!cancelled) {
+          setBrand(data);
+          document.documentElement.style.setProperty('--accent', data.accent_color);
+          document.documentElement.style.setProperty('--accent-hover', data.accent_color_hover);
+          document.documentElement.style.setProperty('--accent-hover-alt', data.accent_color_hover_alt);
+          document.documentElement.style.setProperty('--accent-light', data.accent_color_tint);
+          document.documentElement.style.setProperty('--navy', data.navy_color);
+          document.documentElement.style.setProperty('--navy-hover', data.navy_color_hover);
+          document.documentElement.style.setProperty('--badge', data.badge_color);
+          document.title = `${data.name} Financial Markets Insights`;
+        }
       })
       .catch((err) => {
         console.warn("Brand fetch failed, using ING fallback:", err);
-        if (!cancelled) setBrand(ING_FALLBACK);
+        if (!cancelled) {
+          setBrand(ING_FALLBACK);
+          document.documentElement.style.setProperty('--accent', ING_FALLBACK.accent_color);
+          document.documentElement.style.setProperty('--accent-hover', ING_FALLBACK.accent_color_hover);
+          document.documentElement.style.setProperty('--accent-hover-alt', ING_FALLBACK.accent_color_hover_alt);
+          document.documentElement.style.setProperty('--accent-light', ING_FALLBACK.accent_color_tint);
+          document.documentElement.style.setProperty('--navy', ING_FALLBACK.navy_color);
+          document.documentElement.style.setProperty('--navy-hover', ING_FALLBACK.navy_color_hover);
+          document.documentElement.style.setProperty('--badge', ING_FALLBACK.badge_color);
+          document.title = `${ING_FALLBACK.name} Financial Markets Insights`;
+        }
       });
     return () => {
       cancelled = true;
@@ -678,7 +708,7 @@ export default function App() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `ING_${clientId}_Pitchbook.pptx`;
+      a.download = `${brand.download_prefix_short}_${clientId}_Pitchbook.pptx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -731,7 +761,7 @@ export default function App() {
     switch (index) {
       case 0: // COVER
         return (
-          <div className="h-full flex flex-col justify-between bg-[#0C112B] text-white p-8 rounded-lg relative overflow-hidden border-l-8 border-[#FF6200]">
+          <div className="h-full flex flex-col justify-between bg-[#0C112B] text-white p-8 rounded-lg relative overflow-hidden border-l-8 border-[var(--accent)]">
             <div className="flex justify-end items-start">
               <div className="text-right flex flex-col items-end">
                 <img src={`/assets/${brand.logo_white}`} alt={brand.name} className="h-7 object-contain mb-1" />
@@ -739,7 +769,7 @@ export default function App() {
               </div>
             </div>
             <div className="my-auto py-6">
-              <span className="text-[11px] font-mono tracking-widest text-[#FF6200] uppercase font-bold">
+              <span className="text-[11px] font-mono tracking-widest text-[var(--accent)] uppercase font-bold">
                 {kickerText}
               </span>
               <h1 className="text-4xl font-bold tracking-tight mt-2 text-white">{clientName}</h1>
@@ -761,10 +791,10 @@ export default function App() {
             <div>
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <span className="text-[9px] font-mono text-[#FF6200] uppercase font-bold tracking-wider">
+                  <span className="text-[9px] font-mono text-[var(--accent)] uppercase font-bold tracking-wider">
                     {isFX ? "FX RISK CATALYST" : isGreen ? "SUSTAINABILITY CATALYST" : isRates ? "RATE RISK CATALYST" : "STRATEGIC CATALYST"}
                   </span>
-                  <h2 className="text-lg font-bold text-[#000066] mt-0.5">
+                  <h2 className="text-lg font-bold text-[var(--navy)] mt-0.5">
                     {isFX ? "Currency Exposure & Market Catalyst" :
                      isGreen ? "ESG Capital Strategy & Decarbonization Catalyst" :
                      isRates ? "Rate Path Volatility & IRS Pre-Hedge Catalyst" : "Executive Context & Opportunity Rationale"}
@@ -785,7 +815,7 @@ export default function App() {
                   </p>
                 </div>
                 <div className="p-3 bg-blue-50/60 rounded border border-blue-200">
-                  <p className="font-bold text-[#000066] mb-1">Window of Opportunity</p>
+                  <p className="font-bold text-[var(--navy)] mb-1">Window of Opportunity</p>
                   <p className="text-gray-700 text-[10px] leading-relaxed">
                     {deckOverrides.why_now_summary || opp.why_now_summary || (
                       isFX ? "EUR/USD forward points offer structural hedging pickup; volatility corridor allows zero-cost collar structuring." :
@@ -816,7 +846,7 @@ export default function App() {
         return (
           <div className="h-full flex flex-col justify-between bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="grid grid-cols-12 h-full">
-              <div className="col-span-3 bg-[#FF6200] p-4 text-white flex flex-col">
+              <div className="col-span-3 bg-[var(--accent)] p-4 text-white flex flex-col">
                 <div className="flex-shrink-0">
                   <h2 className="text-lg font-bold mb-1">Executive Summary</h2>
                   <div className="w-8 h-0.5 bg-white mb-2"></div>
@@ -862,7 +892,7 @@ export default function App() {
                     <div className="flex-1 flex flex-col justify-center space-y-1.5 mt-1">
                       {pillars.map((p, i) => (
                         <div key={i} className="flex space-x-1.5 items-start">
-                          <div className="w-3.5 h-3.5 rounded-full bg-white text-[#FF6200] flex items-center justify-center font-bold text-[8px] shrink-0 mt-0.5">{i + 1}</div>
+                          <div className="w-3.5 h-3.5 rounded-full bg-white text-[var(--accent)] flex items-center justify-center font-bold text-[8px] shrink-0 mt-0.5">{i + 1}</div>
                           <div className="min-w-0">
                             <p className="font-bold text-white text-[9px] leading-tight">{p.t}</p>
                             <p className="text-white/80 text-[8px] leading-snug">{p.d}</p>
@@ -887,7 +917,7 @@ export default function App() {
                     </p>
                   </div>
                   <div className="border border-blue-200 bg-blue-50/30 rounded-lg p-2.5 flex flex-col overflow-hidden" style={{flex: "0 0 33%"}}>
-                    <p className="font-bold text-[#000066] text-[9px] uppercase tracking-wider mb-1 flex-shrink-0">
+                    <p className="font-bold text-[var(--navy)] text-[9px] uppercase tracking-wider mb-1 flex-shrink-0">
                       💼 Proposed Execution & Structuring
                     </p>
                     <p className="text-gray-800 text-[9px] leading-snug overflow-y-auto">
@@ -914,10 +944,10 @@ export default function App() {
             <div>
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <span className="text-[9px] font-mono text-[#FF6200] uppercase font-bold tracking-wider">
+                  <span className="text-[9px] font-mono text-[var(--accent)] uppercase font-bold tracking-wider">
                     {isGreen ? "ESG BALANCE SHEET FOUNDATION" : "BALANCE SHEET FOUNDATION"}
                   </span>
-                  <h2 className="text-base font-bold text-[#000066] mt-0.5">
+                  <h2 className="text-base font-bold text-[var(--navy)] mt-0.5">
                     {isFX ? "Corporate Liquidity & Currency Inflow Profile" :
                      isGreen ? "Balance Sheet Capacity & Green CapEx Profile" :
                      isRates ? "Capital Structure & Liquidity Snapshot" : "Capital Structure & Treasury Health Profile"}
@@ -940,11 +970,11 @@ export default function App() {
                 </div>
                 <div className="p-2.5 bg-gray-50 rounded border border-gray-200">
                   <p className="text-[10px] text-gray-500 font-semibold">Credit Rating / Tier</p>
-                  <p className="text-sm font-bold text-[#000066] mt-0.5">{activeClient?.credit_rating || '—'}</p>
+                  <p className="text-sm font-bold text-[var(--navy)] mt-0.5">{activeClient?.credit_rating || '—'}</p>
                 </div>
               </div>
               <div className="p-3 bg-blue-50/50 rounded border border-blue-200 text-[10px] text-gray-700 space-y-1">
-                <p className="font-bold text-[#000066]">Corporate Financial Standing & Balance Sheet Capacity</p>
+                <p className="font-bold text-[var(--navy)]">Corporate Financial Standing & Balance Sheet Capacity</p>
                 <p>• Annual Group Revenue of {revenueVal} supported by EBITDA of {ebitdaVal}.</p>
                 <p>• Robust liquidity buffer of {liquidityVal} provides substantial capacity to execute structured financing and risk management operations.</p>
               </div>
@@ -959,10 +989,10 @@ export default function App() {
             <div>
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <span className="text-[9px] font-mono text-[#FF6200] uppercase font-bold tracking-wider">
+                  <span className="text-[9px] font-mono text-[var(--accent)] uppercase font-bold tracking-wider">
                     {isFX ? "CURRENCY EXPOSURE PROFILE" : isGreen ? "USE OF PROCEEDS" : isRates ? "MATURITY & SWAP SCHEDULE" : "MATURITY SCHEDULE"}
                   </span>
-                  <h2 className="text-base font-bold text-[#000066] mt-0.5">
+                  <h2 className="text-base font-bold text-[var(--navy)] mt-0.5">
                     {isFX ? "FX Currency Breakdown & Hedging Gap" :
                      isGreen ? "Eligible Green Asset Pool & Use of Proceeds" :
                      isRates ? "Debt Maturity Profile & Swap Refinancing Horizon" : "Debt Maturity Profile & Refinancing Horizon"}
@@ -972,7 +1002,7 @@ export default function App() {
               </div>
               <div className="grid grid-cols-2 gap-4 my-auto">
                 <div className="p-3 bg-gray-50 rounded border border-gray-200">
-                  <p className="font-bold text-[#000066] text-xs mb-2">
+                  <p className="font-bold text-[var(--navy)] text-xs mb-2">
                     {isFX ? "Commercial Currency Exposure Flow" : isGreen ? "Eligible Green Asset & CapEx Pool" : "Tranche Maturity Breakdown"}
                   </p>
                   <div className="text-[10px] space-y-1.5 text-gray-700">
@@ -1009,7 +1039,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="p-3 bg-blue-50/50 rounded border border-blue-200">
-                  <p className="font-bold text-[#000066] text-xs mb-2">
+                  <p className="font-bold text-[var(--navy)] text-xs mb-2">
                     {isFX ? "Layered Collar Execution Architecture" : isGreen ? "Green Framework & SPO Structuring" : isRates ? "Pre-Hedge Overlay Sizing" : "Refinancing Wall Rationale"}
                   </p>
                   <p className="text-[10px] text-gray-700 leading-relaxed">
@@ -1070,8 +1100,8 @@ export default function App() {
               <div>
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <span className="text-[9px] font-mono text-[#FF6200] uppercase font-bold tracking-wider">STRATEGIC RATIONALE & SCENARIO ANALYSIS</span>
-                    <h2 className="text-base font-bold text-[#000066] mt-0.5">
+                    <span className="text-[9px] font-mono text-[var(--accent)] uppercase font-bold tracking-wider">STRATEGIC RATIONALE & SCENARIO ANALYSIS</span>
+                    <h2 className="text-base font-bold text-[var(--navy)] mt-0.5">
                       {isFX ? "Rationale of our Proposal & FX Corridor Analysis" :
                        isGreen ? "Rationale of our Proposal & Greenium Advantage" :
                        isRates ? "Rationale of our Proposal & Rate Sensitivity" : "Rationale of our Proposal & Refinancing Analysis"}
@@ -1083,7 +1113,7 @@ export default function App() {
                 <div className="grid grid-cols-12 gap-3 items-start">
                   <div className="col-span-5 bg-white border border-gray-200 rounded p-3 text-[10px] space-y-3">
                     <div>
-                      <h4 className="font-bold text-[#FF6200] uppercase tracking-wide text-[10px] mb-1">Scenario</h4>
+                      <h4 className="font-bold text-[var(--accent)] uppercase tracking-wide text-[10px] mb-1">Scenario</h4>
                       <p className="text-gray-700 leading-relaxed text-[9.5px]">
                         {deckOverrides?.scenario_text || (
                           isFX ? `A corporate treasury with expanding commercial operations in North America has unhedged USD exposures. Fluctuations in EUR/USD spot risk compressing operating margins. Treasury seeks certainty on downside floor while retaining upside participation.` :
@@ -1094,25 +1124,25 @@ export default function App() {
                     </div>
 
                     <div className="border-t border-gray-100 pt-2">
-                      <h4 className="font-bold text-[#FF6200] uppercase tracking-wide text-[10px] mb-1">Recommended Structure</h4>
+                      <h4 className="font-bold text-[var(--accent)] uppercase tracking-wide text-[10px] mb-1">Recommended Structure</h4>
                       <ul className="space-y-1 text-gray-700 text-[9.5px]">
                         {isFX ? (
                           <>
-                            <li className="flex items-start gap-1.5"><span className="text-[#FF6200] font-bold">•</span><span><strong>{s6_refiPct}% hedged</strong> via layered forward contracts locking core budget rate.</span></li>
-                            <li className="flex items-start gap-1.5"><span className="text-[#FF6200] font-bold">•</span><span><strong>{s6_prehedgePct}% structured</strong> in zero-cost participating collars ({deckOverrides?.fx_collar_floor || "1.0850"} floor / {deckOverrides?.fx_collar_cap || "1.0450"} cap).</span></li>
-                            <li className="flex items-start gap-1.5"><span className="text-[#FF6200] font-bold">•</span><span>Staggered quarterly roll balances certainty with liquidity.</span></li>
+                            <li className="flex items-start gap-1.5"><span className="text-[var(--accent)] font-bold">•</span><span><strong>{s6_refiPct}% hedged</strong> via layered forward contracts locking core budget rate.</span></li>
+                            <li className="flex items-start gap-1.5"><span className="text-[var(--accent)] font-bold">•</span><span><strong>{s6_prehedgePct}% structured</strong> in zero-cost participating collars ({deckOverrides?.fx_collar_floor || "1.0850"} floor / {deckOverrides?.fx_collar_cap || "1.0450"} cap).</span></li>
+                            <li className="flex items-start gap-1.5"><span className="text-[var(--accent)] font-bold">•</span><span>Staggered quarterly roll balances certainty with liquidity.</span></li>
                           </>
                         ) : isGreen ? (
                           <>
-                            <li className="flex items-start gap-1.5"><span className="text-[#FF6200] font-bold">•</span><span><strong>{s6_refiPct}% Green Benchmark EMTN</strong>, capturing {deckOverrides?.greenium_bps || 5} bps greenium pricing advantage.</span></li>
-                            <li className="flex items-start gap-1.5"><span className="text-[#FF6200] font-bold">•</span><span><strong>{s6_prehedgePct}% Sustainability-Linked Tranche</strong> tied to verified Scope 1/2 reduction SPTs.</span></li>
-                            <li className="flex items-start gap-1.5"><span className="text-[#FF6200] font-bold">•</span><span>Ring-fenced eligible asset pool aligned with ICMA Green Bond Principles.</span></li>
+                            <li className="flex items-start gap-1.5"><span className="text-[var(--accent)] font-bold">•</span><span><strong>{s6_refiPct}% Green Benchmark EMTN</strong>, capturing {deckOverrides?.greenium_bps || 5} bps greenium pricing advantage.</span></li>
+                            <li className="flex items-start gap-1.5"><span className="text-[var(--accent)] font-bold">•</span><span><strong>{s6_prehedgePct}% Sustainability-Linked Tranche</strong> tied to verified Scope 1/2 reduction SPTs.</span></li>
+                            <li className="flex items-start gap-1.5"><span className="text-[var(--accent)] font-bold">•</span><span>Ring-fenced eligible asset pool aligned with ICMA Green Bond Principles.</span></li>
                           </>
                         ) : (
                           <>
-                            <li className="flex items-start gap-1.5"><span className="text-[#FF6200] font-bold">•</span><span><strong>{s6_refiPct}% refinanced</strong> via a new {s6_tenorYears}-year vanilla bond, indicatively priced at swap + {s6_spreadBps}bps (~{s6_allInStr} all-in).</span></li>
-                            <li className="flex items-start gap-1.5"><span className="text-[#FF6200] font-bold">•</span><span><strong>{s6_prehedgePct}% pre-hedged</strong> via forward-starting IRS, locking current benchmark rate.</span></li>
-                            <li className="flex items-start gap-1.5"><span className="text-[#FF6200] font-bold">•</span><span>Staggered approach balances rate-lock certainty with sizing flexibility.</span></li>
+                            <li className="flex items-start gap-1.5"><span className="text-[var(--accent)] font-bold">•</span><span><strong>{s6_refiPct}% refinanced</strong> via a new {s6_tenorYears}-year vanilla bond, indicatively priced at swap + {s6_spreadBps}bps (~{s6_allInStr} all-in).</span></li>
+                            <li className="flex items-start gap-1.5"><span className="text-[var(--accent)] font-bold">•</span><span><strong>{s6_prehedgePct}% pre-hedged</strong> via forward-starting IRS, locking current benchmark rate.</span></li>
+                            <li className="flex items-start gap-1.5"><span className="text-[var(--accent)] font-bold">•</span><span>Staggered approach balances rate-lock certainty with sizing flexibility.</span></li>
                           </>
                         )}
                       </ul>
@@ -1120,12 +1150,12 @@ export default function App() {
                   </div>
 
                   <div className="col-span-7 bg-gray-50 border border-gray-200 rounded p-3 space-y-2">
-                    <h4 className="text-center font-bold text-[#FF6200] uppercase tracking-wide text-[10px]">
+                    <h4 className="text-center font-bold text-[var(--accent)] uppercase tracking-wide text-[10px]">
                       {isFX ? "Illustrative FX Margin Impact by Scenario" : isGreen ? "Cost Comparison vs Conventional Issuance" : "Illustrative All-In Cost by Scenario"}
                     </h4>
                     <div className="border border-gray-200 rounded overflow-hidden text-[9.5px] bg-white">
                       <table className="w-full text-left">
-                        <thead className="bg-[#FF6200] text-white font-semibold">
+                        <thead className="bg-[var(--accent)] text-white font-semibold">
                           <tr>
                             <th className="p-1.5">{isFX ? "FX Scenario" : isGreen ? "Issuance Format" : "Rate Scenario"}</th>
                             <th className="p-1.5 text-center">{isFX ? "Layered Collar Strategy" : isGreen ? "Indicative Spread" : "Refinance Today"}</th>
@@ -1157,7 +1187,7 @@ export default function App() {
                     </div>
 
                     <div className="p-2 bg-blue-50/50 rounded border border-blue-100 text-[9px] text-gray-700 leading-tight">
-                      <strong className="text-[#000066] block mb-0.5">Reading the table:</strong>
+                      <strong className="text-[var(--navy)] block mb-0.5">Reading the table:</strong>
                       {isFX ? `A zero-cost collar provides a hard floor at ${deckOverrides?.fx_collar_floor || "1.0850"} against adverse currency moves while allowing upside participation up to ${deckOverrides?.fx_collar_cap || "1.0450"}, eliminating upfront premium expense while protecting operating margin.` :
                        isGreen ? `Issuing in Green format attracts dedicated sustainability orderbooks, driving tighter execution pricing (~${deckOverrides?.greenium_bps || 5} bps greenium) and expanding investor diversification across European ESG accounts.` :
                        `Refinancing today removes exposure to rate rises but forgoes the benefit if rates fall — the pre-hedge on ${s6_prehedgePct}% of the notional narrows that trade-off versus refinancing the full amount unhedged.`}
@@ -1175,8 +1205,8 @@ export default function App() {
             <div>
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <span className="text-[9px] font-mono text-[#FF6200] uppercase font-bold tracking-wider">MARKET INTELLIGENCE</span>
-                  <h2 className="text-base font-bold text-[#000066] mt-0.5">
+                  <span className="text-[9px] font-mono text-[var(--accent)] uppercase font-bold tracking-wider">MARKET INTELLIGENCE</span>
+                  <h2 className="text-base font-bold text-[var(--navy)] mt-0.5">
                     {isFX ? "Central Bank Differentials & FX Forward Points" :
                      isGreen ? "ESG Credit Spreads & Green Bond Index Backdrop" :
                      isRates ? "Benchmark Yields & Swap Curve Backdrop" : "Benchmark Yields & Credit Spread Backdrop"}
@@ -1187,7 +1217,7 @@ export default function App() {
                 <div className="grid grid-cols-4 gap-2 text-center mb-2">
                   <div className="p-1.5 bg-gray-50 rounded border border-gray-200">
                     <p className="text-[9px] text-gray-500 font-semibold">{isFX ? "EUR/USD Spot" : isGreen ? "EUR Green Spread" : "5Y EUR Swap"}</p>
-                    <p className="text-xs font-bold text-[#000066] mt-0.5">{isFX ? (deckOverrides.spot_fx || "1.0650") : isGreen ? "77 bps" : (deckOverrides.swap_5y || "2.62%")}</p>
+                    <p className="text-xs font-bold text-[var(--navy)] mt-0.5">{isFX ? (deckOverrides.spot_fx || "1.0650") : isGreen ? "77 bps" : (deckOverrides.swap_5y || "2.62%")}</p>
                   </div>
                   <div className="p-1.5 bg-gray-50 rounded border border-gray-200">
                     <p className="text-[9px] text-gray-500 font-semibold">{isFX ? "12M Forward Pts" : isGreen ? "Greenium Concession" : "10Y German Bund"}</p>
@@ -1224,13 +1254,13 @@ export default function App() {
                     </div>
                     <div className="bg-white p-1 rounded border border-gray-200 text-center">
                       <span className="text-gray-500 block text-[8.5px]">All-In Benchmark</span>
-                      <span className="font-bold text-[#FF6200]">{deckOverrides.all_in_yield || "3.40%"}</span>
+                      <span className="font-bold text-[var(--accent)]">{deckOverrides.all_in_yield || "3.40%"}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="p-2 bg-blue-50/40 rounded border border-blue-100 text-[10px] text-gray-700 space-y-0.5">
-                  <p className="font-bold text-[#000066]">Macro & Market Context</p>
+                  <p className="font-bold text-[var(--navy)]">Macro & Market Context</p>
                   <p>• Central Bank Policy: ECB Refinancing Rate at {deckOverrides.ecb_rate || "2.25%"}; Fed Funds Target at {deckOverrides.fed_rate || "4.00–4.25%"}.</p>
                   <p>• {isFX ? "Positive EUR/USD forward carry (+185 pts) enhances layered forward hedging." : isGreen ? "High ESG subscription ratios (3.8x book cover) provide attractive new-issue pricing compression." : "Tightening European investment grade credit spreads support attractive execution windows."}</p>
                 </div>
@@ -1306,15 +1336,15 @@ export default function App() {
               <div>
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <span className="text-[9px] font-mono text-[#FF6200] uppercase font-bold tracking-wider">PROPOSAL FEATURES</span>
-                    <h2 className="text-base font-bold text-[#000066] mt-0.5">Proposal features</h2>
+                    <span className="text-[9px] font-mono text-[var(--accent)] uppercase font-bold tracking-wider">PROPOSAL FEATURES</span>
+                    <h2 className="text-base font-bold text-[var(--navy)] mt-0.5">Proposal features</h2>
                   </div>
                   <img src={`/assets/${brand.logo_orange}`} alt={brand.name} className="h-6 object-contain" />
                 </div>
                 
                 <div className="border border-gray-200 rounded overflow-hidden text-[9.5px]">
                   <table className="w-full text-left">
-                    <thead className="bg-[#FF6200] text-white font-semibold">
+                    <thead className="bg-[var(--accent)] text-white font-semibold">
                       <tr>
                         <th className="p-2 w-1/4">Term</th>
                         <th className="p-2 w-[38%]">{s8_leg1Title}</th>
@@ -1368,7 +1398,7 @@ export default function App() {
                 <div className="mt-2 pt-1 border-t border-gray-100">
                   <p className="text-[8.5px] italic text-slate-500">
                     {deckOverrides.pricing_caveat ? (
-                      <span className="text-[#000066] font-medium">
+                      <span className="text-[var(--navy)] font-medium">
                         {deckOverrides.pricing_caveat} {deckOverrides.emir_notice && `• ${deckOverrides.emir_notice}`}
                       </span>
                     ) : (
@@ -1420,9 +1450,9 @@ export default function App() {
               <div>
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <span className="text-[10px] font-bold tracking-wider text-[#FF6200] uppercase">WHY EXECUTE WITH US</span>
+                    <span className="text-[10px] font-bold tracking-wider text-[var(--accent)] uppercase">WHY EXECUTE WITH US</span>
                     <h2 className="text-xl font-bold text-gray-900 tracking-tight mt-0.5">Franchise Capabilities & Syndicate Strength</h2>
-                    <div className="h-0.5 w-12 bg-[#FF6200] mt-1.5 rounded-full"></div>
+                    <div className="h-0.5 w-12 bg-[var(--accent)] mt-1.5 rounded-full"></div>
                   </div>
                   <img src={`/assets/${brand.logo_orange}`} alt={brand.name} className="h-6 object-contain" />
                 </div>
@@ -1431,10 +1461,10 @@ export default function App() {
                   {capabilityCards.map((card, idx) => (
                     <div key={idx} className="p-3.5 rounded-lg border border-gray-200/90 bg-white shadow-xs flex flex-col justify-between h-[155px]">
                       <div>
-                        <div className="w-8 h-8 rounded-full bg-[#FF6200] flex items-center justify-center mb-2 shadow-xs">
+                        <div className="w-8 h-8 rounded-full bg-[var(--accent)] flex items-center justify-center mb-2 shadow-xs">
                           <img src={`/assets/${card.icon}`} alt="" className="w-4 h-4 object-contain" />
                         </div>
-                        <h3 className="font-bold text-[#FF6200] text-xs leading-snug mb-1">{card.title}</h3>
+                        <h3 className="font-bold text-[var(--accent)] text-xs leading-snug mb-1">{card.title}</h3>
                         <p className="text-[10.5px] text-gray-600 leading-relaxed line-clamp-3">{card.desc}</p>
                       </div>
                     </div>
@@ -1454,8 +1484,8 @@ export default function App() {
             <div>
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <span className="text-[9px] font-mono text-[#FF6200] uppercase font-bold tracking-wider">EXECUTION ROADMAP</span>
-                  <h2 className="text-base font-bold text-[#000066] mt-0.5">
+                  <span className="text-[9px] font-mono text-[var(--accent)] uppercase font-bold tracking-wider">EXECUTION ROADMAP</span>
+                  <h2 className="text-base font-bold text-[var(--navy)] mt-0.5">
                     {isFX ? "Layered Roll Framework & Desk Execution" :
                      isGreen ? "Green Bond Framework & Issuance Timetable" :
                      isRates ? "ISDA Schedule, CSA & Execution Timeline" : "Roadmap & Syndicate Timeline"}
@@ -1486,7 +1516,7 @@ export default function App() {
                   "T-Day: Pricing & Settlement: Final syndicate pricing, book allocation & closing"
                 ]).map((st, idx) => (
                   <div key={idx} className="p-3 bg-gray-50 rounded border border-gray-200">
-                    <div className="w-5 h-5 mx-auto rounded-full bg-[#FF6200] text-white flex items-center justify-center font-bold text-[10px] mb-1.5">{idx + 1}</div>
+                    <div className="w-5 h-5 mx-auto rounded-full bg-[var(--accent)] text-white flex items-center justify-center font-bold text-[10px] mb-1.5">{idx + 1}</div>
                     <p className="font-bold text-gray-900">{st.split(":")[0]}</p>
                     <p className="text-orange-700 font-semibold text-[9.5px] mt-0.5">{st.split(":")[1]}</p>
                     <p className="text-gray-500 text-[8.5px] mt-0.5">{st.split(":")[2]}</p>
@@ -1504,8 +1534,8 @@ export default function App() {
             <div>
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <span className="text-[9px] font-mono text-[#FF6200] uppercase font-bold tracking-wider">REGULATORY DISCLOSURES</span>
-                  <h2 className="text-base font-bold text-[#000066] mt-0.5">
+                  <span className="text-[9px] font-mono text-[var(--accent)] uppercase font-bold tracking-wider">REGULATORY DISCLOSURES</span>
+                  <h2 className="text-base font-bold text-[var(--navy)] mt-0.5">
                     {isFX || isRates ? "Target Market Notice & EMIR Derivative Disclosures" :
                      isGreen ? "ICMA Green Bond Principles & Target Market Notice" :
                      "Regulatory Notices & Target Market Classification"}
@@ -1571,7 +1601,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#FF6200] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">Loading platform...</p>
         </div>
       </div>
@@ -1589,7 +1619,7 @@ export default function App() {
           <p className="text-sm text-gray-600 mb-4">{error}</p>
           <button
             onClick={fetchDashboardData}
-            className="bg-[#FF6200] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#E05500] transition"
+            className="bg-[var(--accent)] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[var(--accent-hover)] transition"
           >
             Retry
           </button>
@@ -1605,10 +1635,10 @@ export default function App() {
         <header className="border-b border-gray-200 bg-white sticky top-0 z-40 shadow-sm">
           <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <span className="bg-[#FF6200] text-white font-extrabold px-2.5 py-1 rounded text-sm tracking-wider">
+              <span className="bg-[var(--accent)] text-white font-extrabold px-2.5 py-1 rounded text-sm tracking-wider">
                 {brand.name}
               </span>
-              <span className="text-[#000066] font-bold text-lg tracking-tight">
+              <span className="text-[var(--navy)] font-bold text-lg tracking-tight">
                 Financial Markets Analytics
               </span>
             </div>
@@ -1766,7 +1796,7 @@ export default function App() {
                         <span
                           className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
                             isDebt
-                              ? "bg-[#FFF0E6] text-[#FF6200]"
+                              ? "bg-[var(--accent-light)] text-[var(--accent)]"
                               : "bg-emerald-50 text-emerald-800"
                           }`}
                         >
@@ -1791,7 +1821,7 @@ export default function App() {
                           <div className="bg-[#F8FAFC] border border-gray-200/90 rounded-lg p-3 flex flex-col justify-between shadow-2xs">
                             <div>
                               <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-gray-200">
-                                <span className="text-[10px] font-extrabold tracking-wider text-[#000066] uppercase">
+                                <span className="text-[10px] font-extrabold tracking-wider text-[var(--navy)] uppercase">
                                   Client Data
                                 </span>
                                 <span className="text-[9px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.2 rounded">Internal data</span>
@@ -1815,7 +1845,7 @@ export default function App() {
                                 </div>
                                 <div className="flex justify-between pt-1 border-t border-gray-100">
                                   <span className="text-gray-600 font-bold">Potential debt maturities within 24 months:</span>
-                                  <span className="font-extrabold text-[#FF6200]">{opp.debt_maturing_24m_bn || '—'}</span>
+                                  <span className="font-extrabold text-[var(--accent)]">{opp.debt_maturing_24m_bn || '—'}</span>
                                 </div>
                               </div>
                             </div>
@@ -1825,7 +1855,7 @@ export default function App() {
                           <div className="bg-[#F8FAFC] border border-gray-200/90 rounded-lg p-3 flex flex-col justify-between shadow-2xs">
                             <div>
                               <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-gray-200">
-                                <span className="text-[10px] font-extrabold tracking-wider text-[#000066] uppercase">
+                                <span className="text-[10px] font-extrabold tracking-wider text-[var(--navy)] uppercase">
                                   Market Data
                                 </span>
                                 <span className="text-[9px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.2 rounded">Market DB</span>
@@ -1833,7 +1863,7 @@ export default function App() {
                               <div className="space-y-1.5 text-[11px]">
                                 <div className="flex justify-between">
                                   <span className="text-gray-500 font-medium">5Y EUR Swap:</span>
-                                  <span className="font-bold text-[#000066]">{opp.eur_5y_swap || "2.62%"}</span>
+                                  <span className="font-bold text-[var(--navy)]">{opp.eur_5y_swap || "2.62%"}</span>
                                 </div>
                                 <div className="flex justify-between">
                                   <span className="text-gray-500 font-medium">10Y German Bund:</span>
@@ -1845,7 +1875,7 @@ export default function App() {
                                 </div>
                                 <div className="flex justify-between">
                                   <span className="text-gray-500 font-medium">All-In Benchmark Yield:</span>
-                                  <span className="font-bold text-[#FF6200]">{opp.client_yield || "3.40%"}</span>
+                                  <span className="font-bold text-[var(--accent)]">{opp.client_yield || "3.40%"}</span>
                                 </div>
                                 <div className="flex justify-between pt-1 border-t border-gray-100">
                                   <span className="text-gray-600 font-bold">5Y USD Swap Benchmark:</span>
@@ -1859,7 +1889,7 @@ export default function App() {
                            <div className="bg-[#F8FAFC] border border-blue-200/90 rounded-lg p-3 flex flex-col justify-between shadow-2xs">
                              <div>
                                <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-blue-100">
-                                 <span className="text-[10px] font-extrabold tracking-wider text-[#000066] uppercase flex items-center gap-1">
+                                 <span className="text-[10px] font-extrabold tracking-wider text-[var(--navy)] uppercase flex items-center gap-1">
                                    <span>🧠</span> Context Fabric
                                  </span>
                                  <span className="text-[9px] bg-blue-100 text-blue-800 font-extrabold px-1.5 py-0.5 rounded border border-blue-200">
@@ -1989,17 +2019,17 @@ ${chip.preview}`}
                          </div>
 
                          {/* FULL-WIDTH MANDATE SECTION (SYNTHESIZED OUTPUT ACROSS ALL 4 FEEDS) */}
-                         <div className="mt-4 bg-gradient-to-br from-[#FFF9F5] via-white to-[#FFF0E6]/50 border border-orange-200 rounded-xl p-4 shadow-sm">
+                         <div className="mt-4 bg-gradient-to-br from-[var(--accent-light)] via-white to-[var(--accent-light)]/50 border border-orange-200 rounded-xl p-4 shadow-sm">
                            <div className="flex flex-col md:flex-row md:items-center justify-between pb-2 mb-3 border-b border-orange-200/80 gap-2">
                              <div className="flex items-center space-x-2">
                                <span className="flex h-2.5 w-2.5 relative">
                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF6200]"></span>
+                                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--accent)]"></span>
                                </span>
-                               <span className="text-xs font-extrabold tracking-wider text-[#FF6200] uppercase">
+                               <span className="text-xs font-extrabold tracking-wider text-[var(--accent)] uppercase">
                                  Synthesized Mandate & AI Catalyst
                                </span>
-                               <span className="text-[9.5px] bg-[#FFF0E6] text-[#FF6200] font-extrabold px-2 py-0.5 rounded-full border border-orange-200">
+                               <span className="text-[9.5px] bg-[var(--accent-light)] text-[var(--accent)] font-extrabold px-2 py-0.5 rounded-full border border-orange-200">
                                  Multi-Signal Lineage Verified
                                </span>
                              </div>
@@ -2071,7 +2101,7 @@ ${chip.preview}`}
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleOpenIngestModal(opp)}
-                            className="inline-flex items-center space-x-1.5 bg-[#FFF0E6] hover:bg-[#FFE0CC] text-[#FF6200] text-xs font-bold px-3 py-2 rounded-lg transition"
+                            className="inline-flex items-center space-x-1.5 bg-[var(--accent-light)] hover:bg-[var(--accent-light)] text-[var(--accent)] text-xs font-bold px-3 py-2 rounded-lg transition"
                             title="Ingest live RSS news, emails, or documents"
                           >
                             <Rss size={13} />
@@ -2080,7 +2110,7 @@ ${chip.preview}`}
 
                           <button
                             onClick={() => handleOpenPreview(opp)}
-                            className="inline-flex items-center space-x-1.5 bg-[#0C112B] hover:bg-[#1A224D] text-white text-xs font-semibold px-4 py-2 rounded-lg transition duration-150"
+                            className="inline-flex items-center space-x-1.5 bg-[#0C112B] hover:bg-[var(--navy-hover)] text-white text-xs font-semibold px-4 py-2 rounded-lg transition duration-150"
                           >
                             <span>Open draft pitchbook</span>
                             <ArrowUpRight size={14} />
@@ -2189,7 +2219,7 @@ ${chip.preview}`}
                         >
                           <div className="flex items-center justify-between mb-1.5">
                             <div className="flex items-center space-x-1 text-orange-700 text-[10px] font-extrabold uppercase tracking-wider">
-                              <ShieldAlert size={12} className="text-[#FF6200]" />
+                              <ShieldAlert size={12} className="text-[var(--accent)]" />
                               <span>{dynamicBadge}</span>
                             </div>
                             {item.fee_estimate && (
@@ -2198,7 +2228,7 @@ ${chip.preview}`}
                               </span>
                             )}
                           </div>
-                          <h3 className="text-sm font-bold text-[#0C112B] group-hover:text-[#FF6200] transition-colors mb-1">
+                          <h3 className="text-sm font-bold text-[#0C112B] group-hover:text-[var(--accent)] transition-colors mb-1">
                             {item.title}
                           </h3>
                           <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
@@ -2207,9 +2237,9 @@ ${chip.preview}`}
                           {item.action && (
                             <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] gap-2">
                               <span className="text-gray-500 font-medium truncate flex-1" title={item.action}>
-                                <strong className="text-[#000066]">Action:</strong> {item.action}
+                                <strong className="text-[var(--navy)]">Action:</strong> {item.action}
                               </span>
-                              <span className="text-[#FF6200] font-bold text-[10px] group-hover:translate-x-0.5 transition-transform shrink-0">
+                              <span className="text-[var(--accent)] font-bold text-[10px] group-hover:translate-x-0.5 transition-transform shrink-0">
                                 Open Pitchbook &rarr;
                               </span>
                             </div>
@@ -2233,7 +2263,7 @@ ${chip.preview}`}
             <div className="bg-white rounded-2xl max-w-[850px] w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-gray-200">
               <div className="h-14 border-b border-gray-200 px-6 flex items-center justify-between bg-white shrink-0">
                 <div className="flex items-center space-x-2.5">
-                  <span className="bg-[#FF6200] text-white font-extrabold px-2 py-0.5 rounded text-xs">INGEST</span>
+                  <span className="bg-[var(--accent)] text-white font-extrabold px-2 py-0.5 rounded text-xs">INGEST</span>
                   <h3 className="font-bold text-gray-900 text-sm">
                     Signal Ingestion Gateway — {ingestClient.name}
                   </h3>
@@ -2250,7 +2280,7 @@ ${chip.preview}`}
                 <button
                   onClick={() => { setIngestTab("rss"); setIngestSuccessMsg(null); }}
                   className={`py-3 px-3.5 border-b-2 flex items-center space-x-1.5 shrink-0 ${
-                    ingestTab === "rss" ? "border-[#FF6200] text-[#FF6200]" : "border-transparent text-gray-500 hover:text-gray-900"
+                    ingestTab === "rss" ? "border-[var(--accent)] text-[var(--accent)]" : "border-transparent text-gray-500 hover:text-gray-900"
                   }`}
                 >
                   <Rss size={13} />
@@ -2259,7 +2289,7 @@ ${chip.preview}`}
                 <button
                   onClick={() => { setIngestTab("upload"); setIngestSuccessMsg(null); }}
                   className={`py-3 px-3.5 border-b-2 flex items-center space-x-1.5 shrink-0 ${
-                    ingestTab === "upload" ? "border-[#FF6200] text-[#FF6200]" : "border-transparent text-gray-500 hover:text-gray-900"
+                    ingestTab === "upload" ? "border-[var(--accent)] text-[var(--accent)]" : "border-transparent text-gray-500 hover:text-gray-900"
                   }`}
                 >
                   <UploadCloud size={13} />
@@ -2268,7 +2298,7 @@ ${chip.preview}`}
                 <button
                   onClick={() => { setIngestTab("touchpoint"); setIngestSuccessMsg(null); }}
                   className={`py-3 px-3.5 border-b-2 flex items-center space-x-1.5 shrink-0 ${
-                    ingestTab === "touchpoint" || ingestTab === "preset" ? "border-[#FF6200] text-[#FF6200]" : "border-transparent text-gray-500 hover:text-gray-900"
+                    ingestTab === "touchpoint" || ingestTab === "preset" ? "border-[var(--accent)] text-[var(--accent)]" : "border-transparent text-gray-500 hover:text-gray-900"
                   }`}
                 >
                   <Mail size={13} />
@@ -2277,7 +2307,7 @@ ${chip.preview}`}
                 <button
                   onClick={() => { setIngestTab("context_fabric"); setIngestSuccessMsg(null); }}
                   className={`py-3 px-3.5 border-b-2 flex items-center space-x-1.5 shrink-0 ${
-                    ingestTab === "context_fabric" ? "border-[#000066] text-[#000066] font-bold" : "border-transparent text-gray-500 hover:text-gray-900"
+                    ingestTab === "context_fabric" ? "border-[var(--navy)] text-[var(--navy)] font-bold" : "border-transparent text-gray-500 hover:text-gray-900"
                   }`}
                 >
                   <span className="text-sm">🧠</span>
@@ -2307,7 +2337,7 @@ ${chip.preview}`}
                     </p>
                     {rssLoading ? (
                       <div className="py-12 flex flex-col items-center justify-center space-y-2 text-gray-400">
-                        <Loader2 size={20} className="animate-spin text-[#FF6200]" />
+                        <Loader2 size={20} className="animate-spin text-[var(--accent)]" />
                         <span>Fetching live Google News RSS articles...</span>
                       </div>
                     ) : rssArticles.length > 0 ? (
@@ -2315,7 +2345,7 @@ ${chip.preview}`}
                         {rssArticles.map((art, idx) => (
                           <div key={idx} className="bg-[#F8F9FA] p-3 rounded-lg border border-gray-200 flex items-start justify-between space-x-4">
                             <div className="flex-1 min-w-0">
-                              <a href={art.link} target="_blank" rel="noreferrer" className="font-bold text-gray-900 hover:text-[#FF6200] text-xs block truncate">
+                              <a href={art.link} target="_blank" rel="noreferrer" className="font-bold text-gray-900 hover:text-[var(--accent)] text-xs block truncate">
                                 {art.title}
                               </a>
                               <p className="text-gray-500 text-[11px] mt-0.5 line-clamp-2">{art.summary}</p>
@@ -2324,7 +2354,7 @@ ${chip.preview}`}
                             <button
                               onClick={() => handleIngestArticle(art)}
                               disabled={ingestingAction}
-                              className="bg-[#000066] hover:bg-[#1A224D] text-white text-[11px] font-bold px-3 py-1.5 rounded-md shrink-0 transition disabled:opacity-50"
+                              className="bg-[var(--navy)] hover:bg-[var(--navy-hover)] text-white text-[11px] font-bold px-3 py-1.5 rounded-md shrink-0 transition disabled:opacity-50"
                             >
                               {ingestingAction ? <Loader2 size={12} className="animate-spin" /> : "Ingest & Re-evaluate"}
                             </button>
@@ -2351,7 +2381,7 @@ ${chip.preview}`}
                         type="file"
                         accept=".pdf,.pptx,.txt"
                         onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                        className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#000066] file:text-white hover:file:bg-[#1A224D]"
+                        className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[var(--navy)] file:text-white hover:file:bg-[var(--navy-hover)]"
                       />
                       {selectedFile && (
                         <p className="mt-2 text-xs font-bold text-gray-800">
@@ -2362,7 +2392,7 @@ ${chip.preview}`}
                     <button
                       onClick={handleIngestFileUpload}
                       disabled={!selectedFile || ingestingAction}
-                      className="w-full bg-[#FF6200] hover:bg-[#E55800] text-white font-bold py-2.5 rounded-lg shadow-sm transition disabled:opacity-40"
+                      className="w-full bg-[var(--accent)] hover:bg-[var(--accent-hover-alt)] text-white font-bold py-2.5 rounded-lg shadow-sm transition disabled:opacity-40"
                     >
                       {ingestingAction ? "Extracting Embeddings & Signals..." : "Ingest Document & Re-evaluate"}
                     </button>
@@ -2378,10 +2408,10 @@ ${chip.preview}`}
                     <div className="flex space-x-2">
                       <button
                         onClick={() => setCustomTextContent("TREASURY EMAIL:\nFrom: CFO Treasury <treasury@" + (ingestClient.name.toLowerCase().includes("enel") ? "enel.com" : "basf.com") + ">\nTo: Wholesale Coverage Director\nSubject: 2026/2027 Rollover & Pre-Hedging Request\n\nWe are reviewing upcoming debt maturities. Given 5Y EUR swap easing, we want to evaluate an indicative €800M benchmark issuance combined with an ISDA pre-hedge overlay.")}
-                        className="flex-1 p-2.5 rounded-lg border border-gray-200 bg-[#F8F9FA] hover:border-[#FF6200] text-left transition shadow-2xs"
+                        className="flex-1 p-2.5 rounded-lg border border-gray-200 bg-[#F8F9FA] hover:border-[var(--accent)] text-left transition shadow-2xs"
                       >
                         <div className="flex items-center space-x-1.5 font-bold text-gray-900 mb-0.5">
-                          <Mail size={13} className="text-[#FF6200]" />
+                          <Mail size={13} className="text-[var(--accent)]" />
                           <span>Treasury Email Preset</span>
                         </div>
                         <p className="text-[10px] text-gray-500">Incoming CFO email requesting €800M benchmark quote</p>
@@ -2389,10 +2419,10 @@ ${chip.preview}`}
 
                       <button
                         onClick={() => setCustomTextContent("MS TEAMS TRANSCRIPT:\n[10:14] Giulia Romano (RM): Treasury flagged debt maturity step-up approaching.\n[10:15] Luca Moretti (DCM): Recommend pre-hedging the curve now while credit spreads remain tight.\n[10:16] Rates Desk: Structuring 6Y EMTN benchmark + pre-hedge overlay.")}
-                        className="flex-1 p-2.5 rounded-lg border border-gray-200 bg-[#F8F9FA] hover:border-[#000066] text-left transition shadow-2xs"
+                        className="flex-1 p-2.5 rounded-lg border border-gray-200 bg-[#F8F9FA] hover:border-[var(--navy)] text-left transition shadow-2xs"
                       >
                         <div className="flex items-center space-x-1.5 font-bold text-gray-900 mb-0.5">
-                          <MessageSquare size={13} className="text-[#000066]" />
+                          <MessageSquare size={13} className="text-[var(--navy)]" />
                           <span>MS Teams Transcript</span>
                         </div>
                         <p className="text-[10px] text-gray-500">Internal syndicate and coverage working group chat</p>
@@ -2406,14 +2436,14 @@ ${chip.preview}`}
                         onChange={(e) => setCustomTextContent(e.target.value)}
                         placeholder="Paste meeting notes, email transcript, or raw text..."
                         rows={5}
-                        className="w-full p-3 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[#FF6200] focus:border-transparent"
+                        className="w-full p-3 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent"
                       />
                     </div>
 
                     <button
                       onClick={() => handleIngestCustomText("CLIENT_EMAIL", "Client Inbound Touchpoint")}
                       disabled={!customTextContent.trim() || ingestingAction}
-                      className="w-full bg-[#000066] hover:bg-[#1A224D] text-white font-bold py-2.5 rounded-lg shadow-sm transition disabled:opacity-40"
+                      className="w-full bg-[var(--navy)] hover:bg-[var(--navy-hover)] text-white font-bold py-2.5 rounded-lg shadow-sm transition disabled:opacity-40"
                     >
                       {ingestingAction ? "Ingesting & Recalibrating Digital Twin..." : "Ingest Touchpoint & Update Signals"}
                     </button>
@@ -2427,7 +2457,7 @@ ${chip.preview}`}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
                             <span className="text-base">🧠</span>
-                            <span className="font-extrabold text-[#000066] text-xs uppercase tracking-wider">WorkFabric Context Engine</span>
+                            <span className="font-extrabold text-[var(--navy)] text-xs uppercase tracking-wider">WorkFabric Context Engine</span>
                           </div>
                           <span className="text-[10px] bg-blue-100 text-blue-900 font-bold px-2 py-0.5 rounded border border-blue-200">Systems of Work</span>
                         </div>
@@ -2452,9 +2482,9 @@ ${chip.preview}`}
                             `Reconciliation: Public materials show recent capital markets access, but capex should not be equated with funding gap. ` +
                             `Residual 2026-2027 debt maturities remain at sizable volume. Candidate issue: residual funding sequencing and liability management with senior benchmark tranche.`
                           )}
-                          className="p-2.5 rounded-lg border border-blue-200 bg-white hover:border-[#000066] hover:shadow-xs text-left transition group"
+                          className="p-2.5 rounded-lg border border-blue-200 bg-white hover:border-[var(--navy)] hover:shadow-xs text-left transition group"
                         >
-                          <div className="font-bold text-[#000066] text-xs flex items-center gap-1.5 mb-0.5">
+                          <div className="font-bold text-[var(--navy)] text-xs flex items-center gap-1.5 mb-0.5">
                             <span>📝</span> DCM Origination Note Preset
                           </div>
                           <p className="text-[10px] text-gray-500 leading-tight">Reconcile CapEx vs. bond issuance to uncover latent funding gap</p>
@@ -2474,9 +2504,9 @@ ${chip.preview}`}
                             `Signal: Executive Committee authorized accelerated debt rollover. Mandate requires EUR 2.0B Senior EMTN benchmark with immediate ` +
                             `EUR 1.2B 6Y Fixed-to-Floating IRS pre-hedge to capture favorable swap rates ahead of ECB policy cycle.`
                           )}
-                          className="p-2.5 rounded-lg border border-blue-200 bg-white hover:border-[#000066] hover:shadow-xs text-left transition group"
+                          className="p-2.5 rounded-lg border border-blue-200 bg-white hover:border-[var(--navy)] hover:shadow-xs text-left transition group"
                         >
-                          <div className="font-bold text-[#000066] text-xs flex items-center gap-1.5 mb-0.5">
+                          <div className="font-bold text-[var(--navy)] text-xs flex items-center gap-1.5 mb-0.5">
                             <span>🎯</span> Latent Pre-Hedge Overlay Preset
                           </div>
                           <p className="text-[10px] text-gray-500 leading-tight">Lock spread savings and interest rate swap overlay ahead of rate cycle</p>
@@ -2518,9 +2548,9 @@ ${chip.preview}`}
                             `Exposure: Addressing unhedged USD commercial revenue expansion. Recommend multi-tenor layered corridors with ` +
                             `rolling 12M–24M zero-cost participating collars protecting group gross operating margin.`
                           )}
-                          className="p-2.5 rounded-lg border border-amber-200 bg-white hover:border-[#FF6200] hover:shadow-xs text-left transition group"
+                          className="p-2.5 rounded-lg border border-amber-200 bg-white hover:border-[var(--accent)] hover:shadow-xs text-left transition group"
                         >
-                          <div className="font-bold text-[#FF6200] text-xs flex items-center gap-1.5 mb-0.5">
+                          <div className="font-bold text-[var(--accent)] text-xs flex items-center gap-1.5 mb-0.5">
                             <span>💱</span> Strategic FX Corridor Note Preset
                           </div>
                           <p className="text-[10px] text-gray-500 leading-tight">Layered participating FX collars protecting group EBITDA margin</p>
@@ -2534,14 +2564,14 @@ ${chip.preview}`}
                           onChange={(e) => setCustomTextContent(e.target.value)}
                           placeholder="Enter structured WorkFabric memo, tacit desk note, or latent opportunity synthesis..."
                           rows={4}
-                          className="w-full p-3 border border-blue-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[#000066] focus:border-transparent bg-[#FAFCFF]"
+                          className="w-full p-3 border border-blue-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[var(--navy)] focus:border-transparent bg-[#FAFCFF]"
                         />
                       </div>
 
                       <button
                         onClick={() => handleIngestCustomText("WORKFABRIC_MEMO", `WorkFabric Context Engine (${ingestClient.name})`)}
                         disabled={!customTextContent.trim() || ingestingAction}
-                        className="w-full bg-[#000066] hover:bg-[#1A224D] text-white font-bold py-2.5 rounded-lg shadow-sm transition disabled:opacity-40 flex items-center justify-center space-x-1.5"
+                        className="w-full bg-[var(--navy)] hover:bg-[var(--navy-hover)] text-white font-bold py-2.5 rounded-lg shadow-sm transition disabled:opacity-40 flex items-center justify-center space-x-1.5"
                       >
                         {ingestingAction ? (
                           <span>Ingesting to Context Fabric & Updating Twin...</span>
@@ -2565,7 +2595,7 @@ ${chip.preview}`}
               
               <div className="h-14 border-b border-gray-200 px-6 flex items-center justify-between bg-white shrink-0">
                 <div className="flex items-center space-x-3">
-                  <span className="bg-[#FF6200] text-white font-extrabold px-2 py-0.5 rounded text-xs">{brand.name}</span>
+                  <span className="bg-[var(--badge)] text-white font-extrabold px-2 py-0.5 rounded text-xs">{brand.name}</span>
                   <div>
                     <h3 className="font-bold text-gray-900 text-sm">
                       {activeClient.name} — Pitchbook & Deal Copilot
@@ -2582,13 +2612,13 @@ ${chip.preview}`}
                         ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                         : flaggedSlides.length > 0
                         ? "bg-amber-50 text-amber-900 border-amber-300 ring-1 ring-amber-300"
-                        : "bg-white hover:bg-gray-50 text-[#000066] border-gray-300"
+                        : "bg-white hover:bg-gray-50 text-[var(--navy)] border-gray-300"
                     } disabled:opacity-50`}
                     title="Perform full-deck EU Regulation 2210 & MiFID II inspection"
                   >
                     {complianceAuditing ? (
                       <>
-                        <Loader2 size={13} className="animate-spin text-[#FF6200]" />
+                        <Loader2 size={13} className="animate-spin text-[var(--accent)]" />
                         <span>Auditing Full Deck...</span>
                       </>
                     ) : complianceResult?.compliant ? (
@@ -2603,7 +2633,7 @@ ${chip.preview}`}
                       </>
                     ) : (
                       <>
-                        <ShieldAlert size={14} className="text-[#FF6200]" />
+                        <ShieldAlert size={14} className="text-[var(--accent)]" />
                         <span>Run Compliance Audit</span>
                       </>
                     )}
@@ -2612,7 +2642,7 @@ ${chip.preview}`}
                   <button
                     onClick={() => handleDownloadDeck(activeClient.id)}
                     disabled={loadingClient === activeClient.id}
-                    className="inline-flex items-center space-x-1.5 bg-[#FF6200] hover:bg-[#E55800] text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-sm transition disabled:opacity-50"
+                    className="inline-flex items-center space-x-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover-alt)] text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-sm transition disabled:opacity-50"
                   >
                     {loadingClient === activeClient.id ? (
                       <>
@@ -2651,7 +2681,7 @@ ${chip.preview}`}
                         onClick={() => setCurrentSlideIndex(idx)}
                         className={`w-full text-left px-2.5 py-1.5 rounded-md text-[11px] font-medium transition flex items-center justify-between ${
                           currentSlideIndex === idx
-                            ? "bg-[#000066] text-white shadow-sm font-semibold"
+                            ? "bg-[var(--navy)] text-white shadow-sm font-semibold"
                             : isFlagged
                             ? "bg-amber-50 text-amber-900 border border-amber-200"
                             : "text-gray-700 hover:bg-gray-200/70"
@@ -2662,7 +2692,7 @@ ${chip.preview}`}
                           {isFlagged && currentSlideIndex !== idx && (
                             <span className="w-2 h-2 rounded-full bg-amber-500" title="Compliance enhancement recommended"></span>
                           )}
-                          {currentSlideIndex === idx && <span className="w-1.5 h-1.5 rounded-full bg-[#FF6200]"></span>}
+                          {currentSlideIndex === idx && <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]"></span>}
                         </div>
                       </button>
                     );
@@ -2704,7 +2734,7 @@ ${chip.preview}`}
                 <div className="w-96 bg-white flex flex-col overflow-hidden shrink-0">
                   <div className="p-3 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-white flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 rounded-md bg-[#FF6200] text-white flex items-center justify-center">
+                      <div className="w-6 h-6 rounded-md bg-[var(--accent)] text-white flex items-center justify-center">
                         <Sparkles size={14} />
                       </div>
                       <div>
@@ -2735,7 +2765,7 @@ ${chip.preview}`}
                       <button
                         key={idx}
                         onClick={() => handleSendMessage(chip)}
-                        className="text-[10px] bg-white hover:bg-orange-50 hover:text-[#FF6200] hover:border-orange-200 text-gray-600 border border-gray-200 px-2 py-1 rounded-full transition"
+                        className="text-[10px] bg-white hover:bg-orange-50 hover:text-[var(--accent)] hover:border-orange-200 text-gray-600 border border-gray-200 px-2 py-1 rounded-full transition"
                       >
                         {chip}
                       </button>
@@ -2767,9 +2797,9 @@ ${chip.preview}`}
                             <div className="mt-3 pt-2.5 border-t border-gray-200">
                               <button
                                 onClick={() => handleApplyRemediations(msg.remedies)}
-                                className="w-full inline-flex items-center justify-center space-x-1.5 bg-[#000066] hover:bg-[#1A224D] text-white text-[11px] font-bold py-1.5 px-3 rounded-lg shadow-sm transition"
+                                className="w-full inline-flex items-center justify-center space-x-1.5 bg-[var(--navy)] hover:bg-[var(--navy-hover)] text-white text-[11px] font-bold py-1.5 px-3 rounded-lg shadow-sm transition"
                               >
-                                <Zap size={13} className="text-[#FF6200]" />
+                                <Zap size={13} className="text-[var(--accent)]" />
                                 <span>Apply Compliance Remediations</span>
                               </button>
                             </div>
@@ -2779,7 +2809,7 @@ ${chip.preview}`}
                     ))}
                     {copilotLoading && (
                       <div className="flex items-center space-x-2 text-gray-400 text-xs">
-                        <Loader2 size={14} className="animate-spin text-[#FF6200]" />
+                        <Loader2 size={14} className="animate-spin text-[var(--accent)]" />
                         <span>Copilot reasoning over pitchbook structure...</span>
                       </div>
                     )}
@@ -2799,12 +2829,12 @@ ${chip.preview}`}
                         value={inputQuery}
                         onChange={(e) => setInputQuery(e.target.value)}
                         placeholder={`Tell Copilot to edit or check ${activeClient.name} deck...`}
-                        className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-[#FF6200]"
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-[var(--accent)]"
                       />
                       <button
                         type="submit"
                         disabled={!inputQuery.trim() || copilotLoading}
-                        className="bg-[#0C112B] hover:bg-[#1A224D] text-white p-1.5 rounded-lg disabled:opacity-40 transition"
+                        className="bg-[#0C112B] hover:bg-[var(--navy-hover)] text-white p-1.5 rounded-lg disabled:opacity-40 transition"
                       >
                         <Send size={14} />
                       </button>

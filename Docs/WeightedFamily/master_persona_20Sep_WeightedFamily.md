@@ -128,6 +128,33 @@ The platform maps extracted exposures and balance-sheet triggers against the ING
 | 10 | **Sustainable Finance** | Green/Social/Sustainability-Linked Bonds & Loans |
 | 11 | **Cross-Asset & Discovery** | Hybrid Structuring, Multi-Leg Overlays |
 
+### 2.2 Runtime Brand Toggle (branding branch extension)
+
+On the `feat/bfs-ai-lab-brand-toggle` branch, the platform gains a **runtime brand toggle** on top of Flavor 2. Same codebase, same Docker image, same PostgreSQL database — two Cloud Run services that render different brands. Brand is selected via a `BRAND` environment variable at service startup.
+
+| Service | Env var | Renders |
+|---|---|---|
+| `ing-fm-poc-service` | `BRAND=ING` | ING branding — orange accent, ING logos, "ING Copilot" |
+| `bfs-ai-lab-service` | `BRAND=BFS_AI_LAB` | BFS AI Lab branding — turquoise accent, Cognizant BFS AI Lab logos, "BFS AI Lab Copilot" |
+
+**When `BRAND` is unset, the code defaults to ING** — the ING service renders identically to its pre-toggle state. An unrecognized value logs a warning and falls back to ING. Silent fallbacks are forbidden — this is the lesson carried over from the `ctx` bug (§2.2's sibling in earlier sessions).
+
+Key surfaces:
+
+- **`BRAND_PROFILES`** dict in `main.py` — 28 keys per brand (names, logos, footer, attribution, houseview fallbacks, RSS URL, colours, prompt personas, filename prefixes, logo height)
+- **`ACTIVE_BRAND`** — selected at startup via `os.getenv("BRAND", "ING").upper()`
+- **`_brand_substitute`** — word-boundary `\bING\b` → brand name substitution applied to 10 DB/LLM-sourced text fields in `/api/opportunities`. No-op for ING. Emails (`@ing.`) intentionally untouched
+- **`GET /api/brand`** — returns the active profile (excludes `prompt_*` and `download_prefix`)
+- **Module-level `_ACTIVE_BRAND`** slot in `pitchbook_builder.py` — set by `main.py` via `_set_active_brand()` immediately before each `build_pitchbook()`. Reads via `_brand()` accessor
+- **Colour reassignment** at the top of `build_pitchbook()` — `ING_ORANGE`, `ING_NAVY`, `ING_LIGHT_ORANGE` reassigned from the active brand's hex values. The 29 existing call sites keep working with no change
+- **Seven CSS custom properties** set on `document.documentElement` by the frontend after fetching `/api/brand` — `--accent`, `--accent-hover`, `--accent-hover-alt`, `--accent-light`, `--navy`, `--navy-hover`, `--badge`
+- **130 hex → `var(...)` replacements** across `App.jsx`; **35 hardcoded ING strings → `brand.*` reads**
+- **Deck `core_properties`** — author, comments, created timestamp, last_modified_by, title — set on every generated PPTX
+
+Full specification, profile values, colour provenance, and deviations from the original design brief: **`Docs/WeightedFamily/Brand_Toggle_Implementation.md`**.
+
+**Sync invariant.** `BRAND_PROFILES` lives only in `main.py`. `pitchbook_builder.py` holds a slot that `main.py` fills, not a copy of the dict. This avoids a third sync invariant alongside `_CREDIT_RATINGS` (§7.9) and `_FAMILY_KEYWORD_WEIGHTS` (§7.11).
+
 ---
 
 ## 3. DATA ARCHITECTURE — THREE-TIER HIERARCHY
@@ -227,6 +254,7 @@ Serves all API endpoints. Contains:
 | `_MANDATE_SYNTH_CACHE` | In-memory TTL cache (300s), **8-tuple**: `(expiry, why_now, action, why_now_summary, action_summary, priority_score, family, adjacent_opportunities)`. Populated **only after** `conn.commit()` succeeds; popped on failure. See §7.8 |
 | `_CREDIT_RATINGS` | Curated credit rating display strings per client. See §8.1 |
 | `_FAMILY_KEYWORD_WEIGHTS` | Weighted vocabulary for product family classification. Four families, ~20 keywords weighted 1–5. Used by `pitchbook_builder.py`'s `detect_product_family`. Must remain identical to the copy in `pitchbook_builder.py`. See §7.11 and §8.7 |
+| `BRAND_PROFILES` / `ACTIVE_BRAND` / `_brand_substitute` | Runtime brand toggle (branding branch extension, §2.2). Profile dict, startup selection, read-path substitution across 10 text fields. Full spec: `Brand_Toggle_Implementation.md` |
 
 ### `pitchbook_builder.py` — PPTX Generation
 
@@ -239,6 +267,7 @@ Serves all API endpoints. Contains:
 | `get_slide_meta()` | Slide titles and categories per family |
 | `build_pitchbook()` | Renders 11 slides with `python-pptx`. Slide 5/10 tranche table reads from `ctx["maturities"]`. Slide 3 has three stacked cards: Catalyst Rationale, Proposed Execution, Adjacent Opportunities. The pillars are rendered inside the left orange panel. See §5 |
 | `_CREDIT_RATINGS` | Same curated dict as `main.py`. Must stay in sync. See §7.9 |
+| `_set_active_brand()` / `_brand()` / `_ACTIVE_BRAND` | Runtime brand slot (branding branch extension, §2.2). `main.py` fills the slot before each `build_pitchbook()` call. Colours, logo, footer, pillar bodies, logo height read from here |
 
 **Slide 2 and slide 3 changes:**
 
@@ -760,7 +789,13 @@ A fallback action string for the GREEN_ESG family still mentions `"paired with a
 
 **Repository:** `Vibe-Raj-Git/ing-fm-poc`
 
-**Working branch:** `feat/dulcet-reset-pristine-semantic-dedup-all-UI-RM-HV-Slide2_LLM_Summary_Slide3_WhyNow_Action_17-Sep`
+**Working branches:**
+
+| Branch | Purpose |
+|---|---|
+| `feat/dulcet-20Sep-demo-Weighted-LLMProductFamilyIdentification-AdjOppS3` | Flavor 2 (Weighted-Family + Adjacencies). This persona's primary branch. |
+| `feat/bfs-ai-lab-brand-toggle` | Flavor 2 + the runtime brand toggle (§2.2). Extends the demo branch. |
+| `feat/dulcet-reset-pristine-semantic-dedup-all-UI-RM-HV-Slide2_LLM_Summary_Slide3_WhyNow_Action_17-Sep` | Flavor 1 (Baseline). Preserved. |
 
 **`main` branch:** intentionally stale at the Aug 30 state. Not updated. Historical reference only.
 
@@ -919,6 +954,34 @@ Changes since the 18 Sep 2026 version:
 - Ingestion pipeline duplicate-row write to `ca.ext_company_filings`
 - LLM `priority_score` non-determinism at `temperature=0.0`
 - `ACTIVE_UI_CLIENT_IDS` / `_DEMO_CLIENT_IDS` — decide Enel-only vs two-client for the next demo
+
+---
+
+## 13b. CHANGELOG — 21 Sep 2026 (Runtime Brand Toggle)
+
+Changes on the `feat/bfs-ai-lab-brand-toggle` branch. The Flavor 2 demo branch is unaffected — it does not carry the branding code.
+
+**Added §2.2** — Runtime Brand Toggle section documenting the two-service architecture, the 28-key profile, the read-path substitution, the module-level deck brand slot, the CSS custom properties, and the pointer to the implementation record.
+
+**Added §4 component map entries** — `BRAND_PROFILES` / `ACTIVE_BRAND` / `_brand_substitute` in `main.py`; `_set_active_brand()` / `_brand()` / `_ACTIVE_BRAND` in `pitchbook_builder.py`.
+
+**Updated §11 branch list** — now lists the branding branch and the Flavor 2 demo branch side by side.
+
+**Feature commits** on `feat/bfs-ai-lab-brand-toggle`:
+
+- `3d1bb16` — BFS AI Lab logos committed, baseline checkpoint
+- `565d8e3` — brand toggle + 35 string replacements + 130 colour replacements, both services deployed and verified
+- `82d75d0` — colour rebrand (turquoise/navy for BFS), dynamic filename, dynamic logo height, dynamic cover-slide text position, logo optimization, Enel-only whitelist
+- `08723ed` — runbook update (Cloud Run IAM toggle commands)
+- `decda5c` — Brand Toggle Implementation Record (904 lines)
+- `93955c1` — README rewritten as branding branch landing page
+- `52fb7d7` — architect & developer attribution across source, deck metadata, README, AUTHORS.md
+
+**Recovery tags:** `ing-baseline-pre-branding`, `branding-working-pre-color`, `branding-complete-enel-only`, `attribution-added`.
+
+**Whitelist change:** `_DEMO_CLIENT_IDS` and `ACTIVE_UI_CLIENT_IDS` reduced from `{"CLI101", "CLI103"}` to `{"CLI101"}` — halves Vertex AI quota consumption per cold-cache cycle. BASF can be re-enabled by editing both lists.
+
+**No change to:** data architecture (§3), ingestion pipeline, DB schema, reset mechanism, Flavor 2 synthesis or pitchbook logic, `_CREDIT_RATINGS` or `_FAMILY_KEYWORD_WEIGHTS` sync invariants.
 
 ---
 

@@ -745,7 +745,7 @@ def synthesize_mandate_catalyst(
             product_specific_driver = '5. Refinancing Catalyst: Standard institutional debt capital markets distribution.'
 
         prompt = f"""{ACTIVE_BRAND["prompt_capital_markets_persona"]}
-Synthesize the provided database-grounded signals into two authoritative, desk-ready sentences for an executive pitchbook.
+Synthesize the provided database-grounded signals into authoritative, desk-ready narratives for an executive pitchbook.
 
 CLIENT: {client_name}
 TARGET PRODUCT FAMILY: {product_family}
@@ -781,7 +781,7 @@ ACCUMULATED SIGNALS FOR THIS CLIENT (most recent first):
 
 INSTRUCTIONS:
 Output a valid JSON object with exactly seven keys:
-1. "why_now": Exactly 2 sentences. Connect the debt maturity wall (€{mat_bn}), liquidity buffer (€{liq_bn}), prevailing 5Y swap rate ({swap_5y}), and available sustainable pricing concessions or greenium drivers to explain why this transaction is critical now.
+1. "why_now": Exactly 3 sentences. Connect the debt maturity wall (€{mat_bn}), liquidity buffer (€{liq_bn}), prevailing 5Y swap rate ({swap_5y}), and available sustainable pricing concessions or greenium drivers to explain why this transaction is critical now.
 2. "action": Exactly 2 sentences. Specify the exact transaction structuring, tenor distribution, pricing/hedging overlay, and immediate operational next steps with Treasury.
 3. "why_now_summary": Exactly 1 sentence, maximum 160 characters. A condensed, punchy version of "why_now" suitable for a summary card on Slide 2. Must NOT copy the "why_now" text verbatim — rephrase for brevity while preserving the key numbers (maturity wall, liquidity buffer, swap rate).
 4. "action_summary": Exactly 1 sentence, maximum 160 characters. A condensed, punchy version of "action" suitable for a summary card on Slide 2. Must NOT copy the "action" text verbatim — rephrase for brevity while preserving the key structural terms (notional, tenor, instrument).

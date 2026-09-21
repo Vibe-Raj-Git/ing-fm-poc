@@ -4,6 +4,7 @@
 **Flavor:** Weighted-Family + Adjacencies (Flavor 2)
 **Parallel flavor:** Baseline (Flavor 1) at `Docs/SYSTEM_ARCHITECTURE_&_DATA_CONTRACT_GUARDRAIL.md`
 **Branch:** `feat/dulcet-20Sep-demo-Weighted-LLMProductFamilyIdentification-AdjOppS3`
+**Branding branch:** `feat/bfs-ai-lab-brand-toggle` (adds the runtime brand toggle — see §4 read-path invariant and §5.9)
 **Target Scope:** `App.jsx`, `main.py`, `pitchbook_builder.py`, `test_parity.py`
 
 **Core Directive:** Maintain 100% data-driven parity across the UI preview, the PPTX generation (`python-pptx`), and the Copilot LLM prompts. No hardcoded financial rates, no placeholder text, no synthetic fallbacks — with the documented exceptions listed in §5.
@@ -307,6 +308,20 @@ Strictly for type safety if a database field returns `None`. **Never embed stati
 
 Copilot prompt mutations are session-only. **Never** run `UPDATE` or `INSERT` queries against `ca.ext_credit_spreads` or `ca.mkt_rates_curves` during chat or deck builds. The only permitted write-back is the mandate synthesis to `ca.ca_opportunity_scoring.priority_score` — and only the score. The anchor narratives (`why_now_nlg`, `next_best_action`) are **protected from LLM overwrite**. `family` and `adjacent_opportunities` are not persisted to the DB (no columns exist). See §5 for exceptions.
 
+### Read-path brand substitution (branding branch)
+
+`_brand_substitute` applies a word-boundary `\bING\b` → active brand name substitution to 10 DB- and LLM-sourced text fields in `/api/opportunities`: `why_now`, `action`, `why_now_summary`, `action_summary`, `adjacent_opportunities`, `cf_description`, `cf_latent`, `hv_doc_title`, `hv_doc_summary`, `news_headline`.
+
+**Rules:**
+
+- Applied in Python after the row is fetched — never in SQL. Both services read the same rows and transform on the way out.
+- No DB mutation. No `UPDATE`, no `INSERT`.
+- No-op when the active brand is ING — the ING path is byte-identical to its pre-toggle behaviour.
+- Email addresses (`@ing.`) are intentionally not substituted. An email address is a factual reference, not brand chrome.
+- Numeric fields, IDs, dates, and structured metadata are not substituted.
+
+Full specification: `Brand_Toggle_Implementation.md` §4.4.
+
 ### Cache/DB consistency invariant
 
 The `_MANDATE_SYNTH_CACHE` is populated **only after** `conn.commit()` succeeds. On persist failure, the cache entry is popped. This prevents the UI from serving a cached value the DB does not hold. See `Data_or_Fabrication.md` §7.8.
@@ -341,14 +356,13 @@ Expected output ends with all 13 gates printed as ✅ and a summary like 13/13 g
 `test_parity.py` is not a pytest suite — it's an inline audit script. Run it directly.
 
 ## 5. Known Exceptions To Zero-Hardcoding
-The platform aims for 100% data-driven values. Seven exceptions exist today, documented for future cleanup. The source of truth for each is the referenced section of the persona.
+The platform aims for 100% data-driven values. Eight exceptions exist today, documented for future cleanup. The source of truth for each is the referenced section of the persona.
 
 ### 5.1 — Credit rating dict (_CREDIT_RATINGS)
-**Location:** `main.py:89`, `pitchbook_builder.py:6`.
+**Location:** ``main.py` near `BRAND_PROFILES``, ``pitchbook_builder.py` near the module logger`.
 
 **What it is:** a curated dict mapping `client_id` to a rating display string. `ca.client_master` has no credit_rating column.
-```bash
-python
+```python
 _CREDIT_RATINGS = {
     "CLI101": "S&P | BBB | Positive",   # Enel S.p.A.
     "CLI103": "S&P | A- | Stable",      # BASF SE
@@ -368,13 +382,13 @@ Adding a client requires adding its rating to both dicts.
 **Impact:** fires only when the signal corpus is sparse. For Enel, three latent opportunities exist and the pillar renders real content.
 
 ### 5.3 — COALESCE(priority_score, 75) fallback
-**Location:** `main.py:225` (the /api/metrics priorities query), `main.py:727` (the main /api/opportunities query).
+**Location:** `main.py:337` (the /api/metrics priorities query), `main.py:848` (the main /api/opportunities query).
 
 **What it is:** a fabricated score of 75 substitutes when a client has no scoring row.
 
 **Currently dormant:** all 13 clients have scoring rows.
 
-**Future fix:** replace with a null-preserving read; handle score_num = None downstream in _effective_score (line 812) and the response construction (line 1166).
+**Future fix:** replace with a null-preserving read; handle score_num = None downstream in _effective_score (line 935) and the response construction (line 936).
 
 ### 5.4 — Frontend default* constants
 **Location:** `frontend/src/App.jsx`.
@@ -383,19 +397,19 @@ Adding a client requires adding its rating to both dicts.
 
 **Future fix:** expose `revenue_str`, `ebitda_str`, `net_debt_str`, `liquidity_str` in the API response; remove the constants.
 
-### 5.5 — `pitchbook_builder.py:1045` revenue/EBITDA fallback
+### 5.5 — `pitchbook_builder.py:1163` revenue/EBITDA fallback
 **What it is:** a hardcoded '€65,000M' / '€14,300M' pair that fires if `revenue_str` or `ebitda_str` resolve to 'N/A'.
 
 **Currently dormant:** the bundle returns populated values.
 
-### 5.6 — `main.py:602` swap pre-hedge fallback
+### 5.6 — `main.py:714` swap pre-hedge fallback
 **What it is:** a hardcoded action string mentioning "paired with a €500M swap pre-hedge overlay" for the GREEN_ESG family. Fires only when current_action is empty.
 
 **Currently dormant:** Enel's curated narrative is populated.
 
 ### 5.7 — `_FAMILY_KEYWORD_WEIGHTS` (Flavor 2)
 
-**Location:** `main.py:89` (near `_CREDIT_RATINGS`), `pitchbook_builder.py:6`.
+**Location:** ``main.py` near `BRAND_PROFILES`` (near `_CREDIT_RATINGS`), ``pitchbook_builder.py` near the module logger`.
 
 **What it is:** a weighted vocabulary for product family classification. **This is a taxonomy definition, not a per-client exception** — it scales to new clients without modification.
 
@@ -406,6 +420,22 @@ Adding a client requires adding its rating to both dicts.
 **Location:** `main.py` `copilot_chat_endpoint`.
 
 **What it is:** the two `json.dumps` calls that serialize `baseline_deck_slides` and `active_deck_slides` into the Copilot prompt use `ensure_ascii=False`. This is a deliberate override of Python's default ASCII-safe serialization so that UTF-8 characters (notably `€`) reach the LLM as real characters rather than JSON escapes. Without it, the Copilot occasionally echoed `\u20ac` in replies for Slide 3.
+
+### 5.9 — `BRAND_PROFILES` dict (branding branch)
+
+**Location:** `main.py` (after the module logger, before the FastAPI app).
+
+**What it is:** a curated dict of 28 keys per brand, one entry per deployment target (`ING`, `BFS_AI_LAB`). Keys cover display strings, logo filenames and heights, footer and attribution text, houseview fallbacks, RSS URL, colour palette (accent, hover, light, navy, badge), five LLM persona strings, and download filename prefixes.
+
+**Why it exists:** the platform renders under two brands from a single codebase. The profile is the single source of brand truth.
+
+**Sync consideration:** `BRAND_PROFILES` lives only in `main.py`. `pitchbook_builder.py` holds a module-level slot (`_ACTIVE_BRAND`) that `main.py` fills via `_set_active_brand()` immediately before each `build_pitchbook()` call. There is no duplicate dict to keep in sync — unlike `_CREDIT_RATINGS` (§5.1) and `_FAMILY_KEYWORD_WEIGHTS` (§5.7).
+
+**Selection:** `os.getenv("BRAND", "ING").upper()`. Unrecognized values log a warning and fall back to ING.
+
+**Future:** if a third brand is added, extend the dict in `main.py`. No other file changes required.
+
+Full specification: `Brand_Toggle_Implementation.md` §3.
 
 ## 6. Changelog — 20 Sep 2026 (Flavor 2 — Weighted-Family + Adjacencies)
 
@@ -421,6 +451,32 @@ Changes since the Flavor 1 (Baseline) version. Flavor 1 is documented separately
 ### Common with Flavor 1
 
 Everything else: schema, slide contract, 3-tier resolution, parity audit, exceptions 5.1–5.6.
+
+---
+
+## 6a. Changelog — 21 Sep 2026 (Runtime Brand Toggle)
+
+Changes on the `feat/bfs-ai-lab-brand-toggle` branch. The Flavor 2 demo branch does not carry these changes.
+
+### Added
+
+- **§4 read-path brand substitution invariant** — `_brand_substitute` scope, word boundary, no-op for ING, emails untouched
+- **§5.9 `BRAND_PROFILES` dict** — the branding exception, its 28-key profile, and the module-level slot design that avoids a third sync invariant
+- **Header** — branding branch reference
+
+### Updated
+
+- **§5 preamble** — "Seven exceptions" → "Eight exceptions"
+- **Line-number references** — `_CREDIT_RATINGS` and `_FAMILY_KEYWORD_WEIGHTS` now use function anchors; other references refreshed after the branding patch shifted code positions
+
+### No change to
+
+- Database schema (§1) — no new columns, no DDL
+- Slide-by-slide contract (§2)
+- 3-tier resolution hierarchy (§3)
+- Cache/DB consistency invariant (§4)
+- Exceptions 5.1–5.8
+- 13-gate parity audit
 
 ---
 

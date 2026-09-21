@@ -572,6 +572,7 @@ Neither affects content, functionality, or legibility materially.
 
 ---
 
+*AI Architect & Developer: Rajarshi Pathak (rajarshi.pathak@cognizant.com) | Senior Manager | AI Consulting CoE*
 *Last updated: 21 September 2026*
 *Branch: `feat/bfs-ai-lab-brand-toggle`*
 *Brand toggle implementation record: `Docs/WeightedFamily/Brand_Toggle_Implementation.md`*

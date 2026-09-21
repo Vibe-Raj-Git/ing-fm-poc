@@ -1,3 +1,8 @@
+// =============================================================================
+// Financial Markets Deal Intelligence Platform
+// AI Architect & Developer: Rajarshi Pathak (rajarshi.pathak@cognizant.com) | Senior Manager | AI Consulting CoE
+// =============================================================================
+
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { 
   ArrowUpRight, 

@@ -1,3 +1,8 @@
+# =============================================================================
+# Financial Markets Deal Intelligence Platform
+# AI Architect & Developer: Rajarshi Pathak (rajarshi.pathak@cognizant.com) | Senior Manager | AI Consulting CoE
+# =============================================================================
+
 import io
 from fastapi import FastAPI, Request, Query, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse

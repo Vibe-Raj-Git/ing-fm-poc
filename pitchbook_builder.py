@@ -1,3 +1,8 @@
+# =============================================================================
+# Financial Markets Deal Intelligence Platform
+# AI Architect & Developer: Rajarshi Pathak (rajarshi.pathak@cognizant.com) | Senior Manager | AI Consulting CoE
+# =============================================================================
+
 import re
 
 # Credit rating display strings — §8.1 known hardcode exception.
@@ -101,7 +106,7 @@ def compute_canonical_bundle(ctx, ov=None):
 import io
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
@@ -684,6 +689,11 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     Build pitchbook using database data. No hardcoded client-specific values.
     """
     prs = Presentation()
+    prs.core_properties.author = "Rajarshi Pathak (rajarshi.pathak@cognizant.com)"
+    prs.core_properties.comments = "AI Architect & Developer — Financial Markets Deal Intelligence Platform"
+    prs.core_properties.created = datetime.now(timezone.utc)
+    prs.core_properties.last_modified_by = "Rajarshi Pathak"
+    prs.core_properties.title = f"{ctx.get('client_name', 'Corporate Client')} — Pitchbook"
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
     blank = prs.slide_layouts[6]

@@ -1,12 +1,6 @@
-Here's the master persona for session continuity. It covers all three versions — Flavor 1, Flavor 2, and the branding branch — plus the working discipline, current state, and backlog.
-
-Paste this as the first message in a new session, along with the code files.
-
----
-
 # SYSTEM DIRECTIVE: MASTER CONTEXT & ARCHITECTURAL PERSONA
 
-**Version:** 21 September 2026 — Flavor 2 + Branding
+**Version:** 22 September 2026 — Flavor 2 + Branding
 **Status:** Authoritative
 **Primary flavor:** Weighted-Family + Adjacencies (Flavor 2)
 **Branding extension:** Runtime brand toggle (ING + BFS AI Lab)
@@ -92,7 +86,12 @@ The project exists in three parallel forms, each on its own branch. They share t
 | **`frontend/index.html`** | Neutral `<title>` placeholder — React sets the real title. |
 | **Logos** | `bfs_ai_lab_logo_white.png` / `bfs_ai_lab_logo_orange.png` — cropped and resized from 2816×1536 (3.26 MB) to 400×218 (76 KB). Committed in both `assets/` and `frontend/public/assets/`. |
 | **Colour palette** | ING keeps orange (`#FF6200`) / navy (`#000066`). BFS AI Lab: turquoise (`#10C4C0`) / navy (`#0A3168`), extracted from the logo PNG via pixel census. Badge colour separate per brand for white-text contrast. |
-| **Whitelist** | Reduced to Enel-only (`{"CLI101"}`) on both backend and frontend — halves Vertex AI quota per cold-cache cycle. |
+| **`primary_trigger`** | New 8th key in the synthesis prompt. LLM produces two semicolon-separated datapoint clauses (≤ 180 chars) grounded in family-scoped priority signals. Deterministic validator (`_validate_primary_trigger`) checks five rules: length, exactly one semicolon, digits in both clauses, no marketing words, family consistency. On rejection, `_resolve_primary_trigger` substitutes a curated fallback from `PRIMARY_TRIGGER_FALLBACKS` (per-client or per-family). Read path precedence: session override → `ctx["primary_trigger"]` → `ctx["trigger_source"]` → family default. |
+| **Cache TTL** | Extended from 300s to 900s. The 5-minute window was tight for the RM workflow (dashboard load, review, discussion, download). 15 minutes covers the full session without spurious re-synthesis. |
+| **Cache invalidation** | `_MANDATE_SYNTH_CACHE.pop(cid, None)` fires after every successful ingestion commit. The next `/api/opportunities` call is a cache miss and re-synthesises against the updated corpus. The UI and deck reflect the new signal on the very next page load. `ingest_file_signal` delegates to `ingest_text_signal`, so one invalidation site covers both paths. |
+| **Dedup refinement** | Layer-1 exact-match dedup condition changed from OR to AND. Previously `source_name OR content[:200]` — the OR caused every email from the same client to dedup against the first (because they all shared the client-scoped source label). Now requires both source name AND content match. Distinct content falls through to layer-2 semantic LLM evaluation. |
+| **Ingestion source names** | Three Enel-era fallbacks replaced with client-scoped labels: `f"{cname} Teams Channel"` (was "European Utilities Coverage (#deal-coverage-enel)"), `f"{cname} Treasury Email"` (was "Enel Treasury Rome (Fabio Tagliaferri)"), `f"{cname} WorkFabric Memo"` (was "Marta Nowak (ESG Structuring Lead)"). Two Enel-era name checks removed from the Teams channel condition. Frontend preset author placeholder neutralized to "Treasury Team". |
+| **Whitelist** | Reduced to Enel-only (`{"CLI101"}`) on both backend and frontend — halves Vertex AI quota per cold-cache cycle. Temporarily flipped to `{"CLI103"}` during the 22 Sep test cycle; reverted in a follow-up commit. |
 | **Deploy** | Two shell aliases: `deploy-poc` (ING service, `BRAND=ING`) and `deploy-bfs` (BFS service, `BRAND=BFS_AI_LAB`). Both in `~/.bashrc`. |
 | **Attribution** | Header comments in `main.py`, `pitchbook_builder.py`, `App.jsx`. `AUTHORS.md` at repo root. README footer. Deck `core_properties`. |
 
@@ -175,16 +174,22 @@ Every displayed value traces to a specific row filtered by `client_id`. Fallback
 | `get_live_signals()` | Signal marquee (whitelist-scoped) |
 | `get_rm_metrics()` | `/api/metrics` — returns four dashboard metrics + priorities |
 | `get_opportunities()` | Core `/api/opportunities` handler — client + market data + synthesis + chips + lineage |
-| `synthesize_mandate_catalyst()` | LLM synthesis. Returns 7 keys. Anchor-first, drift guard |
+| `synthesize_mandate_catalyst()` | LLM synthesis. Returns 8 keys: `why_now`, `action`, `why_now_summary`, `action_summary`, `priority_score`, `family`, `adjacent_opportunities`, `primary_trigger`. Anchor-first, drift guard. Applies `_resolve_primary_trigger` on the response before returning |
 | `check_compliance_endpoint()` | LLM MiFID II / MAR / EuGB audit |
 | `copilot_chat_endpoint()` | Copilot with `active_deck_slides` hydration |
 | `handle_pitchbook_generation()` | Deck generation — calls `_set_active_brand` then `build_pitchbook` |
 | `reset_baseline()` | `POST /api/system/reset-baseline` — non-destructive restore |
-| `_MANDATE_SYNTH_CACHE` | In-memory TTL cache (300s), **8-tuple**. Populated only after `conn.commit()` |
+| `_MANDATE_SYNTH_CACHE` | In-memory TTL cache (900s), **9-tuple**: `(expiry, why_now, action, why_now_summary, action_summary, priority_score, family, adjacent_opportunities, primary_trigger)`. Populated only after `conn.commit()`. Invalidated on ingestion commit |
 | `_CREDIT_RATINGS` | Curated per-client ratings (both files must sync) |
 | `_FAMILY_KEYWORD_WEIGHTS` | Weighted family vocabulary (both files must sync) |
 | `BRAND_PROFILES` / `ACTIVE_BRAND` / `_brand_substitute` | Runtime brand toggle |
 | `GET /api/brand` | Returns active profile (excludes `prompt_*` and `download_prefix`) |
+| `FAMILY_PRIORITY_SIGNALS` / `FAMILY_CONTEXT_SIGNALS` | Family-scoped keyword lists passed into the synthesis prompt for `primary_trigger` grounding. Taxonomy definitions, not per-client data |
+| `PRIMARY_TRIGGER_FALLBACKS` | Per-client (CLI101, CLI103) and per-family (prefixed `_`) fallback strings. Consulted when the validator rejects the LLM output |
+| `_MARKETING_WORDS` | Blocklist used by the validator to reject promotional language |
+| `_validate_primary_trigger()` | Deterministic five-rule check on the LLM-generated trigger. Returns `(is_valid, reason)` |
+| `_resolve_primary_trigger()` | Wraps the validator, applies the fallback dict on failure, logs every rejection with the reason. Returns `(final_trigger, source)` where source is `llm` or `fallback` |
+| `_brand_substitute()` | Word-boundary `\bING\b` → active brand name. Applied to 10 fields in `/api/opportunities`. No-op for ING |
 
 ### `pitchbook_builder.py` — PPTX Generation
 
@@ -228,13 +233,13 @@ Expected: `13/13 gates passed`.
 - LLM reads anchor first, then accumulated signals
 - Drift guard replaces LLM output with anchor on tenor conflict
 
-Prompt produces **seven keys**: `why_now`, `action`, `why_now_summary`, `action_summary`, `priority_score` (weighted rubric: signal strength 40% / balance sheet pressure 30% / market window 30%), `family`, `adjacent_opportunities`.
+Prompt produces **eight keys**: `why_now`, `action`, `why_now_summary`, `action_summary`, `priority_score` (weighted rubric: signal strength 40% / balance sheet pressure 30% / market window 30%), `family`, `adjacent_opportunities`, `primary_trigger`.
 
 **Non-determinism:** even at `temperature=0.0`, scores vary slightly across runs (85/88/91/93/94 observed). Pin to anchor value for demos if stability is required.
 
 ### TTL Cache
 
-`_MANDATE_SYNTH_CACHE` — key `client_id`, **8-tuple** value, 300s TTL. Populated **only after** `conn.commit()`. Requires `max-instances=1`.
+`_MANDATE_SYNTH_CACHE` — key `client_id`, **9-tuple** value `(expiry_epoch, why_now, action, why_now_summary, action_summary, priority_score, family, adjacent_opportunities, primary_trigger)`, **900s TTL**. Populated **only after** `conn.commit()`. Invalidated on ingestion commit. Requires `max-instances=1`.
 
 ### Product Family Classification (Flavor 2)
 
@@ -256,6 +261,78 @@ Enel: 15 GREEN_ESG vs 5 DCM_REFI (decisive). BASF: 8 DCM_REFI vs 5 RATES_HEDGE (
 `POST /api/system/reset-baseline` reads `baseline_snapshots.json`. **Non-destructive:** no user rows deleted. Pristine rows get `created_at = NOW()` to win ordering. Curated chunks use `chunk_id >= 9000000` with `ON CONFLICT DO UPDATE`.
 
 After any DB content change that should persist across resets: `python3 dump_baseline.py` and commit.
+
+### `primary_trigger` Generation (Branding branch)
+
+Slide 2's Primary Market Trigger card renders the LLM-generated `primary_trigger` field. The synthesis prompt receives a family-scoped instruction block (`FAMILY_PRIORITY_SIGNALS` + `FAMILY_CONTEXT_SIGNALS`) that steers the trigger toward datapoints most relevant to the resolved product family. For GREEN_ESG: eligible green asset pool, debt maturity wall, board authorization, indicative greenium.
+
+**Format rules** enforced by the prompt: two semicolon-separated datapoint clauses, <= 180 characters, each clause contains a number and a unit, no marketing adjectives. Good example: ```€3.5bn eligible green asset pool; €10.13bn maturity wall across 2026-2027```.
+
+**Deterministic validator** (`_validate_primary_trigger`) checks five rules before the value is accepted:
+
+1. Non-empty, <= 180 chars
+2. Exactly one semicolon
+3. Both clauses contain at least one digit
+4. No marketing words (from `_MARKETING_WORDS` blocklist)
+5. Top family from `_FAMILY_KEYWORD_WEIGHTS` scoring matches the resolved family
+
+**Fallback chain** on rejection: `_resolve_primary_trigger` substitutes a curated value - per-client entry from `PRIMARY_TRIGGER_FALLBACKS` (`CLI101`, `CLI103`), then per-family entry (prefixed `_`), then a literal "Active capital structure optimization". Every rejection logs the rule that failed.
+
+**Read path precedence** in the deck (`pitchbook_builder.py`) and preview (`App.jsx`):
+
+1. Session override (ov["trigger"] / deckOverrides.trigger)
+2. ctx["primary_trigger"] - LLM-generated (deck) / opp.primary_trigger (preview)
+3. ctx["trigger_source"] - curated DB value
+4. Family default
+
+**Cold-cache caveat:** `primary_trigger` is LLM-generated only when the synthesis cache has been warmed within the last 900 seconds. On a cold cache, the deck and preview fall back to the curated `trigger_source`. The RM workflow loads the dashboard first, so the cache is warm in practice.
+
+### Cache Invalidation on Ingestion
+
+The `_MANDATE_SYNTH_CACHE` is invalidated on two events:
+
+**Event 1 - TTL expiry.** After 900 seconds (15 minutes), an entry becomes stale and the next read re-synthesises.
+
+**Event 2 - signal ingestion.** After a successful commit in `ingest_text_signal`, the code pops the client's cache entry.
+
+The next `/api/opportunities` call is a cache miss, runs fresh synthesis against the updated corpus, and repopulates the cache. The UI and the deck reflect the new signal on the very next page load - no waiting for TTL.
+
+`ingest_file_signal` delegates to `ingest_text_signal`, so a single invalidation site covers both ingestion paths. The existing `reset_baseline` endpoint uses the same pop-on-state-change convention.
+
+**Operational behaviour:** ingestion commits are fast; the first page load after ingestion takes 2-3 seconds longer (fresh synthesis runs); subsequent loads are fast again (cache hit). The delay is one-time and only visible on the first read after an ingestion.
+
+### Layer-1 Dedup Refinement
+
+The two-layer dedup guard at ingestion:
+
+- **Layer 1** - exact-match pre-check (fast, deterministic)
+- **Layer 2** - channel-scoped semantic LLM evaluation (DUPLICATE or UNIQUE)
+
+**Layer 1 condition** as of 22 Sep: requires **both** source name AND content match. Previous behaviour was `source_name OR content[:200]` - the OR caused every email from the same client to be flagged as a duplicate of the first, because after the source-name fix all same-channel emails shared the same client-scoped label.
+
+**Current condition:**
+
+if str(r[0]).strip().lower() == str(sname).strip().lower() and (text and str(r[1]).strip()[:200] == str(text).strip()[:200]):
+
+Distinct content now falls through to layer 2, where the semantic LLM comparison decides. Layer 2 is the content-aware gate; layer 1 is a narrow exact-duplicate fast path.
+
+### Client-Scoped Ingestion Source Names
+
+Three channel-detection branches in `ingest_text_signal` used Enel-era hardcoded fallbacks for `source_name` when the incoming value was empty or matched the "Client Inbound Touchpoint" sentinel. Replaced with client-scoped labels derived from the resolved client display name:
+
+| Channel | New fallback | Previous |
+|---|---|---|
+| `TEAMS_CHAT` | `f"{cname} Teams Channel"` | "European Utilities Coverage (#deal-coverage-enel)" |
+| `CLIENT_EMAIL` | `f"{cname} Treasury Email"` | "Enel Treasury Rome (Fabio Tagliaferri)" |
+| `WORKFABRIC_MEMO` | `f"{cname} WorkFabric Memo"` | "Marta Nowak (ESG Structuring Lead)" |
+
+Two Enel-era name checks were removed from the Teams channel condition. The `TEAMS` in `raw_chan` and `TEAMS` in `text.upper()` conditions are sufficient.
+
+The frontend WorkFabric preset at `App.jsx:2529` replaced the hardcoded author placeholder with a neutral "Author: Treasury Team".
+
+**Sentinel pattern:** the frontend submit handler for the Treasury Email tab sends "Client Inbound Touchpoint" as a sentinel value. The backend recognizes this sentinel and substitutes a client-scoped fallback. The sentinel string is duplicated in `App.jsx:2449` and `main.py:1661` - a fragile contract that could be moved to a shared constant or an env var in a future cleanup.
+
+**Result:** for `CLI103`, the fallback produces "BASF SE Treasury Email" instead of "Enel Treasury Rome (Fabio Tagliaferri)". No cross-client contamination in the `source_name` column, the UI success banner, or the duplicate-detection warning text. The success banner reads `signal_headline` from the API response, which is set from the corrected `sname` value.
 
 ---
 
@@ -288,6 +365,9 @@ After any DB content change that should persist across resets: `python3 dump_bas
 | 8.7 | `_FAMILY_KEYWORD_WEIGHTS` | `main.py` near `BRAND_PROFILES`; `pitchbook_builder.py` near logger | Taxonomy, not per-client |
 | 8.8 | `ensure_ascii=False` | `copilot_chat_endpoint` | Deliberate — preserves `€` |
 | 8.9 | `BRAND_PROFILES` dict | `main.py` after logger | Single source; `pitchbook_builder.py` reads from slot, no copy |
+| 8.10 | `PRIMARY_TRIGGER_FALLBACKS` dict | `main.py` near `_FAMILY_KEYWORD_WEIGHTS` | Per-client (CLI101, CLI103) and per-family (prefixed `_`) fallback strings for `primary_trigger`. Consulted only when the deterministic validator rejects the LLM output. Not a per-client data hardcode in the fabrication sense - it is a curated backup for the LLM path |
+| 8.11 | Cache invalidation contract | `main.py:1881` in `ingest_text_signal` | `_MANDATE_SYNTH_CACHE.pop(cid, None)` after every successful ingestion commit. Not a hardcode - an event-driven invalidation contract. Documented here so future changes preserve the ordering: `conn.commit()` first, then `pop` |
+| 8.12 | Layer-1 dedup condition | `main.py:1750` | Requires **both** source name AND content match. Changed from OR to AND on 22 Sep. The semantic LLM evaluation (layer 2) is the content-aware gate; layer 1 is a narrow exact-duplicate fast path |
 
 ---
 
@@ -360,21 +440,35 @@ Expected: `author: 'Rajarshi Pathak (rajarshi.pathak@cognizant.com)'`, `title: '
 | `branding-working-pre-color` | `565d8e3` | Toggle working, both services deployed, pre-color-rebrand |
 | `branding-complete-enel-only` | `82d75d0` | Full branding feature, Enel-only whitelist |
 | `attribution-added` | `52fb7d7` | + architect attribution |
+| `primary-trigger-implemented` | `3b99c3c` | LLM-generated Slide 2 trigger wired through API, deck, preview |
+| `cache-ttl-invalidation` | `d41a837` | Cache TTL 900s, invalidated on ingestion |
+| `ingestion-source-name-fix` | `ce85f57` | Client-scoped ingestion source names; layer-1 dedup AND condition |
 
 ### Recent Commits (branding branch)
 
 ```
-690edef  docs: reflect runtime brand toggle in master persona
+ce85f57  <- tag: ingestion-source-name-fix
+         fix(ingestion): replace Enel-era hardcodes with client-scoped labels;
+         correct dedup condition
+d41a837  <- tag: cache-ttl-invalidation
+         feat(cache): extend synthesis TTL to 15 min and invalidate on ingestion
+3b99c3c  <- tag: primary-trigger-implemented
+         feat(synthesis): LLM-generated primary_trigger for Slide 2
+16890f7  feat(synthesis): extend why_now to 3 sentences
+4bcf3c5  docs: add platform overview presentations (HTML, 6-page and 3-page)
+8e90102  docs: add master persona for 21 Sep 2026 covering all three versions
+aebf545  docs: reflect runtime brand toggle in architecture_flow
 57beb23  docs: reflect runtime brand toggle in Flavor 2 guardrail
-52fb7d7  ← tag: attribution-added
+690edef  docs: reflect runtime brand toggle in master persona
+52fb7d7  <- tag: attribution-added
          docs: add architect & developer attribution
 93955c1  docs: rewrite README as branding branch landing page
 decda5c  docs: add Brand Toggle Implementation Record
 08723ed  docs: add BFS AI Lab Cloud Run IAM toggle commands to runbook
-82d75d0  ← tag: branding-complete-enel-only
+82d75d0  <- tag: branding-complete-enel-only
          feat(brand): runtime brand toggle with two-color rebrand
-565d8e3  ← tag: branding-working-pre-color
-3d1bb16  ← tag: ing-baseline-pre-branding
+565d8e3  <- tag: branding-working-pre-color
+3d1bb16  <- tag: ing-baseline-pre-branding
 ```
 
 ### Documentation Map
@@ -401,7 +495,7 @@ decda5c  docs: add Brand Toggle Implementation Record
 
 ### Local Backups
 
-At `~/ing-fm-poc-backups/`: `20260921_042605` (pre-branding), `20260921_054602_shellrc`, `20260921_064930_pre_color_rebrand`, `*_pre_logo_resize`.
+At `~/ing-fm-poc-backups/`: `20260921_042605` (pre-branding), `20260921_054602_shellrc`, `20260921_064930_pre_color_rebrand`, `*_pre_logo_resize`, `20260921_174034_pre_whynow_extend`, `20260922_043720_pre_primary_trigger`, `20260922_061631_pre_ttl_invalidation`, `20260922_112502_pre_patch_f`.
 
 ---
 
@@ -428,7 +522,21 @@ At `~/ing-fm-poc-backups/`: `20260921_042605` (pre-branding), `20260921_054602_s
 
 ## 13. CHANGELOG
 
-### 21 Sep 2026 — Branding branch
+### 22 Sep 2026 - Synthesis + Cache + Ingestion
+
+**`primary_trigger` LLM generation.** New 8th key in the synthesis prompt. Family-scoped priority signal block guides datapoint selection. Deterministic validator (five rules) accepts or rejects. Curated fallback dict applies on rejection. Read path extended in deck and preview with the trigger between session override and curated `trigger_source`. `3b99c3c`.
+
+**Synthesis cache TTL extended to 900s.** RM workflow (dashboard load, review, discussion, download) no longer risks cache expiry mid-session. `d41a837`.
+
+**Cache invalidation on ingestion.** `_MANDATE_SYNTH_CACHE.pop(cid, None)` after every successful ingestion commit. Next read re-synthesises against the updated corpus. UI and deck reflect the new signal on the very next page load. `d41a837`.
+
+**Ingestion source names client-scoped.** Three Enel-era fallbacks replaced (`Teams Channel`, `Treasury Email`, `WorkFabric Memo`), two Enel name checks removed, frontend preset author neutralized. `ce85f57`.
+
+**Layer-1 dedup condition corrected.** OR -> AND. Distinct content passes through to semantic layer. Same content still rejected. `ce85f57`.
+
+**`why_now` extended to 3 sentences.** Slide 3 Catalyst card was under-filled. Prompt updated. `16890f7`.
+
+### 21 Sep 2026 - Branding branch
 
 Runtime brand toggle (ING + BFS AI Lab), two Cloud Run services, 130 hex → CSS variables, 35 string replacements, dynamic filename, dynamic logo height, dynamic cover-slide position, deck `core_properties` attribution, Enel-only whitelist. Complete record: `Docs/WeightedFamily/Brand_Toggle_Implementation.md`.
 
@@ -460,8 +568,15 @@ Cache/DB consistency invariant (`9cfeb42`); LLM-computed `priority_score` (`1372
 - `_CREDIT_RATINGS`, `_FAMILY_KEYWORD_WEIGHTS`, whitelist lists
 
 **Optional:**
-- Update `Docs/WeightedFamily/README_WeightedFamily.md` (folder index) — stale, missing branding doc
-- `force_color_prompt` unbound variable in `~/.bashrc` line 48 — cosmetic, aborts source before aliases load; workaround is `source <(grep '^alias deploy-' ~/.bashrc)`
+- Update `Docs/WeightedFamily/README_WeightedFamily.md` (folder index) - stale, missing branding doc
+- `force_color_prompt` unbound variable in `~/.bashrc` line 48 - cosmetic, aborts source before aliases load; workaround is `source <(grep '^alias deploy-' ~/.bashrc)`
+
+**From 22 Sep session:**
+- **BASF `primary_trigger` prompt refinement.** The validator rejected the LLM trigger twice during testing for BASF (once for family mismatch GREEN_ESG=1 != DCM_REFI, once for missing digit in right clause). The fallback keeps the demo safe, but the DCM_REFI prompt could be tightened for clients that carry a green feature as secondary. Backlog.
+- **Whitelist as env var.** `_DEMO_CLIENT_IDS` and `ACTIVE_UI_CLIENT_IDS` are code constants. Test whitelist flips get committed alongside feature work. Move to env vars so test config doesn't touch the committed code. Backlog.
+- **Ingestion sentinel contract.** The `"Client Inbound Touchpoint"` sentinel is duplicated in `App.jsx:2449` and `main.py:1661`. Fragile - either document explicitly or move to a shared constant. Backlog.
+- **UI ingestion modal polish.** The preset author placeholder was Enel-era (fixed 22 Sep). Remaining: the frontend preset button labels are Enel-flavoured in three of the four WorkFabric presets. Backlog.
+- **`why_now_summary` drift.** The LLM occasionally produces 162-165 chars against a stated 160-char limit. Minor - fits the card. Accept the drift; enforce only if it exceeds 175.
 
 ---
 

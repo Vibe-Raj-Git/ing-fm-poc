@@ -276,7 +276,7 @@ def _resolve_primary_trigger(client_id: str, resolved_family: str, raw_trigger: 
     return fallback, "fallback"
 
 
-_MANDATE_SYNTH_CACHE_TTL = 300  # seconds (5 minutes)
+_MANDATE_SYNTH_CACHE_TTL = 900  # seconds (15 minutes)
 
 # ---------------------------------------------------------------------------
 # DEMO CLIENT WHITELIST
@@ -1872,6 +1872,14 @@ If the text contains no extractable signals, return {{"detected_signals": []}}.
             #    Mandate text is synthesized in /api/opportunities from accumulated signals.
 
             conn.commit()
+
+            # Cache invalidation: a new signal has arrived, so the cached
+            # synthesis for this client is now stale. Pop it so the next
+            # /api/opportunities call re-synthesizes with the updated corpus.
+            # Covers both ingest_text_signal and ingest_file_signal, since
+            # the latter delegates to the former.
+            _MANDATE_SYNTH_CACHE.pop(cid, None)
+
             cur.close()
             conn.close()
             if connector:

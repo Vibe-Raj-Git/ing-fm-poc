@@ -300,7 +300,7 @@ _MANDATE_SYNTH_CACHE_TTL = 900  # seconds (15 minutes)
 # Both lists must stay in sync — the backend whitelist controls synthesis,
 # the frontend whitelist controls rendering.
 # ---------------------------------------------------------------------------
-_DEMO_CLIENT_IDS = {"CLI101"}
+_DEMO_CLIENT_IDS = {"CLI103"}
 #_DEMO_CLIENT_IDS = {"CLI101", "CLI103"}
 
 app = FastAPI(title=ACTIVE_BRAND["api_title"], version="1.0.0")
@@ -1653,15 +1653,15 @@ def ingest_text_signal(req: TextIngestRequest):
     elif is_document_upload:
         channel = "PDF_REPORT"
         sname = raw_sname if raw_sname else "Ingested Document"
-    elif "TEAMS" in raw_chan or "TEAMS" in text.upper() or "LUCA MORETTI (DCM" in text.upper() or "GIULIA ROMANO (RM)" in text.upper():
+    elif "TEAMS" in raw_chan or "TEAMS" in text.upper():
         channel = "TEAMS_CHAT"
-        sname = raw_sname if raw_sname and raw_sname != "Client Inbound Touchpoint" else "European Utilities Coverage (#deal-coverage-enel)"
-    elif "EMAIL" in raw_chan or "FROM:" in text.upper() or "SUBJECT:" in text.upper() or "FABIO TAGLIAFERRI" in text.upper():
+        sname = raw_sname if raw_sname and raw_sname != "Client Inbound Touchpoint" else f"{cname} Teams Channel"
+    elif "EMAIL" in raw_chan or "FROM:" in text.upper() or "SUBJECT:" in text.upper():
         channel = "CLIENT_EMAIL"
-        sname = raw_sname if raw_sname and raw_sname != "Client Inbound Touchpoint" else "Enel Treasury Rome (Fabio Tagliaferri)"
+        sname = raw_sname if raw_sname and raw_sname != "Client Inbound Touchpoint" else f"{cname} Treasury Email"
     else:
         channel = "WORKFABRIC_MEMO"
-        sname = raw_sname if raw_sname else "Marta Nowak (ESG Structuring Lead)"
+        sname = raw_sname if raw_sname else f"{cname} WorkFabric Memo"
 
     project_id = os.getenv("GCP_PROJECT", "dulcet-radar-508218-c5")
     region = os.getenv("REGION", "europe-west1")
@@ -1747,7 +1747,7 @@ If the text contains no extractable signals, return {{"detected_signals": []}}.
             # Deterministic exact-match pre-check
             if channel_history:
                 for r in channel_history:
-                    if str(r[0]).strip().lower() == str(sname).strip().lower() or (text and str(r[1]).strip()[:200] == str(text).strip()[:200]):
+                    if str(r[0]).strip().lower() == str(sname).strip().lower() and (text and str(r[1]).strip()[:200] == str(text).strip()[:200]):
                         # Find the matching chunk_id
                         cur.execute("""
                             SELECT chunk_id FROM ca.document_vector_chunks

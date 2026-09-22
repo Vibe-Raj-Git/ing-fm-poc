@@ -172,7 +172,7 @@ class ErrorBoundary extends React.Component {
 // Whitelisted Client IDs for UI presentation (Backend DB retains all clients)
 // const ACTIVE_UI_CLIENT_IDS = ["CLI101", ];
 // const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"];
-const ACTIVE_UI_CLIENT_IDS = ["CLI101"];
+const ACTIVE_UI_CLIENT_IDS = ["CLI103"];
 //const ACTIVE_UI_CLIENT_IDS = ["CLI101", "CLI103"];
 
 export default function App() {
@@ -2526,7 +2526,7 @@ ${chip.preview}`}
 ` +
                             `Product: Green & Sustainability-Linked Structuring
 ` +
-                            `Author: Marta Nowak (ESG Structuring Lead)
+                            `Author: Treasury Team
 ` +
                             `Framework: Verified ICMA Green Bond Principles & EU Taxonomy alignment. Ring-fenced €1.5B eligible clean energy asset pool. ` +
                             `Recommended structure: Inaugural €750M 8Y Green EMTN with 3-7 bps new issue greenium advantage.`

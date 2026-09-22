@@ -191,7 +191,7 @@ def add_logo(slide, is_white=False):
     if os.path.exists(logo_filename):
         try:
             # Render logo with explicit height constraint to prevent vertical overflow
-            slide.shapes.add_picture(logo_filename, Inches(11.8), Inches(0.35), height=Inches(_brand().get("logo_height_inches", 0.45)))
+            slide.shapes.add_picture(logo_filename, Inches(11.6), Inches(0.35), height=Inches(_brand().get("logo_height_inches", 0.45)))
             return
         except Exception as exc:
             logger.warning(f"Could not insert logo: {exc}")

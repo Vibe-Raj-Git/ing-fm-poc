@@ -331,6 +331,8 @@ RSS synthetic fallback — main.py:1248 returns placeholder articles when Google
 
 Teams ingestion source_name mislabel for non-Enel clients — the ingestion preset hardcodes "European Utilities Coverage (#deal-coverage-enel)" as the source name. For BASF ingestions, this label is misleading. Cosmetic; does not affect sort order or read correctness.
 
+**RESOLVED 22 Sep 2026 (commit `ce85f57`).** All three Enel-era fallbacks replaced with client-scoped labels: `f"{cname} Teams Channel"`, `f"{cname} Treasury Email"`, `f"{cname} WorkFabric Memo"`. Two Enel-era name checks removed from the Teams channel condition. Frontend preset author placeholder neutralized to "Treasury Team". Verified on the deployed BFS service — ingesting through the UI now produces `source_name = "BASF SE Treasury Email"` instead of the Enel-era string.
+
 Variant files in the repository root — ~20 main_15Sep*.py, App_15Sep*.jsx, pitchbook_builder_15Sep*.py files. Housekeeping decision deferred.
 
 baseline_snapshots_gemini.json — appears to be a stale artifact from an earlier attempt. To be reviewed.

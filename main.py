@@ -300,7 +300,7 @@ _MANDATE_SYNTH_CACHE_TTL = 900  # seconds (15 minutes)
 # Both lists must stay in sync — the backend whitelist controls synthesis,
 # the frontend whitelist controls rendering.
 # ---------------------------------------------------------------------------
-_DEMO_CLIENT_IDS = {"CLI103"}
+_DEMO_CLIENT_IDS = {"CLI101"}
 #_DEMO_CLIENT_IDS = {"CLI101", "CLI103"}
 
 app = FastAPI(title=ACTIVE_BRAND["api_title"], version="1.0.0")

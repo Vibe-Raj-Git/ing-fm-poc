@@ -811,7 +811,7 @@ export default function App() {
                 <div className="p-3 bg-orange-50/60 rounded border border-orange-200">
                   <p className="font-bold text-orange-800 mb-1">Primary Market Trigger</p>
                   <p className="text-gray-700 text-[10px] leading-relaxed">
-                    {deckOverrides.trigger || opp.trigger_source || (
+                    {deckOverrides.trigger || opp.primary_trigger || opp.trigger_source || (
                       isFX ? "Commercial inflow shift: North American expansion increased USD revenue to >$12B against 50% hedge ratio (~$8bn gap)." :
                       isGreen ? "EU Taxonomy alignment: €3.5bn eligible renewable & decarbonization CapEx pipeline ready for green financing." :
                       isRates ? "Upcoming €3.2B debt maturities face repricing risk amid benchmark curve fluctuations." :

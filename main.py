@@ -195,6 +195,87 @@ _CREDIT_RATINGS = {
     "CLI101": "S&P | BBB | Positive",   # Enel S.p.A.
     "CLI103": "S&P | A- | Stable",      # BASF SE
 }
+
+# ---------------------------------------------------------------------------
+# Family-scoped signals for LLM prompt grounding (primary_trigger generation).
+# These are taxonomy definitions, not per-client data.
+# ---------------------------------------------------------------------------
+FAMILY_PRIORITY_SIGNALS = {
+    "GREEN_ESG":   "green bond, slb, sustainability-linked, green asset pool, greenium, renewable CapEx, EU taxonomy alignment",
+    "FX_HEDGE":    "fx collar, currency overlay, hedging gap, cross-currency, fx hedge",
+    "RATES_HEDGE": "irs pre-hedge, pre-hedge swap, swap overlay, forward-starting, rate hedging",
+    "DCM_REFI":    "emtn, bond issuance, refinancing, maturity wall, dual-tranche, senior unsecured",
+}
+
+FAMILY_CONTEXT_SIGNALS = {
+    "GREEN_ESG":   "renewable energy pipeline, decarbonization CapEx, sustainable funding framework, social/sustainability KPIs",
+    "FX_HEDGE":    "commercial revenue exposure, unhedged cash flows, foreign subsidiary flows",
+    "RATES_HEDGE": "benchmark curve volatility, refinancing cost risk, repricing exposure",
+    "DCM_REFI":    "debt maturity profile, credit spread environment, syndicate distribution",
+}
+
+# Per-client and per-family fallbacks for primary_trigger.
+PRIMARY_TRIGGER_FALLBACKS = {
+    "CLI101": "€3.5B eligible renewable & decarbonization CapEx pipeline ready for green financing; €10.13bn maturing debt wall across 2026-2027",
+    "CLI103": "Fixed coverage decline: 68% -> 46% vs 60% policy target within 12M",
+    "_GREEN_ESG":   "Eligible green asset pool identified; near-term maturity wall requiring sustainable refinancing",
+    "_FX_HEDGE":    "Unhedged currency exposure identified; near-term cash flow gap requiring FX overlay",
+    "_RATES_HEDGE": "Floating rate exposure identified; benchmark curve offering pre-hedge window",
+    "_DCM_REFI":    "Maturity concentration identified; refinancing window open at current spread levels",
+}
+
+# Marketing adjectives forbidden in primary_trigger output.
+_MARKETING_WORDS = {
+    "offering", "clear", "advantage", "significant", "opportunity",
+    "leverage", "strategic", "robust", "optimal", "exciting", "compelling",
+    "substantial", "meaningful", "critical", "imperative",
+}
+
+
+def _validate_primary_trigger(trigger: str, resolved_family: str):
+    """Deterministic validation for LLM-generated primary_trigger.
+    Returns (is_valid: bool, reason: str)."""
+    if not trigger:
+        return False, "empty"
+    if len(trigger) > 180:
+        return False, f"over 180 chars ({len(trigger)})"
+    if trigger.count(";") != 1:
+        return False, f"expected 1 semicolon, found {trigger.count(';')}"
+
+    left, right = [c.strip() for c in trigger.split(";")]
+    if not any(c.isdigit() for c in left):
+        return False, f"left clause has no digit: {left!r}"
+    if not any(c.isdigit() for c in right):
+        return False, f"right clause has no digit: {right!r}"
+
+    lower = trigger.lower()
+    hits = [w for w in _MARKETING_WORDS if w in lower]
+    if hits:
+        return False, f"marketing words: {hits}"
+
+    scores = {fam: sum(w for kw, w in kws.items() if kw in lower)
+              for fam, kws in _FAMILY_KEYWORD_WEIGHTS.items()}
+    top = max(scores, key=scores.get)
+    if top != resolved_family or scores[top] == 0:
+        return False, f"top family {top}={scores[top]} != resolved {resolved_family}"
+
+    return True, "ok"
+
+
+def _resolve_primary_trigger(client_id: str, resolved_family: str, raw_trigger: str):
+    """Apply validator; fall back to curated value on failure."""
+    ok, reason = _validate_primary_trigger(raw_trigger, resolved_family)
+    if ok:
+        return raw_trigger, "llm"
+    logger.info(f"primary_trigger validation failed for {client_id}: {reason}. Using fallback.")
+    fallback = (
+        PRIMARY_TRIGGER_FALLBACKS.get(client_id)
+        or PRIMARY_TRIGGER_FALLBACKS.get(f"_{resolved_family}")
+        or "Active capital structure optimization"
+    )
+    return fallback, "fallback"
+
+
 _MANDATE_SYNTH_CACHE_TTL = 300  # seconds (5 minutes)
 
 # ---------------------------------------------------------------------------
@@ -744,11 +825,30 @@ def synthesize_mandate_catalyst(
         else:
             product_specific_driver = '5. Refinancing Catalyst: Standard institutional debt capital markets distribution.'
 
+        # Resolve family-scoped signals for the primary_trigger instruction.
+        _fam_upper = str(product_family).upper()
+        if "SUSTAINABLE" in _fam_upper or "GREEN" in _fam_upper:
+            _resolved_fam = "GREEN_ESG"
+        elif "FX" in _fam_upper or "CURRENCY" in _fam_upper:
+            _resolved_fam = "FX_HEDGE"
+        elif "RATE" in _fam_upper or "SWAP" in _fam_upper:
+            _resolved_fam = "RATES_HEDGE"
+        else:
+            _resolved_fam = "DCM_REFI"
+        family_priority_signals = FAMILY_PRIORITY_SIGNALS[_resolved_fam]
+        family_context_signals = FAMILY_CONTEXT_SIGNALS[_resolved_fam]
+
         prompt = f"""{ACTIVE_BRAND["prompt_capital_markets_persona"]}
 Synthesize the provided database-grounded signals into authoritative, desk-ready narratives for an executive pitchbook.
 
 CLIENT: {client_name}
 TARGET PRODUCT FAMILY: {product_family}
+
+FAMILY PRIORITY SIGNALS (weight 5, strongest — prefer these for the primary_trigger):
+{family_priority_signals}
+
+FAMILY CONTEXT SIGNALS (weight 3-4, supporting):
+{family_context_signals}
 
 =========================================================================
 MANDATORY STRUCTURE — READ THIS FIRST. THIS OVERRIDES ALL OTHER INPUTS.
@@ -780,7 +880,7 @@ ACCUMULATED SIGNALS FOR THIS CLIENT (most recent first):
 {_signals_block}
 
 INSTRUCTIONS:
-Output a valid JSON object with exactly seven keys:
+Output a valid JSON object with exactly eight keys:
 1. "why_now": Exactly 3 sentences. Connect the debt maturity wall (€{mat_bn}), liquidity buffer (€{liq_bn}), prevailing 5Y swap rate ({swap_5y}), and available sustainable pricing concessions or greenium drivers to explain why this transaction is critical now.
 2. "action": Exactly 2 sentences. Specify the exact transaction structuring, tenor distribution, pricing/hedging overlay, and immediate operational next steps with Treasury.
 3. "why_now_summary": Exactly 1 sentence, maximum 160 characters. A condensed, punchy version of "why_now" suitable for a summary card on Slide 2. Must NOT copy the "why_now" text verbatim — rephrase for brevity while preserving the key numbers (maturity wall, liquidity buffer, swap rate).
@@ -798,11 +898,27 @@ Output a valid JSON object with exactly seven keys:
    If multiple products are present, choose the one with the highest notional.
 7. "adjacent_opportunities": A single business-English paragraph of 80-140 words identifying up to 3 adjacent origination angles supported by the signal corpus that are NOT the primary product family. STRICT RULES: each adjacency must be grounded in a specific signal that appears in the corpus; do NOT invent; do NOT repeat the primary proposal; do NOT use marketing language; if no adjacencies are supported, return an empty string.
 
+8. "primary_trigger": Two datapoint clauses separated by a semicolon. Total maximum 180 characters.
+
+STRICT FORMAT FOR primary_trigger:
+- Each clause is a datapoint: a number, a unit, and a short noun phrase. No verbs. No descriptive fragments.
+- Use the highest-priority available datapoint FIRST. Priority order: eligible asset pool, debt maturity wall (size + years), board authorization, indicative pricing concession.
+- The second clause must be a DIFFERENT datapoint from the first, not a description of it.
+- No marketing adjectives (clear, significant, optimal, compelling, substantial, robust, strategic, opportunity, leverage, offering).
+
+GOOD OUTPUT EXAMPLES:
+"€3.5B eligible green asset pool; €10.13bn maturity wall across 2026-2027"
+"€14.2bn liquidity buffer; €10.13bn maturities requiring sustainable refinancing"
+
+BAD OUTPUT EXAMPLES (produce none of these):
+"Indicative Greenium: -5 bps; offering a clear pricing advantage for sustainable funding"
+"Significant debt wall approaching; opportunity to leverage sustainable funding"
+
 CONSTRAINTS:
 - Professional CIB pitchbook language. Active voice.
 - Strictly adhere to the numbers provided. Do not hallucinate tenors or spreads.
 - JSON output ONLY:
-{{"why_now": "...", "action": "...", "why_now_summary": "...", "action_summary": "...", "priority_score": 0, "family": "DCM_REFI", "adjacent_opportunities": "..."}}"""
+{{"why_now": "...", "action": "...", "why_now_summary": "...", "action_summary": "...", "priority_score": 0, "family": "DCM_REFI", "adjacent_opportunities": "...", "primary_trigger": "..."}}"""
 
         response = client_gcp.models.generate_content(
             model="gemini-2.5-flash",
@@ -813,18 +929,28 @@ CONSTRAINTS:
             )
         )
         res_data = json.loads(response.text)
+        _resolved_fam_final = res_data.get("family") or _resolved_fam
+        _raw_trigger = str(res_data.get("primary_trigger") or "")
+        _client_id_for_fallback = str(client_name)
+        _final_trigger, _trigger_source = _resolve_primary_trigger(
+            client_id=_client_id_for_fallback,
+            resolved_family=_resolved_fam_final,
+            raw_trigger=_raw_trigger,
+        )
         return {
             "why_now": res_data.get("why_now") or res_data.get("catalyst_rationale") or fallback_why,
             "action": res_data.get("action") or res_data.get("proposed_execution") or fallback_act,
             "why_now_summary": res_data.get("why_now_summary") or "",
             "action_summary": res_data.get("action_summary") or "",
             "priority_score": res_data.get("priority_score"),
-            "family": res_data.get("family") or res_data.get("product_family"),
-            "adjacent_opportunities": res_data.get("adjacent_opportunities") or ""
+            "family": _resolved_fam_final,
+            "adjacent_opportunities": res_data.get("adjacent_opportunities") or "",
+            "primary_trigger": _final_trigger,
+            "primary_trigger_source": _trigger_source
         }
     except Exception as e:
         logger.warning(f"Error generating mandate synthesis for {client_name}: {e}")
-        return {"why_now": fallback_why, "action": fallback_act, "why_now_summary": "", "action_summary": "", "priority_score": None, "family": None, "adjacent_opportunities": ""}
+        return {"why_now": fallback_why, "action": fallback_act, "why_now_summary": "", "action_summary": "", "priority_score": None, "family": None, "adjacent_opportunities": "", "primary_trigger": "", "primary_trigger_source": "error"}
 
 @app.get("/api/opportunities")
 def get_opportunities():
@@ -1182,6 +1308,7 @@ def get_opportunities():
                     final_priority_score = _cached_entry[5] if len(_cached_entry) > 5 else None
                     final_family = _cached_entry[6] if len(_cached_entry) > 6 else None
                     final_adjacent_opportunities = _cached_entry[7] if len(_cached_entry) > 7 else ""
+                    final_primary_trigger = _cached_entry[8] if len(_cached_entry) > 8 else ""
                     logger.info(f"Mandate synthesis cache HIT for {cid_str}")
                 elif GENAI_AVAILABLE and cid_str in _DEMO_CLIENT_IDS:
                     try:
@@ -1225,6 +1352,7 @@ def get_opportunities():
                         final_priority_score = synth.get("priority_score")
                         final_family = synth.get("family")
                         final_adjacent_opportunities = synth.get("adjacent_opportunities") or ""
+                        final_primary_trigger = synth.get("primary_trigger") or ""
 
                         # -----------------------------------------------------------------
                         # Drift guard: if the LLM output introduces tenors that conflict
@@ -1262,7 +1390,7 @@ def get_opportunities():
                             # fails, the cache must not hold a value the DB does not have.
                             # This prevents the cache/DB divergence bug where the UI shows
                             # a fresh synthesis score that was never persisted.
-                            _MANDATE_SYNTH_CACHE[cid_str] = (_now_ts + _MANDATE_SYNTH_CACHE_TTL, final_why_now, final_action, final_why_now_summary, final_action_summary, final_priority_score, final_family, final_adjacent_opportunities)
+                            _MANDATE_SYNTH_CACHE[cid_str] = (_now_ts + _MANDATE_SYNTH_CACHE_TTL, final_why_now, final_action, final_why_now_summary, final_action_summary, final_priority_score, final_family, final_adjacent_opportunities, final_primary_trigger)
                             logger.info(f"Persisted fresh synthesis and cached for {cid_str} (TTL {_MANDATE_SYNTH_CACHE_TTL}s)")
                         except Exception as e_up:
                             logger.warning(f"Could not persist synthesis for {cid_str}: {e_up}")
@@ -1276,6 +1404,7 @@ def get_opportunities():
                         final_priority_score = None
                         final_family = None
                         final_adjacent_opportunities = ""
+                        final_primary_trigger = ""
                 else:
                     final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
                     final_action = action or "Proactive capital markets advisory and rate hedging review."
@@ -1284,6 +1413,7 @@ def get_opportunities():
                     final_priority_score = None
                     final_family = None
                     final_adjacent_opportunities = ""
+                    final_primary_trigger = ""
 
                 opps.append({
                     "id": cid_str,
@@ -1297,6 +1427,7 @@ def get_opportunities():
                     "score_num": int(final_priority_score) if final_priority_score is not None else int(score_num),
                     "family": final_family,
                     "adjacent_opportunities": _brand_substitute(final_adjacent_opportunities),
+                    "primary_trigger": final_primary_trigger,
                     "chips": chips,
                     "callout": f"{final_why_now} {final_action}".strip(),
                     "why_now": _brand_substitute(final_why_now),
@@ -2460,7 +2591,11 @@ async def handle_pitchbook_generation(
             import time as _pb_time
             _pb_now = _pb_time.time()
             _pb_cached = _MANDATE_SYNTH_CACHE.get(cid)
-            if _pb_cached and len(_pb_cached) > 7 and _pb_cached[0] > _pb_now:
+            if _pb_cached and len(_pb_cached) > 8 and _pb_cached[0] > _pb_now:
+                bundle["family"] = _pb_cached[6]
+                bundle["adjacent_opportunities"] = _pb_cached[7]
+                bundle["primary_trigger"] = _pb_cached[8]
+            elif _pb_cached and len(_pb_cached) > 7 and _pb_cached[0] > _pb_now:
                 bundle["family"] = _pb_cached[6]
                 bundle["adjacent_opportunities"] = _pb_cached[7]
         except Exception as _pb_e:

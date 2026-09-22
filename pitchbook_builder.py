@@ -863,19 +863,19 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
 
     # Product-dynamic trigger resolution matching App.jsx
     if p_fam == "FX_HEDGE":
-        trig_t = ov.get("trigger") or ctx.get("trigger_source") or "Commercial inflow shift: North American expansion increased USD revenue to >$12B against 50% hedge ratio (~$8bn gap)."
+        trig_t = ov.get("trigger") or ctx.get("primary_trigger") or ctx.get("trigger_source") or "Commercial inflow shift: North American expansion increased USD revenue to >$12B against 50% hedge ratio (~$8bn gap)."
         win_t = ov.get("why_now_summary") or ov.get("window") or "EUR/USD forward points offer structural hedging pickup; volatility corridor allows zero-cost collar structuring."
         act_t = ov.get("action_summary") or ov.get("action") or "Propose staged 12M–24M layered FX hedging programme with zero-cost collar overlays to close ~$8bn gap."
     elif p_fam == "GREEN_ESG":
-        trig_t = ov.get("trigger") or ctx.get("trigger_source") or "EU Taxonomy alignment: €3.5B eligible renewable & decarbonization CapEx pipeline ready for green financing."
+        trig_t = ov.get("trigger") or ctx.get("primary_trigger") or ctx.get("trigger_source") or "EU Taxonomy alignment: €3.5B eligible renewable & decarbonization CapEx pipeline ready for green financing."
         win_t = ov.get("why_now_summary") or ov.get("window") or "Strong ESG investor liquidity generating 3-7 bps greenium pricing concession across European green bonds, subject to market conditions."
         act_t = ov.get("action_summary") or ov.get("action") or "Establish inaugural Green Bond with second-party SPO verification."
     elif p_fam == "RATES_HEDGE":
-        trig_t = ov.get("trigger") or ctx.get("trigger_source") or "Upcoming €3.2B debt maturities face repricing risk amid benchmark curve fluctuations."
+        trig_t = ov.get("trigger") or ctx.get("primary_trigger") or ctx.get("trigger_source") or "Upcoming €3.2B debt maturities face repricing risk amid benchmark curve fluctuations."
         win_t = ov.get("why_now_summary") or ov.get("window") or "Current 5Y EUR swap easing at 2.62% provides attractive entry window for forward-starting IRS."
         act_t = ov.get("action_summary") or ov.get("action") or "Execute €400M pre-hedge IRS overlay to lock in current base yield before debt issuance."
     else:
-        trig_t = ov.get("trigger") or ctx.get("trigger_source") or "Active capital structure optimization and refinancing window identified."
+        trig_t = ov.get("trigger") or ctx.get("primary_trigger") or ctx.get("trigger_source") or "Active capital structure optimization and refinancing window identified."
         win_t = ov.get("why_now_summary") or ov.get("window") or "Favorable benchmark credit spreads across European issuance windows."
         act_t = ov.get("action_summary") or ov.get("action") or ctx.get("next_best_action", "Propose capital structuring dialogue and benchmark EMTN roadshow.")
 

@@ -356,7 +356,7 @@ Expected output ends with all 13 gates printed as ✅ and a summary like 13/13 g
 `test_parity.py` is not a pytest suite — it's an inline audit script. Run it directly.
 
 ## 5. Known Exceptions To Zero-Hardcoding
-The platform aims for 100% data-driven values. Eight exceptions exist today, documented for future cleanup. The source of truth for each is the referenced section of the persona.
+The platform aims for 100% data-driven values. Nine exceptions exist today, documented for future cleanup. The source of truth for each is the referenced section of the persona.
 
 ### 5.1 — Credit rating dict (_CREDIT_RATINGS)
 **Location:** ``main.py` near `BRAND_PROFILES``, ``pitchbook_builder.py` near the module logger`.
@@ -425,17 +425,41 @@ Adding a client requires adding its rating to both dicts.
 
 **Location:** `main.py` (after the module logger, before the FastAPI app).
 
-**What it is:** a curated dict of 28 keys per brand, one entry per deployment target (`ING`, `BFS_AI_LAB`). Keys cover display strings, logo filenames and heights, footer and attribution text, houseview fallbacks, RSS URL, colour palette (accent, hover, light, navy, badge), five LLM persona strings, and download filename prefixes.
+**What it is:** a curated dict of **27 keys per brand**, one entry per deployment target (`ING`, `BFS_AI_LAB`, `ACME_FINANCIAL`). Keys cover display strings, logo filenames and heights, footer and attribution text, houseview fallbacks, RSS URL, colour palette (accent, hover, light, navy, badge), five LLM persona strings, and download filename prefixes.
 
-**Why it exists:** the platform renders under two brands from a single codebase. The profile is the single source of brand truth.
+**Why it exists:** the platform renders under three brands from a single codebase. The profile is the single source of brand truth.
 
 **Sync consideration:** `BRAND_PROFILES` lives only in `main.py`. `pitchbook_builder.py` holds a module-level slot (`_ACTIVE_BRAND`) that `main.py` fills via `_set_active_brand()` immediately before each `build_pitchbook()` call. There is no duplicate dict to keep in sync — unlike `_CREDIT_RATINGS` (§5.1) and `_FAMILY_KEYWORD_WEIGHTS` (§5.7).
 
+**Key parity invariant (23 Sep 2026):** all three brands in `BRAND_PROFILES` must carry the **identical 27-key set**. This is verified programmatically as part of the pre-deploy checklist. Adding a brand via `tools/onboard_brand.py` guarantees parity — the utility refuses to patch if the produced entry diverges from the schema.
+
 **Selection:** `os.getenv("BRAND", "ING").upper()`. Unrecognized values log a warning and fall back to ING.
 
-**Future:** if a third brand is added, extend the dict in `main.py`. No other file changes required.
+**Onboarding:** adding a fourth brand is a one-command operation. See `BRAND_ONBOARDING_GUIDE.md`.
 
-Full specification: `Brand_Toggle_Implementation.md` §3.
+Full specification: `Brand_Toggle_Implementation.md` §3 and §11.
+
+
+### 5.10 — `ADJACENT_OPPORTUNITY_FALLBACKS` (23 Sep 2026)
+
+**Location:** `main.py` near `PRIMARY_TRIGGER_FALLBACKS` (both defined together, near `_FAMILY_KEYWORD_WEIGHTS`).
+
+**What it is:** a curated dict of fallback paragraphs for the `adjacent_opportunities` synthesis output. Keyed by client ID and by family. Consulted only when the validator rejects the LLM output.
+
+**Keys:**
+
+- `CLI101` — Enel S.p.A. curated paragraph (EUR 12bn authorization window, interest-rate risk review, USD FX exposure)
+- `CLI103` — BASF SE curated paragraph (fixed-coverage trajectory, refinancing calendar, green-feature evaluation)
+- `_GREEN_ESG`, `_DCM_REFI`, `_RATES_HEDGE`, `_FX_HEDGE` — generic per-family paragraphs
+- `_FALLBACK` — last-resort paragraph used when neither client nor family matches
+
+**Why it exists:** the LLM occasionally returned an empty `adjacent_opportunities` string despite the prompt asking for 80-140 words. Prior behaviour cached the empty value for the full 900s TTL, silently degrading Slide 3 and the Copilot's conditional fourth section. The validator runs before the cache write so the cache never holds an empty value.
+
+**Not fabrication:** the fallback is a human-written, defensible, deterministic substitute — same class of exception as `PRIMARY_TRIGGER_FALLBACKS` (§5.10 in `MASTER_PERSONA_23Sep2026.md`, if separately numbered). Not an invented value from the LLM. No DB write.
+
+**Future:** if the desk wants per-client curated adjacent paragraphs as part of the anchor, a `ca_opportunity_scoring.adjacent_opportunities_nlg` column could be added (requires unlocking DDL). Until then, the fallback dict is the canonical substitute.
+
+Full specification: `MASTER_PERSONA_23Sep2026.md` §5 and §13; `Brand_Toggle_Implementation.md` §11.7.
 
 ## 6. Changelog — 20 Sep 2026 (Flavor 2 — Weighted-Family + Adjacencies)
 
@@ -477,6 +501,37 @@ Changes on the `feat/bfs-ai-lab-brand-toggle` branch. The Flavor 2 demo branch d
 - Cache/DB consistency invariant (§4)
 - Exceptions 5.1–5.8
 - 13-gate parity audit
+
+---
+
+## 6b. Changelog — 23 Sep 2026 (Three-brand + Adjacent Validator)
+
+Changes on the working line `feat/adjacent-opportunities-fallback` (formerly `feat/complete-working-acme-financial`, formerly `feat/bfs-ai-lab-brand-toggle`). Both Flavor 2 demo branch and the branding branch are ancestors; this section records the state as of 23 September 2026.
+
+### Added
+
+- **§5.10 `ADJACENT_OPPORTUNITY_FALLBACKS`** — a curated dict of fallback paragraphs for the `adjacent_opportunities` field, mirroring the `primary_trigger` fallback pattern. Per-client (`CLI101` Enel, `CLI103` BASF), per-family (prefixed `_GREEN_ESG`, `_DCM_REFI`, `_RATES_HEDGE`, `_FX_HEDGE`), plus `_FALLBACK` last-resort. Consulted only when the validator rejects the LLM output.
+- **`_validate_adjacent_opportunities()`** — deterministic three-rule check: non-empty, ≥ 100 chars, ≥ 40 words. Returns `(is_valid, reason)`.
+- **`_resolve_adjacent_opportunities()`** — applies the validator; substitutes the fallback on rejection; logs the failed rule. Returns `(final_text, source)` where `source` is `"llm"` or `"fallback"`.
+- **New API response field `adjacent_opportunities_source`** — one of `"llm"`, `"fallback"`, or `"error"`. Metadata only; no UI or deck consumer yet. Enables observability of how often the fallback fires.
+
+### Updated
+
+- **§3 Tier 2 cache shape** — `_MANDATE_SYNTH_CACHE` extended from **9 elements to 10**. The new tenth element carries `adjacent_opportunities_source`. Old cached entries remain readable via the existing `len() > 9` guard, which defaults the source to `"fallback"`. Rolling deploys do not break in-flight cached entries.
+- **§4 `adjacent_opportunities` invariant** — the value that enters the cache is now guaranteed non-empty. The validator runs in `synthesize_mandate_catalyst` **before** the cache write, so cached values are always the resolved value (LLM output that passed, or a curated fallback).
+- **§5 preamble** — "Eight exceptions" → **"Nine exceptions"** (adds §5.10).
+- **§5.9 `BRAND_PROFILES`** — key count corrected from **28 to 27**; extended from **two brands to three** (`ING`, `BFS_AI_LAB`, `ACME_FINANCIAL`); key parity invariant added (all three brands must carry the identical 27-key set, verified programmatically at `MASTER_PERSONA_23Sep2026.md` §10 step 7).
+- **§2 Slide 3 contract** — the Adjacent Opportunities card is now guaranteed populated. Prior behaviour: on a cold cache or an empty LLM return, Slide 3 rendered the placeholder string *"Additional origination angles will appear here once the mandate synthesis identifies any."* New behaviour: `_resolve_adjacent_opportunities` substitutes the per-client or per-family fallback before caching, so the card always shows a substantive paragraph.
+
+### Bug fix (same commit, same code path)
+
+- **`_client_id_for_fallback` was set to `str(client_name)`** — a display name like `"Enel S.p.A."` — rather than the client ID. Since `PRIMARY_TRIGGER_FALLBACKS` and `ADJACENT_OPPORTUNITY_FALLBACKS` are keyed by `CLI101` / `CLI103`, the per-client branch never fired; the code always fell through to the per-family entry. Corrected to use `client_id`, passed through from the call site as `cid_str`.
+
+### Cross-references
+
+- Full fix details: `MASTER_PERSONA_23Sep2026.md` §13 (changelog) and §5 (component map)
+- Brand extension record: `Brand_Toggle_Implementation.md` §11
+- Onboarding utility: `BRAND_ONBOARDING_GUIDE.md`
 
 ---
 

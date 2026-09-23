@@ -5,8 +5,10 @@
 **Status:** Authoritative
 **Flavor:** Weighted-Family + Adjacencies (Flavor 2)
 **Parallel flavor:** Baseline (Flavor 1) at `Docs/architecture_flow_20Sep.md`
-**Branch:** feat/dulcet-20Sep-demo-Weighted-LLMProductFamilyIdentification-AdjOppS3
+**Branch:** `feat/dulcet-20Sep-demo-...AdjOppS3` (base) — `feat/adjacent-opportunities-fallback` (current working line)
 **Audience:** Engineers, Business Analysts, Technical Architects working on the codebase and product
+
+> **Reading note (23 Sep 2026):** Sections §1–§12 document the platform as of 20 September 2026. Since then: the runtime brand toggle shipped (21 Sep, extended to three brands on 23 Sep), `primary_trigger` was added to the synthesis prompt (22 Sep), the cache TTL was extended to 900s (22 Sep), and the `adjacent_opportunities` validator shipped (23 Sep). Affected sections (§2, §5.5, §5.7, §10.1, §10.5, §10.6) have been updated in place. The full summary of changes is in **§13** at the bottom of this document.
 
 ---
 
@@ -39,6 +41,8 @@ presentation. See `master_persona_20Sep.md` §2.
 ---
 
 ## 2. High-Level Architecture
+
+**Note (23 Sep 2026):** The diagram below shows the platform running as a single-brand deployment. Since 21 Sep 2026, the same codebase runs as **three independent Cloud Run services** — `ing-fm-poc-service` (ING), `bfs-ai-lab-service` (BFS AI Lab), and `acme-service` (Acme Financial) — all reading the same database and rendering different brands based on the `BRAND` environment variable. See §10.1 and §13.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -495,12 +499,16 @@ output with the anchor verbatim.
 
 ```python
 _MANDATE_SYNTH_CACHE = {}
-_MANDATE_SYNTH_CACHE_TTL = 300  # 5 minutes
+_MANDATE_SYNTH_CACHE_TTL = 900  # 15 minutes (extended from 300s on 22 Sep 2026)
 ```
 
-Cache entries are keyed by `client_id` and expire after 5 minutes. Each entry is an
-8-tuple: `(expiry_epoch, why_now, action, why_now_summary, action_summary, priority_score, family, adjacent_opportunities)`.
+Cache entries are keyed by `client_id` and expire after 15 minutes. Each entry is an
+10-tuple: `(expiry_epoch, why_now, action, why_now_summary, action_summary, priority_score, family, adjacent_opportunities, primary_trigger, adjacent_opportunities_source)`.
 This eliminates repeat Gemini calls for the same client within a demo session.
+
+**Tuple history:** 6 → 8 (Flavor 2, 20 Sep: added `family`, `adjacent_opportunities`) → 9 (22 Sep: added `primary_trigger`) → 10 (23 Sep: added `adjacent_opportunities_source`). Old cached entries remain readable via the `len() > N` guards at each read site.
+
+**Cache invalidation on ingestion (22 Sep):** `_MANDATE_SYNTH_CACHE.pop(cid, None)` fires after every successful ingestion commit in `ingest_text_signal`. The next `/api/opportunities` call is a cache miss and re-synthesises against the updated corpus. `ingest_file_signal` delegates to `ingest_text_signal`, so one site covers both paths.
 
 Cache/DB consistency invariant (added 20 Sep, commit 9cfeb42): the cache is populated
 only after `conn.commit()` succeeds. On persist failure, the cache entry is popped in
@@ -565,26 +573,30 @@ byte-identical — see `master_persona_20Sep_WeightedFamily.md` §7.11.
 
 ### 5.7 Adjacent Opportunities
 
-The synthesis LLM returns an 80–140 word paragraph as the 7th key — `adjacent_opportunities`.
+The synthesis LLM returns an 80–140 word paragraph as one of the eight keys — `adjacent_opportunities`.
 The prompt enforces:
 
 - **Grounded** — each adjacency must cite a specific signal in the corpus.
-- **No invention** — empty string if no adjacencies are supported.
+- **No invention** — the LLM may return an empty string if no adjacencies are supported.
 - **No repetition** of the primary mandate.
 - **Maximum 3** adjacencies.
 - **Business English**, no marketing language.
 
+**Validator and fallback (23 Sep 2026).** Before the value enters the cache, `_resolve_adjacent_opportunities()` applies the deterministic validator `_validate_adjacent_opportunities()` — non-empty, ≥ 100 chars, ≥ 40 words. On rejection, the resolver substitutes a curated paragraph from `ADJACENT_OPPORTUNITY_FALLBACKS` in this order: per-client (`CLI101`, `CLI103`) → per-family (`_GREEN_ESG`, `_DCM_REFI`, `_RATES_HEDGE`, `_FX_HEDGE`) → `_FALLBACK` → a literal last-resort string. Every rejection logs the failed rule.
+
+**The cache never holds an empty `adjacent_opportunities` value.** The validator runs inside `synthesize_mandate_catalyst` before the cache write. The API response carries `adjacent_opportunities_source` (`llm` / `fallback` / `error`) as an observability field. Slide 3 and the Copilot's conditional fourth section are guaranteed populated.
+
 **Lifecycle:**
 
-1. Produced by synthesis on a cache miss; travels in the cache tuple at element 7.
-2. Exposed in the `/api/opportunities` response as `adjacent_opportunities`.
-3. Rendered on Slide 3 as the third card (see §6.5).
-4. Available to the Copilot in the `slide_3` payload (see §7.2).
-5. Read by `handle_pitchbook_generation` from `_MANDATE_SYNTH_CACHE[cid][7]` and set on the
+1. Produced by synthesis on a cache miss; the LLM output passes through the validator, and either passes through unchanged or is replaced by the curated fallback.
+2. The resolved value travels in the cache tuple at element 7; the source travels at element 9.
+3. Exposed in the `/api/opportunities` response as `adjacent_opportunities`, with `adjacent_opportunities_source` alongside.
+4. Rendered on Slide 3 as the third card (see §6.5).
+5. Available to the Copilot in the `slide_3` payload (see §7.2).
+6. Read by `handle_pitchbook_generation` from `_MANDATE_SYNTH_CACHE[cid][7]` and set on the
    pitchbook bundle before `build_pitchbook` runs.
 
-**Fallback.** When the field is empty (cold cache or no adjacencies found), Slide 3 renders
-`"Additional origination angles will appear here once the mandate synthesis identifies any."`
+**Prior behaviour (superseded 23 Sep).** When the field was empty (cold cache or no adjacencies found), Slide 3 rendered `"Additional origination angles will appear here once the mandate synthesis identifies any."` This is no longer reachable through the normal synthesis path — the validator guarantees a populated value.
 
 ---
 
@@ -864,7 +876,7 @@ All endpoints served from the FastAPI application. Base URL is the Cloud Run ser
 
 | Setting | Value |
 |---|---|
-| Service | Two services: `ing-fm-poc-service` (ING) and `bfs-ai-lab-service` (BFS AI Lab) |
+| Service | Three services: `ing-fm-poc-service` (ING), `bfs-ai-lab-service` (BFS AI Lab), `acme-service` (Acme Financial) |
 | Region | `europe-west1` |
 | CPU | 1000m (1 vCPU) |
 | Memory | 512 MiB |
@@ -873,7 +885,7 @@ All endpoints served from the FastAPI application. Base URL is the Cloud Run ser
 | Container port | 8080 |
 | Ingress | Public (allUsers granted `roles/run.invoker`) |
 
-**Two services, one image.** The same Docker image runs as two Cloud Run services — `ing-fm-poc-service` with `BRAND=ING` and `bfs-ai-lab-service` with `BRAND=BFS_AI_LAB`. Both share the same Cloud SQL instance. Brand-specific display strings, colours, logos, and footers are selected at service startup from the `BRAND` env var. When unset, the code defaults to ING. See `Brand_Toggle_Implementation.md` for the full specification.
+**Three services, one image.** The same Docker image runs as three Cloud Run services — `ing-fm-poc-service` with `BRAND=ING`, `bfs-ai-lab-service` with `BRAND=BFS_AI_LAB`, and `acme-service` with `BRAND=ACME_FINANCIAL`. All three share the same Cloud SQL instance. Brand-specific display strings, colours, logos, and footers are selected at service startup from the `BRAND` env var. When unset, the code defaults to ING. See `Brand_Toggle_Implementation.md` §1–§11 for the full specification.
 
 **Why min/max = 1:** The mandate synthesis cache (`_MANDATE_SYNTH_CACHE`) is in-memory.
 Multiple instances would each have their own empty cache, defeating the TTL caching strategy.
@@ -901,7 +913,7 @@ cache would need to move to a shared store (Redis or a DB-backed cache).
 
 Set on the Cloud Run service:
 
-```
+bash```
 INSTANCE_CONNECTION_NAME=dulcet-radar-508218-c5:europe-west1:ing-postgres-db
 DB_USER=postgres
 DB_NAME=postgres
@@ -917,11 +929,12 @@ DB password is mounted from Secret Manager (`db-postgres-pass`). `BRAND` is set 
 ```
 deploy-poc   → ing-fm-poc-service    with BRAND=ING
 deploy-bfs   → bfs-ai-lab-service    with BRAND=BFS_AI_LAB
+deploy-acme  → acme-service          with BRAND=ACME_FINANCIAL
 ```
 
-Both aliases run the same gcloud command — the differences are the service name and the BRAND value. The original `deploy-poc` alias:
+All three aliases run the same gcloud command — the differences are the service name and the BRAND value. The original `deploy-poc` alias:
 
-```
+bash```
 gcloud run deploy ing-fm-poc-service \
   --source . \
   --project=dulcet-radar-508218-c5 \
@@ -937,25 +950,35 @@ The Dockerfile uses a two-stage build: node:20-alpine compiles the React fronten
 
 ### 10.6 Public Access on the BFS Service
 
-New Cloud Run services default to private. The ING service was granted `allUsers` invoker access earlier. The BFS service needs the same grant to be reachable from a browser:
+New Cloud Run services default to private. The ING service was granted `allUsers` invoker access earlier. Both `bfs-ai-lab-service` and `acme-service` need the same grant to be reachable from a browser:
 
-```
+bash```
+# BFS AI Lab
 gcloud run services add-iam-policy-binding bfs-ai-lab-service \
     --region=europe-west1 \
     --project=dulcet-radar-508218-c5 \
     --member="allUsers" \
     --role="roles/run.invoker"
-```
 
-Remove the binding to make the BFS service private again:
-
-```
-gcloud run services remove-iam-policy-binding bfs-ai-lab-service \
+# Acme Financial
+gcloud run services add-iam-policy-binding acme-service \
     --region=europe-west1 \
     --project=dulcet-radar-508218-c5 \
     --member="allUsers" \
     --role="roles/run.invoker"
 ```
+
+Remove a binding to make a service private again:
+
+bash```
+gcloud run services remove-iam-policy-binding <service-name> \
+    --region=europe-west1 \
+    --project=dulcet-radar-508218-c5 \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+```
+
+Substitute <service-name> with `bfs-ai-lab-service` or `acme-service`.
 
 ### 10.7 Database Impact of the Branding Branch
 
@@ -1217,6 +1240,65 @@ Substantial changes since the 28 Aug 2026 architecture doc:
 - `PERFORMANCE_OPTIMIZATION.md` (new) — optimization trail
 - `Live_Signal_feed.md` (updated) — signal feed mechanics
 - This doc supersedes the three previous `architecture_flow_*.md` files
+
+## 13. Changelog — State as of 23 Sep 2026 (Branding, Synthesis, Three-Brand, Adjacent Validator)
+
+Sections §1–§12 above document the platform as of 20 Sep 2026 (Flavor 2) and 20 Sep 2026 (Flavor 1). This section brings the record forward to **23 September 2026**, covering four waves of change: the runtime brand toggle (21 Sep), the `primary_trigger` synthesis addition and cache TTL work (22 Sep), the three-brand extension (23 Sep), and the `adjacent_opportunities` validator (23 Sep).
+
+The affected inline sections (§2, §5.5, §5.7, §10.1, §10.5, §10.6) have been updated in place. This changelog summarises what moved.
+
+### Branding (21 Sep — 23 Sep)
+
+- **Runtime brand toggle.** A `BRAND` environment variable selects a brand profile at service startup. `BRAND_PROFILES` is a dict in `main.py` (27 keys, three brands: `ING`, `BFS_AI_LAB`, `ACME_FINANCIAL`).
+- **Three Cloud Run services from one image.** `ing-fm-poc-service` (ING), `bfs-ai-lab-service` (BFS AI Lab), `acme-service` (Acme Financial). Same Dockerfile, same Cloud SQL, same database.
+- **Read-path brand substitution.** `_brand_substitute` applies `\bING\b` → active brand name to 10 DB- and LLM-sourced text fields in `/api/opportunities`. Python-only, no DB mutation, no-op for ING, emails untouched.
+- **Deck colour reassignment at build time.** Three module-level constants (`ING_ORANGE`, `ING_NAVY`, `ING_LIGHT_ORANGE`) reassigned from profile hex values at the top of `build_pitchbook()`. All 29 existing usages keep working.
+- **Frontend brand state.** Seven CSS custom properties set on `document.documentElement`; `document.title` set from `brand.name`. Loading gate blocks render until the brand resolves.
+- **Third deploy alias.** `deploy-acme` added to `~/.bashrc`, matching `deploy-poc` and `deploy-bfs`.
+- **Brand onboarding utility.** `tools/onboard_brand.py` reduces adding a brand to a single command. Guide at `BRAND_ONBOARDING_GUIDE.md`.
+- Full record: `Brand_Toggle_Implementation.md` §1–§11.
+
+### Synthesis (22 Sep)
+
+- **`primary_trigger` — 8th prompt key.** The synthesis prompt now returns eight keys (was seven). `primary_trigger` produces two semicolon-separated datapoint clauses, ≤ 180 characters, grounded in family-scoped priority signals.
+- **`_validate_primary_trigger` and `_resolve_primary_trigger`.** Deterministic five-rule validator; curated fallback dict `PRIMARY_TRIGGER_FALLBACKS` (per-client, per-family). Every rejection logs the rule that failed.
+- **Cache TTL extended to 900s.** From 300s. The RM workflow (dashboard load, review, discussion, download) no longer risks cache expiry mid-session.
+- **Cache invalidation on ingestion.** `_MANDATE_SYNTH_CACHE.pop(cid, None)` after every successful ingestion commit. Next read re-synthesises against the updated corpus.
+- **Ingestion source names client-scoped.** Three Enel-era fallbacks replaced with `<client> Teams Channel` / `<client> Treasury Email` / `<client> WorkFabric Memo`. No cross-client contamination.
+- **Layer-1 dedup condition corrected.** OR → AND. Requires both source name AND content match.
+- **`why_now` extended to 3 sentences.**
+
+### Three-brand extension (23 Sep)
+
+- **`BRAND_PROFILES` key count corrected** from 28 to **27**. All three brands carry the identical key set, verified programmatically.
+- **Third brand added** — Acme Financial (maroon `#701C36` / oxblood `#3A0E1D`). Data-only change: +29 lines in `main.py`, 4 PNGs.
+- **Logo X-position shifted** from `Inches(11.8)` to `Inches(11.6)` in `add_logo()` — applies to all three brands.
+
+### Adjacent-opportunities validator (23 Sep)
+
+- **`ADJACENT_OPPORTUNITY_FALLBACKS` dict** — per-client (CLI101, CLI103), per-family (`_GREEN_ESG`, `_DCM_REFI`, `_RATES_HEDGE`, `_FX_HEDGE`), plus `_FALLBACK` last-resort.
+- **`_validate_adjacent_opportunities()`** — non-empty, ≥ 100 chars, ≥ 40 words.
+- **`_resolve_adjacent_opportunities()`** — applies validator; substitutes the fallback on rejection; logs the reason.
+- **Cache tuple extended 9 → 10.** New element carries `adjacent_opportunities_source` (`llm` / `fallback` / `error`). Old cached entries readable via `len() > 9` guard.
+- **New API response field `adjacent_opportunities_source`.** Metadata only.
+- **Slide 3 Adjacent card now guaranteed populated.** Prior behaviour: empty LLM output cached for 900s, Slide 3 rendered the placeholder. New behaviour: validator runs before cache write.
+- **Bug fix — `_client_id_for_fallback`.** Was set to `str(client_name)` (display name like `"Enel S.p.A."`) rather than the client ID, so the per-client branch of `PRIMARY_TRIGGER_FALLBACKS` never fired. Corrected to use `client_id` from the call site.
+
+### Section-level updates applied
+
+- **§2 High-Level Architecture** — updated to show three Cloud Run services and the brand toggle
+- **§5.5 TTL Cache** — updated to the 10-tuple shape and the pre-cache validator step
+- **§5.7 Adjacent Opportunities** — updated with the validator + fallback description
+- **§10.1 Cloud Run** — three services listed
+- **§10.5 Deployment Commands** — three aliases
+- **§10.6 Public Access** — BFS + Acme IAM commands
+
+### Cross-references
+
+- `Brand_Toggle_Implementation.md` §11 — three-brand extension record
+- `SYSTEM_ARCHITECTURE_&_DATA_CONTRACT_GUARDRAIL_20Sep_WeightedFamily.md` §6b — data contract addendum
+- `MASTER_PERSONA_23Sep2026.md` §13 — full changelog including the adjacent validator
+- `BRAND_ONBOARDING_GUIDE.md` — the onboarding workflow
 
 ---
 

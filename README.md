@@ -1,18 +1,20 @@
 # ING Financial Markets Deal Intelligence Platform
 
-**Current branch:** `feat/bfs-ai-lab-brand-toggle`
+**Current branch:** `feat/adjacent-opportunities-fallback`
 **Base flavor:** Weighted-Family + Adjacencies (Flavor 2)
-**Date:** 21 September 2026
-**Status:** Both services deployed and verified
+**Brand extension:** Runtime three-brand toggle (ING + BFS AI Lab + Acme Financial)
+**Date:** 23 September 2026
+**Status:** Three services deployed and verified; brand onboarding tool + `adjacent_opportunities` fix live
 
 Internal use only. This repository contains environment-specific identifiers (GCP project, Secret Manager names) intended for internal use.
 
-This branch ships a **runtime brand toggle** on top of Flavor 2. The same codebase — one branch, one Docker image, one PostgreSQL database — deploys as two independent Cloud Run services that render different brands. Brand selection is an environment variable, not a code fork, not a UI control, not a separate database.
+This branch ships a **runtime brand toggle** on top of Flavor 2. The same codebase — one branch, one Docker image, one PostgreSQL database — deploys as three independent Cloud Run services that render different brands. Brand selection is an environment variable, not a code fork, not a UI control, not a separate database.
 
 | Service | Env var | Renders |
 |---|---|---|
 | `ing-fm-poc-service` | `BRAND=ING` | ING branding — orange accent, ING logos, "ING Copilot" |
 | `bfs-ai-lab-service` | `BRAND=BFS_AI_LAB` | BFS AI Lab branding — turquoise accent, Cognizant BFS AI Lab logos, "BFS AI Lab Copilot" |
+| `acme-service` | `BRAND=ACME_FINANCIAL` | Acme Financial branding — maroon accent, Acme logos, "Acme Financial Copilot" |
 
 Both services read the same `ca.*` tables. Brand-specific text is substituted at read time on the way out of the API. No database content is neutralised or duplicated.
 
@@ -20,7 +22,7 @@ The branding feature is documented in full at `Docs/WeightedFamily/Brand_Toggle_
 
 ---
 
-## 1. Two Brands, One Image
+## 1. Three Brands, One Image
 
 ### The toggle
 
@@ -29,13 +31,14 @@ A single environment variable — `BRAND` — selects the active profile at serv
 - Unset → defaults to ING. The ING service renders identically to its pre-toggle state.
 - `BRAND=ING` → the ING profile.
 - `BRAND=BFS_AI_LAB` → the BFS AI Lab profile.
+- `BRAND=ACME_FINANCIAL` → the Acme Financial profile.
 - Unrecognized value → logs a warning naming the invalid value and the valid options, then falls back to ING.
 
 The warning is deliberate — silent fallbacks hide errors. This is a lesson carried over from a past bug where a `NameError` inside a `try/except` masked a broken code path for sessions.
 
 ### What the profile controls
 
-Each brand profile is a flat dict in `main.py` (`BRAND_PROFILES`). Twenty-eight keys covering:
+Each brand profile is a flat dict in `main.py` (`BRAND_PROFILES`). **Twenty-seven keys**, identical across all three brands (verified programmatically). The keys cover:
 
 - **Display strings** — name, full name, Copilot name, footer, attribution, API title
 - **Logos** — white-background and orange-background filenames, render height in inches
@@ -46,33 +49,59 @@ Each brand profile is a flat dict in `main.py` (`BRAND_PROFILES`). Twenty-eight 
 
 Full key list and both profile values in `Docs/WeightedFamily/Brand_Toggle_Implementation.md` §3.
 
-### Two shell aliases
+### Three shell aliases
 
-Both defined in `~/.bashrc`. Same underlying `gcloud run deploy --source .` — the only differences are the service name and the `BRAND` value.
+All defined in `~/.bashrc`. Same underlying `gcloud run deploy --source .` — the only differences are the service name and the `BRAND` value.
 
 ```bash
 deploy-poc    # ing-fm-poc-service    with BRAND=ING
 deploy-bfs    # bfs-ai-lab-service    with BRAND=BFS_AI_LAB
+deploy-acme   # acme-service          with BRAND=ACME_FINANCIAL
 ```
 
 Each runs the full two-stage Docker build (Node → Python), pushes to Cloud Run, and routes 100% of traffic to the new revision.
 
+### Onboarding a new brand
+Adding a fourth brand is a one-command operation. The platform was designed so that brand onboarding is data-only — no code changes to `main.py`,`pitchbook_builder.py`, `App.jsx`, or any other source file.
+
+```bash
+python3 tools/onboard_brand.py \
+  --key NORTHWIND \
+  --name "Northwind Capital" \
+  --stage-from assets/northwind_logo_raw.png \
+  --accent "#701C36" \
+  --navy "#3A0E1D" \
+  --prefix-short "NW" \
+  --dry-run
+```
+The utility:
+
+- Derives hover / light / tint colour variants from the two base hexes
+- Crops and resizes the logo, writes it to both assets/ and frontend/public/assets/
+- Interactively collects the five prompt-persona strings (ING template pre-filled, Enter accepts)
+- Builds the 27-key BRAND_PROFILES entry with schema conformance check
+- Patches main.py with a surgical str.replace() at a verified anchor
+- Appends the deploy-<key> alias to ~/.bashrc
+- Writes brands/<KEY>.json as the canonical per-brand record
+
+**Complete walkthrough:** Docs/WeightedFamily/BRAND_ONBOARDING_GUIDE.md — covers the Gemini Canvas prompt for logo generation, Cloud Shell upload workflow, colour selection, deploy, verification, and rollback.
 ---
 
 ## 2. Deployment
 
-### Deploy both services
+### Deploy the services
 
 ```bash
-deploy-poc && deploy-bfs
+deploy-poc && deploy-bfs && deploy-acme
 ```
 
 Each deploy takes 3-5 minutes. The second reuses the Cloud Build cache from the first. Either service can be deployed independently.
 
-### Public access on the BFS service
+## Public access on the new service (BFS + Acme both need it).
 
-New Cloud Run services default to **private**. The ING service was granted `allUsers` invoker access earlier. The BFS service needs the same grant to be reachable from a browser:
+New Cloud Run services default to **private**. The ING service was granted `allUsers` invoker access earlier. BFS and Acme need the same grant to be reachable from a browser:
 
+# BFS AI Lab
 ```bash
 gcloud run services add-iam-policy-binding bfs-ai-lab-service \
     --region=europe-west1 \
@@ -80,11 +109,18 @@ gcloud run services add-iam-policy-binding bfs-ai-lab-service \
     --member="allUsers" \
     --role="roles/run.invoker"
 ```
-
+# Acme Financial
+```bash
+gcloud run services add-iam-policy-binding acme-service \
+    --region=europe-west1 \
+    --project=dulcet-radar-508218-c5 \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+```
 ### Make the BFS service private again
 
 ```bash
-gcloud run services remove-iam-policy-binding bfs-ai-lab-service \
+gcloud run services remove-iam-policy-binding <service-name> \
     --region=europe-west1 \
     --project=dulcet-radar-508218-c5 \
     --member="allUsers" \
@@ -127,7 +163,7 @@ DB_USER=postgres
 DB_NAME=postgres
 GCP_PROJECT=dulcet-radar-508218-c5
 REGION=europe-west1
-BRAND=<ING or BFS_AI_LAB>
+BRAND=<ING or BFS_AI_LAB or ACME_FINANCIAL>
 ```
 
 DB password is mounted from Secret Manager (`db-postgres-pass:latest`).
@@ -147,12 +183,12 @@ The platform has two parallel flavors, each originally on its own feature branch
 
 **Synthesis layer — two new prompt keys.**
 
-The mandate synthesis prompt returns **seven keys** instead of five:
+The mandate synthesis prompt returns **eight keys** instead of five:
 
 - `family` — the product family the LLM classifies the opportunity into: `FX_HEDGE`, `GREEN_ESG`, `RATES_HEDGE`, or `DCM_REFI`
 - `adjacent_opportunities` — an 80-140 word business-English paragraph identifying up to 3 grounded cross-sell angles supported by the signal corpus
 
-Both travel through the 8-tuple synthesis cache to the API response and the pitchbook bundle. Neither is persisted — no `family` or `adjacent_opportunities` column exists on `ca.ca_opportunity_scoring`.
+Both travel through the synthesis cache to the API response and the pitchbook bundle. (The cache tuple has grown over time: 6 → 8 for Flavor 2, 9 for the Acme brand extension, 10 for the `adjacent_opportunities` validator.) Neither `family` nor `adjacent_opportunities` is persisted — no such column exists on `ca.ca_opportunity_scoring`.
 
 **Pitchbook layer — weighted family classification + Slide 3 rework.**
 
@@ -189,7 +225,7 @@ Data architecture, ingestion pipeline, database schema, reset-to-pristine mechan
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  BACKEND — FastAPI + Python 3.11 (main.py)                                  │
-│  · BRAND_PROFILES dict (ING + BFS_AI_LAB), ACTIVE_BRAND selected at startup │
+│  · BRAND_PROFILES dict (ING + BFS_AI_LAB + ACME_FINANCIAL), selected at startup │
 │  · GET /api/brand returns the profile (excludes prompt_* and download_prefix)│
 │  · GET /api/opportunities applies _brand_substitute to 10 text fields       │
 │  · handle_pitchbook_generation calls _set_active_brand before build         │
@@ -274,25 +310,35 @@ No frontend needs to know the toggle exists. It fetches once and renders with wh
 
 ```
 .
+├── tools/
+│   └── onboard_brand.py             # Interactive brand onboarding utility — one command per new brand
+├── brands/                          # Per-brand JSON records (written by tools/onboard_brand.py)
+│   └── README.md                    # Folder documentation
 ├── main.py                          # FastAPI backend — BRAND_PROFILES, /api/brand, read-path substitution
 ├── pitchbook_builder.py             # PPTX generation — _brand() accessor, dynamic colours/logo/positions
 ├── frontend/                        # React source
 │   ├── src/App.jsx                  # Brand fetch, CSS variables, 35 string replacements
 │   ├── index.html                   # Neutral <title> placeholder (React sets the real title)
 │   └── public/assets/
-│       ├── ing_logo_white.png       # ING logo — 15 KB
-│       ├── ing_logo_orange.png      # ING logo — 15 KB
-│       ├── bfs_ai_lab_logo_white.png   # BFS AI Lab logo — 76 KB (optimized)
-│       └── bfs_ai_lab_logo_orange.png  # BFS AI Lab logo — 76 KB (optimized)
+│       ├── ing_logo_white.png           # ING logo — 15 KB
+│       ├── ing_logo_orange.png          # ING logo — 15 KB
+│       ├── bfs_ai_lab_logo_white.png    # BFS AI Lab logo — 76 KB (optimized)
+│       ├── bfs_ai_lab_logo_orange.png   # BFS AI Lab logo — 76 KB (optimized)
+│       ├── acme_logo_white.png          # Acme Financial logo — 125 KB
+│       └── acme_logo_orange.png         # Acme Financial logo — 125 KB (same asset)
 ├── assets/                          # Deck-side logos (same files as frontend/public/assets)
 │   ├── ing_logo_white.png
 │   ├── ing_logo_orange.png
 │   ├── bfs_ai_lab_logo_white.png
-│   └── bfs_ai_lab_logo_orange.png
+│   ├── bfs_ai_lab_logo_orange.png
+│   ├── acme_logo_white.png
+│   └── acme_logo_orange.png
 ├── Docs/                            # Architecture documentation
 │   ├── Prompt_Branding_Work_Continuation.md    # Design brief (pre-implementation)
 │   └── WeightedFamily/              # Flavor 2 + branding documentation
 │       ├── README_WeightedFamily.md
+│       ├── MASTER_PERSONA_23Sep2026.md         # Current persona (three-brand + adjacent fix)
+│       ├── BRAND_ONBOARDING_GUIDE.md           # How to onboard a new brand (with Gemini prompt)
 │       ├── Brand_Toggle_Implementation.md      # Branding implementation record
 │       ├── master_persona_20Sep_WeightedFamily.md
 │       ├── architecture_flow_20Sep_WeightedFamily.md
@@ -318,11 +364,31 @@ No frontend needs to know the toggle exists. It fetches once and renders with wh
 
 | File | Purpose |
 |---|---|
-| `main.py` | FastAPI backend — `BRAND_PROFILES`, `ACTIVE_BRAND`, `_brand_substitute`, `/api/brand`, read-path substitution |
+| `main.py` | FastAPI backend — `BRAND_PROFILES`, `ACTIVE_BRAND`, `_brand_substitute`, `/api/brand`, read-path substitution, `adjacent_opportunities` validator |
 | `pitchbook_builder.py` | PPTX generation — `_set_active_brand`, `_brand`, dynamic colour/logo/position reads |
+| `tools/onboard_brand.py` | Interactive brand onboarding utility — one command per new brand |
+| `brands/<KEY>.json` | Canonical per-brand record (written by the utility) |
 | `frontend/src/App.jsx` | Brand fetch, CSS custom properties, `document.title`, 35 string replacements, loading gate |
 | `frontend/index.html` | Neutral `<title>` placeholder — React replaces it after the brand resolves |
 | `test_parity.py` | 13-gate audit — must pass 13/13 before every deploy |
+
+### Adjacent-opportunities validator (23 Sep fix)
+
+The LLM synthesis returns `adjacent_opportunities` — an 80-140 word paragraph identifying cross-sell angles grounded in the signal corpus. **The LLM occasionally returned an empty string** despite the prompt instruction, and the platform cached that empty value for the full 900s TTL. Slide 3 then showed the fallback placeholder, and the Copilot's conditional fourth section silently disappeared.
+
+**The fix mirrors the `primary_trigger` pattern.** Before the value reaches the cache:
+
+1. **`ADJACENT_OPPORTUNITY_FALLBACKS`** — a curated dict of fallback paragraphs. Per-client (`CLI101` Enel, `CLI103` BASF) plus per-family (`_GREEN_ESG`, `_DCM_REFI`, `_RATES_HEDGE`, `_FX_HEDGE`) plus a `_FALLBACK` last-resort.
+2. **`_validate_adjacent_opportunities()`** — deterministic three-rule check: non-empty, ≥ 100 chars, ≥ 40 words.
+3. **`_resolve_adjacent_opportunities()`** — applies the validator; on rejection, substitutes the fallback (client → family → `_FALLBACK` → literal); logs the reason.
+
+**The cache now stores the resolved value, never an empty string.** The `_MANDATE_SYNTH_CACHE` tuple grew from **9 elements to 10**: the new tenth element carries `adjacent_opportunities_source`. Old cached entries remain readable via the existing `len() > 9` guard, which defaults the source to `"fallback"`. A rolling deploy doesn't break in-flight cached entries — they present the fallback metadata until TTL expires and the next synthesis repopulates the cache with the current shape.
+
+**The API response now carries `adjacent_opportunities_source`** with one of three values: `llm`, `fallback`, or `error`. This field is for observability — nothing reads it yet — but it tells you at a glance whether the LLM's output passed validation.
+
+**Bonus fix in the same commit.** The existing `_client_id_for_fallback` was set to `str(client_name)` (a display name like `"Enel S.p.A."`) rather than the client ID, so the per-client branch of `PRIMARY_TRIGGER_FALLBACKS` never fired. Now uses `client_id`, passed through from the call site.
+
+Full changelog entry in `Docs/WeightedFamily/MASTER_PERSONA_23Sep2026.md` §13.
 
 ---
 
@@ -332,8 +398,10 @@ The `Docs/WeightedFamily/` folder holds the complete documentation set for this 
 
 | Document | Purpose |
 |---|---|
+| **`MASTER_PERSONA_23Sep2026.md`** | **Current persona and architecture context.** Three-brand toggle, brand onboarding tool, `adjacent_opportunities` validator. Read this first for any new session. |
+| **`BRAND_ONBOARDING_GUIDE.md`** | **How to onboard a new brand.** Gemini Canvas prompt for logo generation, Cloud Shell upload workflow, colour selection, utility invocation, deploy, verification, rollback, troubleshooting. |
 | **`Brand_Toggle_Implementation.md`** | **What was built for the runtime brand toggle.** Architecture, profile keys, backend, deck builder, frontend, deploy, verification, recovery points, and nine deviations from the original design brief. |
-| `master_persona_20Sep_WeightedFamily.md` | Persona and architectural context. §2.1 has the full Flavor Differential table. §7.11, §8.7, §13 are Flavor 2-specific. |
+| `master_persona_20Sep_WeightedFamily.md` | Superseded by `MASTER_PERSONA_23Sep2026.md`. Kept for historical reference. |
 | `architecture_flow_20Sep_WeightedFamily.md` | Complete architecture reference. §5.6 (product family classification), §5.7 (adjacent opportunities), §6.5 (Slide 3 layout), §7.2 (Copilot additions), §11 (principles 11-13). |
 | `Data_or_Fabrication_20Sep_WeightedFamily.md` | Zero-fabrication spec. §6.2 (7-key prompt), §6.8 (product family), §6.9 (adjacent opportunities), §9 (Copilot additions), §11.10 (`_FAMILY_KEYWORD_WEIGHTS` sync). |
 | `data_population_20Sep_WeightedFamily.md` | Field-by-field UI lineage. §2.1 (family-derived predicates), §4.6 (Slide 3 update). |
@@ -401,7 +469,7 @@ for o in d:
 "
 ```
 
-### 7.3 Post-deploy — both services
+### 7.3 Post-deploy — all services
 
 ```bash
 SVC_URL=$(gcloud run services describe ing-fm-poc-service --region europe-west1 --project dulcet-radar-508218-c5 --format "value(status.url)")
@@ -458,7 +526,9 @@ Expected: `filename="BFS_AI_LAB_Enel_S.p.A._Pitchbook.pptx"` and a file around 8
 
 ### 7.5 Demo prep notes
 
-**Warm the cache first.** The mandate synthesis cache (`_MANDATE_SYNTH_CACHE`) is per-service, in-memory. The adjacent-opportunities paragraph and priority score come from the cache on deck generation. If the cache is cold, the adjacent card renders the fallback text: *"Additional origination angles will appear here once the mandate synthesis identifies any."*
+**Warm the cache first.** The mandate synthesis cache (`_MANDATE_SYNTH_CACHE`) is per-service, in-memory. The adjacent-opportunities paragraph and priority score come from the cache on deck generation. On a cold cache, the first request triggers a fresh synthesis; the second onward serve from cache.
+
+**The adjacent-opportunities paragraph is now guaranteed non-empty.** As of commit `79cf56e`, the validator runs before the cache write. If the LLM returns empty or too-short, `_resolve_adjacent_opportunities` substitutes a curated fallback. Slide 3 never shows the placeholder text during a demo — the field is populated either from a passing LLM output (`source: llm`) or from the curated fallback (`source: fallback`). Both are valid presentations.
 
 **Warm it by loading the dashboard first.** `/api/opportunities` triggers synthesis on cache miss. Then generate the deck.
 
@@ -483,14 +553,17 @@ Expected: `filename="BFS_AI_LAB_Enel_S.p.A._Pitchbook.pptx"` and a file around 8
 | `main` | Historical reference (Aug 2026). Not actively maintained. |
 | `feat/dulcet-reset-pristine-...17-Sep` | Flavor 1 (Baseline). Preserved. |
 | `feat/dulcet-20Sep-demo-Weighted-LLMProductFamilyIdentification-AdjOppS3` | Flavor 2 (Weighted-Family + Adjacencies). The demo branch — no branding code. |
-| `feat/bfs-ai-lab-brand-toggle` | **This branch.** Flavor 2 plus the runtime brand toggle. |
+| `feat/bfs-ai-lab-brand-toggle` | Preserved milestone. Flavor 2 + two-brand toggle (ING + BFS). Tip `69464f4`. |
+| `feat/complete-working-acme-financial` | Preserved milestone. Flavor 2 + three-brand toggle (ING + BFS AI Lab + Acme Financial). Tip `2ddfbd9`. |
+| `feat/brand-onboarding-tool` | Preserved milestone. Brand onboarding utility (`tools/onboard_brand.py`) + guidebook + `.gitignore` rule + runbook IAM commands. Tip `bfefcf1`. |
+| `feat/adjacent-opportunities-fallback` | **This branch.** Current working line. Fast-forward descendant of `feat/brand-onboarding-tool`. Adds the `adjacent_opportunities` validator + persona update. Tip `46a516e`, tag `working-line-23sep2026`. |
 
 **The demo branch is untouched by the branding work.** If you need the Flavor 2 feature set without branding, check out `feat/dulcet-20Sep-demo-...`. If you need both, check out this branch.
 
-To start new work, branch off the branch you're targeting — not off `main`:
+To start new work, branch off the current working line — not off  `main`:
 
 ```bash
-git checkout feat/bfs-ai-lab-brand-toggle
+git checkout feat/adjacent-opportunities-fallback
 git checkout -b feat/your-new-feature
 ```
 
@@ -518,6 +591,12 @@ Three annotated tags on this branch, pushed to GitHub.
 | `ing-baseline-pre-branding` | `3d1bb16` | BFS logos committed, no branding code — pure ING behaviour |
 | `branding-working-pre-color` | `565d8e3` | Toggle working end-to-end, both services deployed, before the colour rebrand |
 | `branding-complete-enel-only` | `82d75d0` | Full feature — colours, dynamic filename, logo optimization, Enel-only whitelist |
+| `primary-trigger-implemented` | `3b99c3c` | LLM-generated Slide 2 trigger wired through API, deck, preview
+| `cache-ttl-invalidation`	| `d41a837`	| Cache TTL 900s, invalidated on ingestion
+| `ingestion-source-name-fix` | `ce85f57` | Client-scoped ingestion source names; layer-1 dedup AND condition
+| `complete-working-bfs-ing-22sep` | `69464f4` | BFS branch tip, docs only
+| `branding-acme-complete` | `7590d23`	| Acme Financial added as third runtime brand
+| `working-line-23sep2026` | `46a516e` | Current. Brand onboarding tool + adjacent_opportunities validator + three-brand toggle, all deployed and verified.
 
 **Restore a single file from a tag:**
 
@@ -559,12 +638,23 @@ Neither affects content, functionality, or legibility materially.
 - `pitchbook_builder.py:1045` — hardcoded revenue/EBITDA strings that fire if `revenue_str` or `ebitda_str` resolve to `N/A`. Bundle returns populated values.
 - `main.py:602` — swap pre-hedge fallback string mentioning the removed €500M overlay. Fires only when `current_action` is empty.
 
+### Resolved 23 Sep 2026
+- `adjacent_opportunities` empty-output drift. RESOLVED — validator + curated fallback. Commit `79cf56e`. The `adjacent_opportunities_source` field enables observability of how often the fallback fires.
+- `_client_id_for_fallback` bug. RESOLVED — was str(`client_name`) (display name) rather than client ID, so the per-client branch of `PRIMARY_TRIGGER_FALLBACKS` never fired. Now uses `client_id`. Folded into `79cf56e`.
+- Persona 9-tuple → 10-tuple sync. RESOLVED — cache extended to carry `adjacent_opportunities_source`.
+
 ### Sync invariants (must remain aligned)
 
 - `_CREDIT_RATINGS` — `main.py` and `pitchbook_builder.py`
 - `_FAMILY_KEYWORD_WEIGHTS` — `main.py` and `pitchbook_builder.py` (byte-identical)
 - `_DEMO_CLIENT_IDS` / `ACTIVE_UI_CLIENT_IDS` — `main.py` and `App.jsx`
 - `BRAND_PROFILES` — single source in `main.py`; `pitchbook_builder.py` reads from the module-level slot, no copy
+- `BRAND_PROFILES` key parity — all three brands must carry the identical 27-key set
+
+### New 23 Sep 2026
+
+- Tool polish (deferred). `stage_logo()` copies a file onto itself if `--stage-from` already points at assets/<key>_logo_raw.png. Harmless, cosmetic. --stage-from missing-file error message could name the Cloud Shell upload destination.
+- Untracked files at repo root. `Docs/WeightedFamily/ing-fm-poc-platform-overview_6Pager.html`, `Important_details.md`. Deferred.
 
 ### Ingestion pipeline duplicate-row hazard
 
@@ -573,7 +663,9 @@ Neither affects content, functionality, or legibility materially.
 ---
 
 *AI Architect & Developer: Rajarshi Pathak (rajarshi.pathak@cognizant.com) | Senior Manager | AI Consulting CoE*
-*Last updated: 21 September 2026*
-*Branch: `feat/bfs-ai-lab-brand-toggle`*
+*Last updated: 23 September 2026*
+*Branch: `feat/adjacent-opportunities-fallback`*
+*Current persona: `Docs/WeightedFamily/MASTER_PERSONA_23Sep2026.md`*
+*Onboarding guide: `Docs/WeightedFamily/BRAND_ONBOARDING_GUIDE.md`*
 *Brand toggle implementation record: `Docs/WeightedFamily/Brand_Toggle_Implementation.md`*
 ```

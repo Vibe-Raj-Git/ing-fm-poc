@@ -171,6 +171,57 @@ mv ~/Downloads/gemini_logo.png ~/ing-fm-poc/assets/northwind_logo_raw.png
 
 **Why `_raw`?** The utility produces two processed variants (`_white.png` and `_orange.png`). The `_raw` suffix distinguishes the source file from the outputs. It is also excluded from git by a rule in `.gitignore`: `assets/*_raw.png`.
 
+### 4.1.1 Uploading via Cloud Shell UI
+
+If you are working in Cloud Shell, the simplest way to get the logo
+into the repo is the built-in upload button. No `scp`, no
+`gcloud compute scp`, no copying through a shared drive.
+
+**Steps:**
+
+1. Click the **⋮** (three dots) menu in the Cloud Shell toolbar.
+2. Choose **Upload** → **File**.
+3. In the upload dialog, set the destination folder to:
+   `/home/user/ing-fm-poc/assets/`
+4. Select the PNG from your local machine and upload.
+
+The uploaded file will have whatever name your local machine gave it.
+Rename it to match the convention:
+
+```bash
+mv ~/ing-fm-poc/assets/uploaded-name.png \
+   ~/ing-fm-poc/assets/northwind_logo_raw.png
+```
+Verify the upload:
+
+```bash
+ls -la ~/ing-fm-poc/assets/*_raw.png
+The .gitignore rule assets/*_raw.png already excludes it from
+git, so no cleanup is needed after the utility processes it.
+```
+Then run the utility pointing at the staged file:
+
+```bash
+python3 tools/onboard_brand.py \
+  --key NORTHWIND \
+  --name "Northwind Capital" \
+  --stage-from assets/northwind_logo_raw.png \
+  --accent "#701C36" \
+  --navy "#3A0E1D" \
+  --prefix-short "NW" \
+  --dry-run
+```
+Note the --stage-from value is a relative path
+(assets/northwind_logo_raw.png) rather than an absolute
+~/Downloads/... path. Both forms work; the relative form is
+shorter and matches the repo layout.
+
+If the upload fails silently (rare, but seen in older Cloud Shell
+versions), refresh the browser tab, then re-check with
+ls -la ~/ing-fm-poc/assets/. Cloud Shell preserves the home
+directory across session restarts, so an upload only needs to
+succeed once.
+
 ### 4.2 Automatic staging
 
 You can skip the manual `mv` entirely by using the utility's `--stage-from` flag:

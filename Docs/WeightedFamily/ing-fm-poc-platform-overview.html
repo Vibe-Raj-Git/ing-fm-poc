@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Financial Markets Deal Intelligence Platform — Overview</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -314,7 +315,24 @@
     color: #334155;
   }
 
-  .slide-item strong { color: #0F172A; }
+    .slide-item strong { color: #0F172A; }
+
+  .mermaid-wrap {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 20px 16px;
+    background: #FAFBFC;
+    margin: 14px 0 22px;
+    overflow-x: auto;
+    text-align: center;
+  }
+
+  .mermaid-wrap pre.mermaid {
+    margin: 0;
+    background: transparent;
+    font-family: inherit;
+    text-align: center;
+  }
 
   @media (max-width: 720px) {
     .page { padding: 32px 24px; margin: 12px auto; border-radius: 0; }
@@ -462,6 +480,162 @@
   <p class="lead">Three-tier application on Google Cloud. Serverless compute, managed database, LLM orchestration on Vertex AI. Zero infrastructure to operate. Cold start under six seconds, warm response under one second.</p>
 
   <h2><span class="num">04</span>Three-Tier Stack</h2>
+
+  <h3 class="subhead">Platform Flow — Read Path</h3>
+  <div class="mermaid-wrap">
+    <pre class="mermaid">
+flowchart LR
+  classDef client fill:#F1F5F9,stroke:#94A3B8,color:#0F172A
+  classDef api fill:#FFF0E6,stroke:#FF6200,color:#0F172A
+  classDef read fill:#E0F2FE,stroke:#0EA5E9,color:#0F172A
+  classDef data fill:#E0E7FF,stroke:#000066,color:#0F172A
+  classDef output fill:#F8FAFC,stroke:#CBD5E1,color:#0F172A
+
+  UI["Browser<br/>React 18"]
+
+  subgraph API["FastAPI on Cloud Run"]
+    BRAND["/api/brand<br/>brand profile<br/>(from BRAND_PROFILES)"]
+    OPP["/api/opportunities"]
+  end
+
+  subgraph READ["Read + Synthesise"]
+    direction TB
+    FETCH["Fetch bundle<br/>anchor + 20 signals"]
+    SYNTH["Gemini synthesis<br/>anchor-first prompt<br/>returns family + 8 keys"]
+    VALID["Validators<br/>primary_trigger · adjacent"]
+    CACHE["TTL cache<br/>10-tuple · 900s<br/>cold → fresh synthesis"] 
+    SUBS["Brand substitute<br/>10 text fields"]
+  end
+
+  SQL[("Cloud SQL<br/>ca.* tables")]
+  LLM[("Vertex AI<br/>gemini-2.5-flash")]
+
+  subgraph OUT["UI Render"]
+    direction TB
+    CARDS["Opportunity Cards"]
+    S3["Slide 3<br/>Executive Summary"]
+    COP["Copilot"]
+  end
+
+  UI --> BRAND
+  UI -->|GET| OPP
+  OPP --> FETCH
+  FETCH --> SQL
+  FETCH --> SYNTH
+  SYNTH --> LLM
+  SYNTH --> VALID
+  VALID --> CACHE
+  CACHE --> SUBS
+  SUBS --> OPP
+  OPP --> CARDS
+  OPP --> S3
+
+  class UI client
+  class BRAND,OPP api
+  class FETCH,SYNTH,VALID,CACHE,SUBS read
+  class SQL,LLM data
+  class CARDS,S3,COP output
+    </pre>
+  </div>
+
+  <h3 class="subhead">Platform Flow — Write Paths</h3>
+  <div class="mermaid-wrap">
+    <pre class="mermaid">
+flowchart LR
+  classDef client fill:#F1F5F9,stroke:#94A3B8,color:#0F172A
+  classDef api fill:#FFF0E6,stroke:#FF6200,color:#0F172A
+  classDef ingest fill:#DCFCE7,stroke:#22C55E,color:#0F172A
+  classDef deck fill:#EDE9FE,stroke:#8B5CF6,color:#0F172A
+  classDef data fill:#E0E7FF,stroke:#000066,color:#0F172A
+  classDef output fill:#F8FAFC,stroke:#CBD5E1,color:#0F172A
+
+  UI["Browser<br/>React 18"]
+
+  subgraph API["FastAPI on Cloud Run"]
+    ING["/api/ingest/text|file"]
+    DECK["/api/pitchbook/generate"]
+  end
+
+  subgraph INGPATH["Ingestion Path"]
+    direction TB
+    EXT["Gemini extract<br/>detected_signals"]
+    DEDUP["Two-layer dedup<br/>exact · semantic"]
+    PERSIST["Persist<br/>signals + chunks"]
+  end
+
+  subgraph DECKPATH["Deck Path"]
+    direction TB
+    SETB["_set_active_brand"]
+    BUILD["build_pitchbook<br/>detect_product_family<br/>+ template selection<br/>+ 11 slides"]
+    PROPS["core_properties<br/>author · title"]
+  end
+
+  SQL[("Cloud SQL<br/>ca.digital_twin_signals<br/>ca.document_vector_chunks")]
+  LLM[("Vertex AI<br/>gemini-2.5-flash")]
+  EMB[("Vertex AI<br/>text-embedding-004")]
+  CACHE["TTL cache<br/>pop(cid)"]
+
+  subgraph OUT["Output"]
+    direction TB
+    PPTX["PPTX<br/>11 slides"]
+  end
+
+  UI -->|POST| ING
+  UI -->|POST| DECK
+
+  ING --> EXT
+  EXT -->|calls| LLM
+  EXT --> DEDUP
+  DEDUP --> PERSIST
+  PERSIST -->|writes signals + chunks| SQL
+  PERSIST -->|requests 768-dim embedding| EMB
+  PERSIST -.->|invalidate| CACHE
+
+  DECK --> SETB
+  SETB --> BUILD
+  BUILD -->|reads bundle| SQL
+  BUILD --> PROPS
+  PROPS --> PPTX
+
+  class UI client
+  class ING,DECK api
+  class EXT,DEDUP,PERSIST ingest
+  class SETB,BUILD,PROPS deck
+  class SQL,LLM,EMB data
+  class PPTX output
+    </pre>
+  </div>
+
+  <h3 class="subhead">Administrative Operations</h3>
+  <div class="mermaid-wrap">
+    <pre class="mermaid">
+flowchart LR
+  classDef admin fill:#FEF3C7,stroke:#F59E0B,color:#0F172A
+  classDef data fill:#E0E7FF,stroke:#000066,color:#0F172A
+
+  SNAP[("baseline_snapshots.json<br/>snapshot file")]
+
+  subgraph ADMIN["Administrative Operations"]
+    direction TB
+    RESET["POST /api/system/reset-baseline"]
+    RESTORE["Non-destructive restore<br/>upsert pristine rows<br/> delete-then-insert on PK-less tables"]
+    POP["Pop synthesis cache"]
+  end
+
+  SQL[("Cloud SQL<br/>ca.* tables")]
+  CACHE["TTL cache<br/>_MANDATE_SYNTH_CACHE"]
+
+  RESET -->|reads| SNAP
+  RESET --> RESTORE
+  RESTORE -->|writes| SQL
+  RESTORE --> POP
+  POP -.->|invalidates| CACHE
+
+  class RESET,RESTORE,POP admin
+  class SNAP,SQL,CACHE data
+    </pre>
+  </div>
+
   <div class="grid-3">
     <div class="card tinted">
       <h3>Presentation</h3>
@@ -1028,5 +1202,29 @@
   </div>
 </div>
 
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontSize: '12px',
+      primaryColor: '#FFFFFF',
+      primaryTextColor: '#0F172A',
+      primaryBorderColor: '#CBD5E1',
+      lineColor: '#94A3B8',
+      secondaryColor: '#F8FAFC',
+      tertiaryColor: '#F1F5F9'
+    },
+    flowchart: {
+      curve: 'linear',
+      padding: 16,
+      nodeSpacing: 24,
+      rankSpacing: 32,
+      useMaxWidth: true,
+      htmlLabels: true
+    }
+  });
+</script>
 </body>
 </html>

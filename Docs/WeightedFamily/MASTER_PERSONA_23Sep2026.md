@@ -4,7 +4,7 @@
 **Status:** Authoritative
 **Primary flavor:** Weighted-Family + Adjacencies (Flavor 2)
 **Branding extension:** Runtime three-brand toggle (ING + BFS AI Lab + Acme Financial)
-**Branch (current):** `feat/complete-working-acme-financial`
+**Branch (current):** `feat/adjacent-opportunities-fallback` — the working line. Contains every commit from all prior feature branches plus the brand onboarding utility (`tools/onboard_brand.py`, guide at `Docs/WeightedFamily/BRAND_ONBOARDING_GUIDE.md`) and the `adjacent_opportunities` validator fix. `feat/brand-onboarding-tool` (tip `bfefcf1`) and `feat/complete-working-acme-financial` (tip `2ddfbd9`) remain as preserved milestones.
 **Previous branch:** `feat/bfs-ai-lab-brand-toggle` (tip: `69464f4`, tag `complete-working-bfs-ing-22sep`)
 **Parallel flavors:** Baseline (Flavor 1) and Flavor 2 demo branch (see §2.1)
 **Purpose:** Sets the working persona and full architectural context for AI-assisted sessions on the ING Financial Markets Deal Intelligence platform.
@@ -80,7 +80,7 @@ The project exists in three parallel forms, each on its own branch. They share t
 | **Flavor 2 (Weighted-Family + Adjacencies)** | `feat/dulcet-20Sep-demo-Weighted-LLMProductFamilyIdentification-AdjOppS3` | Flavor 1 plus: LLM-returned `family` validated by `_FAMILY_KEYWORD_WEIGHTS` weighted scoring; grounded `adjacent_opportunities` paragraph; three-card Slide 3 with pillars moved to the orange panel; Copilot conditional fourth response section; `ensure_ascii=False` fix for €. |
 | **Branding (Flavor 2 + runtime brand toggle)** | `feat/bfs-ai-lab-brand-toggle` (previous) — `feat/complete-working-acme-financial` (current) | Flavor 2 plus: `BRAND_PROFILES` dict in `main.py`, `/api/brand` endpoint, `_brand_substitute` read-path substitution, module-level brand slot in `pitchbook_builder.py`, 130 hex → CSS variable replacements in `App.jsx`, dynamic download filename, dynamic logo height, dynamic cover-slide text, deck `core_properties` attribution, Enel-only whitelist. **Three runtime brands: ING, BFS AI Lab, Acme Financial.** ⟨23Sep⟩
 
-**Working branch is always `feat/complete-working-acme-financial` unless specified.** ⟨23Sep⟩
+**Working branch is always `feat/adjacent-opportunities-fallback` unless specified.** ⟨23Sep⟩ This branch inherited the entire history from `feat/dulcet-reset-pristine-...17-Sep` (Flavor 1), `feat/dulcet-20Sep-demo-...AdjOppS3` (Flavor 2), `feat/bfs-ai-lab-brand-toggle` (BFS branding), `feat/complete-working-acme-financial` (Acme + persona), and `feat/brand-onboarding-tool` (onboarding utility + guidebook). It then added the `adjacent_opportunities` validator (`79cf56e`) and the persona update (`e688ebe`). Nothing from any prior branch is missing.
 
 ### 2.1 Flavor Differential (Flavor 1 vs Flavor 2)
 
@@ -482,8 +482,9 @@ Expected: `author: 'Rajarshi Pathak (rajarshi.pathak@cognizant.com)'`, `title: '
 | `feat/dulcet-reset-pristine-...17-Sep` | Flavor 1 (Baseline). Preserved. |
 | `feat/dulcet-20Sep-demo-Weighted-LLMProductFamilyIdentification-AdjOppS3` | Flavor 2 demo. Untouched by branding. |
 | `feat/bfs-ai-lab-brand-toggle` | Previous working line. Flavor 2 + two-brand toggle (ING + BFS). Tip at `69464f4`, tag `complete-working-bfs-ing-22sep`. |
-| **⟨23Sep⟩ `feat/adjacent-opportunities-fallback`** | **Short-lived fix branch.** `adjacent_opportunities` validator + curated fallback (commit `79cf56e`). Cut from `feat/brand-onboarding-tool` at `bfefcf1`. Merge into the working line when stable. |
-| **⟨23Sep⟩ `feat/complete-working-acme-financial`** | **Current.** Flavor 2 + three-brand toggle (ING + BFS AI Lab + Acme Financial). |
+| **⟨23Sep⟩ `feat/adjacent-opportunities-fallback`** | **Current working line.** Fast-forward descendant of `feat/brand-onboarding-tool` at `bfefcf1`. Adds the `adjacent_opportunities` validator (`79cf56e`) and the persona update (`e688ebe`). Contains the complete history of every prior feature branch plus the brand onboarding utility and guidebook. |
+| **⟨23Sep⟩ `feat/complete-working-acme-financial`** | **Preserved milestone.** Flavor 2 + three-brand toggle (ING + BFS AI Lab + Acme Financial). Tip `2ddfbd9`. |
+| **⟨23Sep⟩ `feat/brand-onboarding-tool`** | **Preserved milestone.** Adds `tools/onboard_brand.py` + `brands/README.md` + `.gitignore` rule + `Docs/WeightedFamily/BRAND_ONBOARDING_GUIDE.md`. Tip `bfefcf1`. Merged forward into `feat/adjacent-opportunities-fallback`. |
 
 ### Recovery Tags
 
@@ -587,6 +588,14 @@ At `~/ing-fm-poc-backups/`: `20260921_042605` (pre-branding), `20260921_054602_s
 ---
 
 ## 13. CHANGELOG
+
+### ⟨23Sep⟩ 23 Sep 2026 — Branch consolidation
+
+**Working line advances to `feat/adjacent-opportunities-fallback`.** The branch was cut from `feat/brand-onboarding-tool` at `bfefcf1` and adds two commits: the `adjacent_opportunities` validator fix (`79cf56e`) and the persona update (`e688ebe`). It is a strict fast-forward descendant of every prior feature branch — verified by `git merge-base --is-ancestor` against all milestone tags, and by `git diff` confirming only `main.py` + new tool/doc files differ from the Acme branch. No project code was left behind.
+
+**Onboarding utility now carries forward on the working line.** `tools/onboard_brand.py`, `brands/README.md`, `Docs/WeightedFamily/BRAND_ONBOARDING_GUIDE.md`, and the `.gitignore` `assets/*_raw.png` rule all live on `feat/adjacent-opportunities-fallback`. Adding a new brand is one command.
+
+`feat/brand-onboarding-tool` (tip `bfefcf1`), `feat/complete-working-acme-financial` (tip `2ddfbd9`), and `feat/bfs-ai-lab-brand-toggle` (tip `69464f4`) remain as preserved milestones.
 
 ### ⟨23Sep⟩ 23 Sep 2026 — `adjacent_opportunities` validator
 
@@ -779,7 +788,7 @@ Acme Financial
 
 **In any future session, open with:**
 
-> *Read `Docs/WeightedFamily/MASTER_PERSONA_23Sep2026.md` for full context. Working branch is `feat/complete-working-acme-financial`. Confirm orientation and wait for my direction.*
+> *Read `Docs/WeightedFamily/MASTER_PERSONA_23Sep2026.md` for full context. Working branch is `feat/adjacent-opportunities-fallback` — the consolidated line carrying every prior feature branch plus the brand onboarding utility and the adjacent_opportunities fix. Confirm orientation and wait for my direction.*
 
 The session picks up from there.
 

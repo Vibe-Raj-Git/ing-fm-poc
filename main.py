@@ -253,6 +253,66 @@ PRIMARY_TRIGGER_FALLBACKS = {
     "_DCM_REFI":    "Maturity concentration identified; refinancing window open at current spread levels",
 }
 
+# Curated fallback paragraphs for adjacent_opportunities.
+# Used when the LLM returns an empty or too-short value.
+# Per-client entries take precedence over per-family entries.
+ADJACENT_OPPORTUNITY_FALLBACKS = {
+    "CLI101": (
+        "Beyond the immediate sustainable funding, Enel's treasury planning window "
+        "indicates several adjacent opportunities. A comprehensive review of interest "
+        "rate risk is warranted given the material increase in financing costs from "
+        "legacy debt at 1.20% to current indicative yields of 4.5%-5.0%. Furthermore, "
+        "the potential for USD FX exposure, highlighted by recent USD issuance and a "
+        "multi-channel treasury review, suggests a need for FX hedging strategies. "
+        "Finally, with board authorization for up to €12bn in financing through "
+        "March 2027, there is scope for broader DCM advisory on the overall funding "
+        "calendar and mix."
+    ),
+    "CLI103": (
+        "Beyond the proposed EMTN refinancing, three adjacent origination angles warrant "
+        "attention. First, the fixed-charge coverage trajectory (68% to 46% against a 60% "
+        "policy floor) suggests a review of the optimal fixed-versus-floating mix. Second, "
+        "the FY26/27 financing capacity of EUR 4.0bn points to a refinancing calendar "
+        "optimization across the 2026-2028 maturity buckets. Third, the existing green "
+        "capex programme could support a green-labelled tranche evaluation, subject to "
+        "eligibility criteria."
+    ),
+    "_GREEN_ESG": (
+        "Beyond the proposed green financing, adjacent origination angles include an "
+        "assessment of the broader sustainable finance toolkit (SLB, sustainability-linked "
+        "derivatives), a review of the eligible asset pool for future green issuances, and "
+        "advisory on the optimal sequencing of sustainable instruments across the funding "
+        "calendar."
+    ),
+    "_DCM_REFI": (
+        "Beyond the proposed refinancing, adjacent origination angles include a full "
+        "maturity wall review to optimise the refinancing calendar, an assessment of "
+        "pre-funding opportunities ahead of peak maturity windows, and advisory on the "
+        "optimal mix of benchmark, private placement, and bank financing."
+    ),
+    "_RATES_HEDGE": (
+        "Beyond the proposed rates hedge, adjacent origination angles include a broader "
+        "interest rate risk review across the full debt stack, an evaluation of the "
+        "fixed-versus-floating mix against the current curve, and a pre-hedge window "
+        "assessment ahead of the next refinancing event."
+    ),
+    "_FX_HEDGE": (
+        "Beyond the proposed FX overlay, adjacent origination angles include a full "
+        "currency exposure review across cash flows and balance sheet items, an assessment "
+        "of hedge ratios and tenors against forecast exposures, and a multi-currency "
+        "financing review to align debt currency with revenue currency."
+    ),
+    "_FALLBACK": (
+        "Beyond the proposed transaction, adjacent origination angles include a broader "
+        "review of the client's capital structure, an assessment of near-term refinancing "
+        "events across the maturity wall, and advisory on optimal funding mix across the "
+        "available instruments."
+    ),
+}
+
+# Minimum word count for adjacent_opportunities (prompt asks for 80-140).
+_ADJACENT_MIN_WORDS = 40
+
 # Marketing adjectives forbidden in primary_trigger output.
 _MARKETING_WORDS = {
     "offering", "clear", "advantage", "significant", "opportunity",
@@ -301,6 +361,36 @@ def _resolve_primary_trigger(client_id: str, resolved_family: str, raw_trigger: 
         PRIMARY_TRIGGER_FALLBACKS.get(client_id)
         or PRIMARY_TRIGGER_FALLBACKS.get(f"_{resolved_family}")
         or "Active capital structure optimization"
+    )
+    return fallback, "fallback"
+
+
+def _validate_adjacent_opportunities(text: str):
+    """Deterministic validation for LLM-generated adjacent_opportunities.
+    Returns (is_valid: bool, reason: str)."""
+    if not text:
+        return False, "empty"
+    text = text.strip()
+    if len(text) < 100:
+        return False, f"too short ({len(text)} chars)"
+    words = text.split()
+    if len(words) < _ADJACENT_MIN_WORDS:
+        return False, f"only {len(words)} words, need >= {_ADJACENT_MIN_WORDS}"
+    return True, "ok"
+
+
+def _resolve_adjacent_opportunities(text: str, client_id: str, resolved_family: str):
+    """Apply validator; fall back to curated paragraph on failure.
+    Returns (final_text, source) where source is 'llm' or 'fallback'."""
+    ok, reason = _validate_adjacent_opportunities(text)
+    if ok:
+        return text.strip(), "llm"
+    logger.info(f"adjacent_opportunities validation failed for {client_id} (family={resolved_family}): {reason}. Using fallback.")
+    fallback = (
+        ADJACENT_OPPORTUNITY_FALLBACKS.get(client_id)
+        or ADJACENT_OPPORTUNITY_FALLBACKS.get(f"_{resolved_family}")
+        or ADJACENT_OPPORTUNITY_FALLBACKS.get("_FALLBACK")
+        or "Additional origination angles will appear here once the mandate synthesis identifies any."
     )
     return fallback, "fallback"
 
@@ -789,7 +879,8 @@ def synthesize_mandate_catalyst(
     base_action: str = "",
     all_signals: list = None,
     current_why_now: str = "",
-    current_action: str = ""
+    current_action: str = "",
+    client_id: str = ""
 ) -> dict:
     latent_str = "; ".join(latent_opps) if latent_opps else "Capital structure optimization and hedging review"
     current_why_now = (current_why_now or "").strip() or "(not yet curated)"
@@ -960,11 +1051,17 @@ CONSTRAINTS:
         res_data = json.loads(response.text)
         _resolved_fam_final = res_data.get("family") or _resolved_fam
         _raw_trigger = str(res_data.get("primary_trigger") or "")
-        _client_id_for_fallback = str(client_name)
+        _client_id_for_fallback = str(client_id or client_name)
         _final_trigger, _trigger_source = _resolve_primary_trigger(
             client_id=_client_id_for_fallback,
             resolved_family=_resolved_fam_final,
             raw_trigger=_raw_trigger,
+        )
+        _raw_adjacent = str(res_data.get("adjacent_opportunities") or "")
+        _final_adjacent, _adjacent_source = _resolve_adjacent_opportunities(
+            text=_raw_adjacent,
+            client_id=_client_id_for_fallback,
+            resolved_family=_resolved_fam_final,
         )
         return {
             "why_now": res_data.get("why_now") or res_data.get("catalyst_rationale") or fallback_why,
@@ -973,13 +1070,22 @@ CONSTRAINTS:
             "action_summary": res_data.get("action_summary") or "",
             "priority_score": res_data.get("priority_score"),
             "family": _resolved_fam_final,
-            "adjacent_opportunities": res_data.get("adjacent_opportunities") or "",
+            "adjacent_opportunities": _final_adjacent,
+            "adjacent_opportunities_source": _adjacent_source,
             "primary_trigger": _final_trigger,
             "primary_trigger_source": _trigger_source
         }
     except Exception as e:
         logger.warning(f"Error generating mandate synthesis for {client_name}: {e}")
-        return {"why_now": fallback_why, "action": fallback_act, "why_now_summary": "", "action_summary": "", "priority_score": None, "family": None, "adjacent_opportunities": "", "primary_trigger": "", "primary_trigger_source": "error"}
+        _err_client_id = str(client_id or client_name)
+        _err_family = locals().get("_resolved_fam_final") or product_family or ""
+        _err_adjacent = (
+            ADJACENT_OPPORTUNITY_FALLBACKS.get(_err_client_id)
+            or ADJACENT_OPPORTUNITY_FALLBACKS.get(f"_{_err_family}")
+            or ADJACENT_OPPORTUNITY_FALLBACKS.get("_FALLBACK")
+            or ""
+        )
+        return {"why_now": fallback_why, "action": fallback_act, "why_now_summary": "", "action_summary": "", "priority_score": None, "family": None, "adjacent_opportunities": _err_adjacent, "adjacent_opportunities_source": "error", "primary_trigger": "", "primary_trigger_source": "error"}
 
 @app.get("/api/opportunities")
 def get_opportunities():
@@ -1042,6 +1148,7 @@ def get_opportunities():
                 final_priority_score = None
                 final_family = None
                 final_adjacent_opportunities = ""
+                final_adjacent_opportunities_source = "fallback"
 
                 # Resolve primary Relationship Manager from coverage_teams
                 try:
@@ -1337,6 +1444,7 @@ def get_opportunities():
                     final_priority_score = _cached_entry[5] if len(_cached_entry) > 5 else None
                     final_family = _cached_entry[6] if len(_cached_entry) > 6 else None
                     final_adjacent_opportunities = _cached_entry[7] if len(_cached_entry) > 7 else ""
+                    final_adjacent_opportunities_source = _cached_entry[9] if len(_cached_entry) > 9 else "fallback"
                     final_primary_trigger = _cached_entry[8] if len(_cached_entry) > 8 else ""
                     logger.info(f"Mandate synthesis cache HIT for {cid_str}")
                 elif GENAI_AVAILABLE and cid_str in _DEMO_CLIENT_IDS:
@@ -1362,6 +1470,7 @@ def get_opportunities():
                         synth = synthesize_mandate_catalyst(
                             client_name=name_str,
                             product_family=str(opp_type or "SUSTAINABLE FUNDING"),
+                            client_id=str(cid_str),
                             liquidity_eur_m=float(liq or 0),
                             debt_maturing_24m_eur_m=float(m24 or 0),
                             market_metrics=synth_metrics,
@@ -1381,6 +1490,7 @@ def get_opportunities():
                         final_priority_score = synth.get("priority_score")
                         final_family = synth.get("family")
                         final_adjacent_opportunities = synth.get("adjacent_opportunities") or ""
+                        final_adjacent_opportunities_source = synth.get("adjacent_opportunities_source") or "fallback"
                         final_primary_trigger = synth.get("primary_trigger") or ""
 
                         # -----------------------------------------------------------------
@@ -1419,7 +1529,7 @@ def get_opportunities():
                             # fails, the cache must not hold a value the DB does not have.
                             # This prevents the cache/DB divergence bug where the UI shows
                             # a fresh synthesis score that was never persisted.
-                            _MANDATE_SYNTH_CACHE[cid_str] = (_now_ts + _MANDATE_SYNTH_CACHE_TTL, final_why_now, final_action, final_why_now_summary, final_action_summary, final_priority_score, final_family, final_adjacent_opportunities, final_primary_trigger)
+                            _MANDATE_SYNTH_CACHE[cid_str] = (_now_ts + _MANDATE_SYNTH_CACHE_TTL, final_why_now, final_action, final_why_now_summary, final_action_summary, final_priority_score, final_family, final_adjacent_opportunities, final_primary_trigger, final_adjacent_opportunities_source)
                             logger.info(f"Persisted fresh synthesis and cached for {cid_str} (TTL {_MANDATE_SYNTH_CACHE_TTL}s)")
                         except Exception as e_up:
                             logger.warning(f"Could not persist synthesis for {cid_str}: {e_up}")
@@ -1433,6 +1543,7 @@ def get_opportunities():
                         final_priority_score = None
                         final_family = None
                         final_adjacent_opportunities = ""
+                        final_adjacent_opportunities_source = "fallback"
                         final_primary_trigger = ""
                 else:
                     final_why_now = why_now or (f"Active debt refinancing window with maturing debt of €{float(m24):,.0f}M." if float(m24) > 0 else "Active balance sheet review.")
@@ -1442,6 +1553,7 @@ def get_opportunities():
                     final_priority_score = None
                     final_family = None
                     final_adjacent_opportunities = ""
+                    final_adjacent_opportunities_source = "fallback"
                     final_primary_trigger = ""
 
                 opps.append({
@@ -1456,6 +1568,7 @@ def get_opportunities():
                     "score_num": int(final_priority_score) if final_priority_score is not None else int(score_num),
                     "family": final_family,
                     "adjacent_opportunities": _brand_substitute(final_adjacent_opportunities),
+                    "adjacent_opportunities_source": final_adjacent_opportunities_source,
                     "primary_trigger": final_primary_trigger,
                     "chips": chips,
                     "callout": f"{final_why_now} {final_action}".strip(),
@@ -2631,10 +2744,12 @@ async def handle_pitchbook_generation(
             if _pb_cached and len(_pb_cached) > 8 and _pb_cached[0] > _pb_now:
                 bundle["family"] = _pb_cached[6]
                 bundle["adjacent_opportunities"] = _pb_cached[7]
+                bundle["adjacent_opportunities_source"] = _pb_cached[9] if len(_pb_cached) > 9 else "fallback"
                 bundle["primary_trigger"] = _pb_cached[8]
             elif _pb_cached and len(_pb_cached) > 7 and _pb_cached[0] > _pb_now:
                 bundle["family"] = _pb_cached[6]
                 bundle["adjacent_opportunities"] = _pb_cached[7]
+                bundle["adjacent_opportunities_source"] = "fallback"
         except Exception as _pb_e:
             logger.warning(f"Bundle enrichment from synthesis cache failed: {_pb_e}")
 

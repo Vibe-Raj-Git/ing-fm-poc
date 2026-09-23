@@ -53,6 +53,12 @@ gcloud run services add-iam-policy-binding acme-service \
     --member="allUsers" \
     --role="roles/run.invoker"
 
+gcloud run services add-iam-policy-binding testbrand-service \
+    --region=europe-west1 \
+    --project=dulcet-radar-508218-c5 \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+
 # ING Financial Markets AI Agentic Platform — Operational Runbook
 
 Session Restart Quick Start

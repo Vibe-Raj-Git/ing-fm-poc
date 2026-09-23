@@ -12,3 +12,5 @@ frontend/patch_app.js
 
 *.tar.gz
 archive/
+
+assets/*_raw.png

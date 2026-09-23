@@ -46,6 +46,14 @@
   }
 
   .page-header h1 span { color: #FF6200; }
+  
+  .page-header .attribution {
+    font-size: 11px;
+    color: #94A3B8;
+    margin-top: 6px;
+    letter-spacing: 0.1px;
+    font-weight: 500;
+  }
 
   .page-header .badge {
     font-size: 11px;
@@ -356,7 +364,10 @@
 <!-- ═══════════════════════ PAGE 1 — CONTEXT & PROBLEM ═══════════════════════ -->
 <div class="page">
   <div class="page-header">
-    <h1>Financial Markets <span>Deal Intelligence</span> Platform</h1>
+    <div>
+      <h1>Financial Markets <span>Deal Intelligence</span> Platform</h1>
+      <p class="attribution">AI Architect &amp; Developer: Rajarshi Pathak (rajarshi.pathak@cognizant.com) | Senior Manager  | AI Consulting CoE</p>
+    </div>
     <div class="badge">Page 1 of 8 · Context</div>
   </div>
 
@@ -488,7 +499,7 @@
       <p><strong>Deck generation.</strong> <code>POST /api/pitchbook/generate</code> calls <code>_set_active_brand</code> before <code>build_pitchbook</code>. The deck builder reads its colours, logo, footer, and pillar text from the module-level brand slot and produces an 11-slide PPTX. Deck <code>core_properties</code> carry author, comments, timestamp, and title.</p>
     </div>
     <div>
-      <p><strong>Mandate synthesis.</strong> On cache miss, the backend reads the curated anchor from <code>ca_opportunity_scoring</code>, fetches the twenty most recent signals, and calls Gemini with the anchor as the first instruction. The eight-key response travels through the 9-tuple cache to the API and the deck.</p>
+      <p><strong>Mandate synthesis.</strong> On cache miss, the backend reads the curated anchor from <code>ca_opportunity_scoring</code>, fetches the twenty most recent signals, and calls Gemini with the anchor as the first instruction. The eight-key response travels through the 10-tuple cache to the API and the deck.</p>
       <p><strong>Copilot.</strong> <code>POST /api/copilot/chat</code> hydrates the prompt with both the pristine baseline deck state and the current active deck state, so the LLM reasons over exactly what the RM sees. It returns <code>{reply, overrides}</code>: the reply answers the question, the overrides mutate the deck.</p>
     </div>
   </div>
@@ -671,8 +682,7 @@
     <div class="badge">Page 5 of 8 · Generation</div>
   </div>
 
-  <p class="lead">Eleven slides per deck, with titles that vary by product family. Synthesis produces eight keys. The anchor pattern and drift guard ensure the LLM cannot deviate from the curated mandate structure.</p>
-
+  <p class="lead">Eleven slides per deck, with titles that vary by product family. Synthesis produces eight keys. The anchor pattern and drift guard ensure the LLM cannot deviate from the curated mandate structure. Two of the eight keys — <code>primary_trigger</code> and <code>adjacent_opportunities</code> — pass through deterministic validators with curated fallbacks.</p>
   <h2><span class="num">13</span>Eleven-Slide Deck</h2>
   <div class="slide-list">
     <div class="slide-item"><strong>01.</strong> Cover Slide</div>
@@ -709,11 +719,11 @@
     </div>
     <div class="card compact">
       <h3>adjacent_opportunities</h3>
-      <p>80–140 word grounded paragraph. Feeds Slide 3's third card and the Copilot's conditional response section.</p>
+      <p>80–140 word grounded paragraph. Feeds Slide 3's third card and the Copilot's conditional response section. Validated deterministically; falls back to a curated paragraph on empty output.</p>
     </div>
     <div class="card compact">
       <h3>primary_trigger (new)</h3>
-      <p>Two semicolon-separated datapoint clauses under 180 chars. Feeds Slide 2's Primary Market Trigger card. Deterministic validator + curated fallback.</p>
+      <p>Two semicolon-separated datapoint clauses under 180 chars. Feeds Slide 2's Primary Market Trigger card. Five-rule deterministic validator + curated fallback.</p>
     </div>
     <div class="card compact">
       <h3>Anchor</h3>
@@ -724,8 +734,8 @@
       <p>Deterministic post-synthesis check replaces LLM output with the anchor verbatim if conflicting tenors are detected. Prevents narrative drift.</p>
     </div>
     <div class="card compact">
-      <h3>Cache (9-tuple, 900s)</h3>
-      <p>The full 8-key response plus expiry epoch. Populated after commit, invalidated on ingestion. Enables consistent preview-deck parity.</p>
+      <h3>Cache (10-tuple, 900s)</h3>
+      <p>The full 8-key response plus expiry epoch and metadata. Populated after commit, invalidated on ingestion. Enables consistent preview-deck parity.</p>
     </div>
   </div>
 
@@ -912,17 +922,28 @@
     </div>
   </div>
 
-  <h2><span class="num">22</span>Runtime Brand Toggle</h2>
+  <h2><span class="num">22</span>Runtime Brand Toggle &amp; Brand Onboarding</h2>
   <div class="grid-2">
     <div>
-      <p><strong>One codebase, three services.</strong> The same Docker image deploys as <code>ing-fm-poc-service</code> (ING branding), <code>bfs-ai-lab-service</code> (BFS AI Lab branding), and — forthcoming — <code>acme-service</code> (Acme Financial branding). The only difference is the <code>BRAND</code> environment variable.</p>
-      <p><strong>28 keys per profile.</strong> Display strings, logo filenames, logo render height, footer, attribution, houseview fallbacks, RSS URL, eight colour keys, five LLM persona strings, filename prefixes.</p>
+      <p><strong>One codebase, three live services.</strong> The same Docker image deploys as <code>ing-fm-poc-service</code> (ING branding), <code>bfs-ai-lab-service</code> (BFS AI Lab branding), and <code>acme-service</code> (Acme Financial branding). The only difference is the <code>BRAND</code> environment variable.</p>
+      <p><strong>27 keys per profile.</strong> Display strings, logo filenames, logo render height, footer, attribution, houseview fallbacks, RSS URL, eight colour keys, five LLM persona strings, filename prefixes. All three brands carry the identical key set — verified programmatically.</p>
       <p><strong>Read-path substitution.</strong> A word-boundary regex replaces <code>ING</code> with the active brand name in ten DB- and LLM-sourced text fields. No-op for ING. Email addresses untouched — they are factual references, not brand chrome.</p>
     </div>
     <div>
-      <p><strong>Colour palette.</strong> ING: orange <code>#FF6200</code> and navy <code>#000066</code>. BFS AI Lab: turquoise <code>#10C4C0</code> and navy <code>#0A3168</code>, extracted from the logo PNG via pixel census. Acme Financial (forthcoming): maroon and gold from the logo.</p>
+      <p><strong>Colour palette.</strong> ING: orange <code>#FF6200</code> and navy <code>#000066</code>. BFS AI Lab: turquoise <code>#10C4C0</code> and navy <code>#0A3168</code>, extracted from the logo PNG via pixel census. Acme Financial: maroon <code>#701C36</code> and oxblood <code>#3A0E1D</code>.</p>
       <p><strong>Deck colour reassignment.</strong> At the top of <code>build_pitchbook</code>, three brand-tinted colour constants are reassigned from the profile. All twenty-nine existing call sites keep working without change.</p>
       <p><strong>Frontend CSS variables.</strong> Seven custom properties set on <code>document.documentElement</code> after the brand fetch. 130 hardcoded hex values in the React app now reference these variables. Download filenames, browser tab titles, and loading text all follow the active brand.</p>
+    </div>
+  </div>
+  <div class="grid-2" style="margin-top: 18px;">
+    <div class="card tinted">
+      <h3>Adding a New Brand — One Command</h3>
+      <p><code>tools/onboard_brand.py</code> reduces brand onboarding to a single interactive command. It derives the colour variants, processes the logo, collects the five persona strings, inserts the 27-key profile into <code>main.py</code>, appends the deploy alias to <code>~/.bashrc</code>, and writes a canonical JSON record — all with <code>--dry-run</code> preview and rollback on failure.</p>
+      <p>Adding Acme Financial was a data-only change: +29 lines in <code>main.py</code>, no logic changes.</p>
+    </div>
+    <div class="card tinted">
+      <h3>Full Guidebook</h3>
+      <p>The complete workflow — Gemini Canvas prompt for logo generation, Cloud Shell upload, colour selection, <code>--dry-run</code> preview, <code>--apply</code>, deploy, verification, and rollback — is documented in <code>BRAND_ONBOARDING_GUIDE.md</code>.</p>
     </div>
   </div>
 
@@ -969,7 +990,7 @@
     </div>
     <div class="card">
       <h3>Three Services, One Image</h3>
-      <p>All services run the same Docker image and connect to the same database. Deploy via <code>deploy-poc</code>, <code>deploy-bfs</code>, and (forthcoming) <code>deploy-acme</code> shell aliases. Public access controlled by <code>roles/run.invoker</code> IAM bindings.</p>
+      <p>All services run the same Docker image and connect to the same database. Deploy via <code>deploy-poc</code>, <code>deploy-bfs</code>, and <code>deploy-acme</code> shell aliases. Public access controlled by <code>roles/run.invoker</code> IAM bindings.</p>
     </div>
     <div class="card">
       <h3>Cache &amp; Single-Instance Rationale</h3>
@@ -992,12 +1013,12 @@
   <h2><span class="num">26</span>What Comes Next</h2>
   <div class="grid-2">
     <div>
-      <p><strong>Acme Financial brand toggle.</strong> Adding a third brand is a data-only change. One new entry in <code>BRAND_PROFILES</code> plus two logo files. No code changes to the substitution logic, the deck builder, the CSS variables, or the Copilot payload.</p>
       <p><strong>Real-time WorkFabric ingestion.</strong> The platform currently ingests WorkFabric signals and latent opportunities via the ingestion engine. The integration is designed for live API ingestion the moment an endpoint is exposed.</p>
+      <p><strong>Multi-client scaling.</strong> The whitelist scopes the demo to one primary client. The synthesis cache, ingestion dedup, and brand substitution all support multiple clients. The platform is ready to scale the demo corpus.</p>
     </div>
     <div>
-      <p><strong>Multi-client scaling.</strong> The whitelist scopes the demo to one primary client. The synthesis cache, ingestion dedup, and brand substitution all support multiple clients. The platform is ready to scale the demo corpus.</p>
       <p><strong>Statistical refinement of the family classifier.</strong> The weighted vocabulary is hand-curated and defensible today. As the platform accumulates classified anchors, the weights could be refined statistically without changing the interface or the decision logic.</p>
+      <p><strong>Per-client curated adjacent paragraphs.</strong> Today the <code>adjacent_opportunities</code> fallback is a curated dict in <code>main.py</code>. A future enhancement would persist a per-client curated paragraph to the database, letting the desk curate the adjacency narrative alongside the anchor.</p>
     </div>
   </div>
 

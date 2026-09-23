@@ -99,11 +99,10 @@ CREATE TABLE IF NOT EXISTS ca.ext_credit_spreads (
 );
 
 CREATE TABLE IF NOT EXISTS ca.coverage_teams (
-    team_id SERIAL PRIMARY KEY,
     client_id VARCHAR(50),
-    rm_name VARCHAR(255),
-    role VARCHAR(100),
-    email VARCHAR(255)
+    role_title VARCHAR(255),
+    banker_name VARCHAR(255),
+    location VARCHAR(255)
 );
 
 CREATE TABLE IF NOT EXISTS ca.digital_twin_signals (

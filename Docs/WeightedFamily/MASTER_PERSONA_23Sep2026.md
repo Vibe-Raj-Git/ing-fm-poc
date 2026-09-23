@@ -199,12 +199,12 @@ Every displayed value traces to a specific row filtered by `client_id`. Fallback
 | `get_live_signals()` | Signal marquee (whitelist-scoped) |
 | `get_rm_metrics()` | `/api/metrics` — returns four dashboard metrics + priorities |
 | `get_opportunities()` | Core `/api/opportunities` handler — client + market data + synthesis + chips + lineage |
-| `synthesize_mandate_catalyst()` | LLM synthesis. Returns 8 keys: `why_now`, `action`, `why_now_summary`, `action_summary`, `priority_score`, `family`, `adjacent_opportunities`, `primary_trigger`. Anchor-first, drift guard. Applies `_resolve_primary_trigger` on the response before returning |
+| `synthesize_mandate_catalyst()` | LLM synthesis. Returns 8 keys: `why_now`, `action`, `why_now_summary`, `action_summary`, `priority_score`, `family`, `adjacent_opportunities`, `primary_trigger`. Anchor-first, drift guard. Applies `_resolve_primary_trigger` AND `_resolve_adjacent_opportunities` before returning. Extra metadata field: `adjacent_opportunities_source` (`llm` / `fallback` / `error`) |
 | `check_compliance_endpoint()` | LLM MiFID II / MAR / EuGB audit |
 | `copilot_chat_endpoint()` | Copilot with `active_deck_slides` hydration |
 | `handle_pitchbook_generation()` | Deck generation — calls `_set_active_brand` then `build_pitchbook` |
 | `reset_baseline()` | `POST /api/system/reset-baseline` — non-destructive restore |
-| `_MANDATE_SYNTH_CACHE` | In-memory TTL cache (900s), **9-tuple**: `(expiry, why_now, action, why_now_summary, action_summary, priority_score, family, adjacent_opportunities, primary_trigger)`. Populated only after `conn.commit()`. Invalidated on ingestion commit |
+| `_MANDATE_SYNTH_CACHE` | In-memory TTL cache (900s), **10-tuple**: `(expiry, why_now, action, why_now_summary, action_summary, priority_score, family, adjacent_opportunities, primary_trigger, adjacent_opportunities_source)`. Populated only after `conn.commit()`. Invalidated on ingestion commit |
 | `_CREDIT_RATINGS` | Curated per-client ratings (both files must sync) |
 | `_FAMILY_KEYWORD_WEIGHTS` | Weighted family vocabulary (both files must sync) |
 | `BRAND_PROFILES` / `ACTIVE_BRAND` / `_brand_substitute` | **⟨23Sep⟩ Runtime three-brand toggle. 27 keys each, three brands: ING, BFS_AI_LAB, ACME_FINANCIAL. Key parity verified across all three.** |
@@ -214,6 +214,9 @@ Every displayed value traces to a specific row filtered by `client_id`. Fallback
 | `_MARKETING_WORDS` | Blocklist used by the validator to reject promotional language |
 | `_validate_primary_trigger()` | Deterministic five-rule check on the LLM-generated trigger. Returns `(is_valid, reason)` |
 | `_resolve_primary_trigger()` | Wraps the validator, applies the fallback dict on failure, logs every rejection with the reason. Returns `(final_trigger, source)` where source is `llm` or `fallback` |
+| `ADJACENT_OPPORTUNITY_FALLBACKS` | Curated fallback paragraphs for `adjacent_opportunities`. Per-client (`CLI101`, `CLI103`) and per-family (prefixed `_`: `_GREEN_ESG`, `_DCM_REFI`, `_RATES_HEDGE`, `_FX_HEDGE`) plus `_FALLBACK` last-resort. Consulted when the validator rejects the LLM output. Not a per-client data hardcode — it is a curated backup for the LLM path |
+| `_validate_adjacent_opportunities()` | Deterministic three-rule check on the LLM-generated adjacent paragraph: non-empty, ≥ 100 chars, ≥ 40 words. Returns `(is_valid, reason)` |
+| `_resolve_adjacent_opportunities()` | Wraps the validator, applies `ADJACENT_OPPORTUNITY_FALLBACKS` on failure (client → family → `_FALLBACK` → literal), logs every rejection. Returns `(final_text, source)` where source is `llm` or `fallback` |
 | `_brand_substitute()` | Word-boundary `\bING\b` → active brand name. Applied to 10 fields in `/api/opportunities`. No-op for ING |
 
 ### `pitchbook_builder.py` — PPTX Generation
@@ -265,7 +268,7 @@ Prompt produces **eight keys**: `why_now`, `action`, `why_now_summary`, `action_
 
 ### TTL Cache
 
-`_MANDATE_SYNTH_CACHE` — key `client_id`, **9-tuple** value `(expiry_epoch, why_now, action, why_now_summary, action_summary, priority_score, family, adjacent_opportunities, primary_trigger)`, **900s TTL**. Populated **only after** `conn.commit()`. Invalidated on ingestion commit. Requires `max-instances=1`.
+`_MANDATE_SYNTH_CACHE` — key `client_id`, **10-tuple** value `(expiry_epoch, why_now, action, why_now_summary, action_summary, priority_score, family, adjacent_opportunities, primary_trigger, adjacent_opportunities_source)`, **900s TTL**. Populated **only after** `conn.commit()`. Invalidated on ingestion commit. Requires `max-instances=1`.
 
 ### Product Family Classification (Flavor 2)
 
@@ -479,6 +482,7 @@ Expected: `author: 'Rajarshi Pathak (rajarshi.pathak@cognizant.com)'`, `title: '
 | `feat/dulcet-reset-pristine-...17-Sep` | Flavor 1 (Baseline). Preserved. |
 | `feat/dulcet-20Sep-demo-Weighted-LLMProductFamilyIdentification-AdjOppS3` | Flavor 2 demo. Untouched by branding. |
 | `feat/bfs-ai-lab-brand-toggle` | Previous working line. Flavor 2 + two-brand toggle (ING + BFS). Tip at `69464f4`, tag `complete-working-bfs-ing-22sep`. |
+| **⟨23Sep⟩ `feat/adjacent-opportunities-fallback`** | **Short-lived fix branch.** `adjacent_opportunities` validator + curated fallback (commit `79cf56e`). Cut from `feat/brand-onboarding-tool` at `bfefcf1`. Merge into the working line when stable. |
 | **⟨23Sep⟩ `feat/complete-working-acme-financial`** | **Current.** Flavor 2 + three-brand toggle (ING + BFS AI Lab + Acme Financial). |
 
 ### Recovery Tags
@@ -584,6 +588,12 @@ At `~/ing-fm-poc-backups/`: `20260921_042605` (pre-branding), `20260921_054602_s
 
 ## 13. CHANGELOG
 
+### ⟨23Sep⟩ 23 Sep 2026 — `adjacent_opportunities` validator
+
+**`adjacent_opportunities` validation + curated fallback.** The LLM occasionally returned an empty `adjacent_opportunities` string despite the prompt asking for 80–140 words. Prior behaviour cached the empty value for the full 900s TTL, silently degrading Slide 3 and the Copilot's conditional fourth section. Fix mirrors the `primary_trigger` pattern: `ADJACENT_OPPORTUNITY_FALLBACKS` dict, `_validate_adjacent_opportunities()` (non-empty, ≥ 100 chars, ≥ 40 words), `_resolve_adjacent_opportunities()` applies the fallback on rejection and logs the reason. Cache tuple extended 9 → 10 with a new `adjacent_opportunities_source` field (`llm` / `fallback` / `error`) in both the cache and the API response. Commit `79cf56e`, branch `feat/adjacent-opportunities-fallback`. Test parity 13/13.
+
+**Bonus fix — `_client_id_for_fallback` bug.** Was set to `str(client_name)` (display name like "Enel S.p.A.") rather than the client ID, so the per-client branch of `PRIMARY_TRIGGER_FALLBACKS` never fired. Now uses `client_id`, passed through from the call site as `cid_str`. Same correction applies to the new `adjacent_opportunities` fallback lookup. Folded into `79cf56e`.
+
 ### ⟨23Sep⟩ 23 Sep 2026 — Acme Financial brand
 
 **Acme Financial added as third runtime brand.** Data-only change: +29 lines in `main.py` (one `BRAND_PROFILES` entry, 27 keys matching ING and BFS), 4 PNG files (2 in `assets/`, 2 mirrored in `frontend/public/assets/`). No logic changes to `ACTIVE_BRAND` lookup, `/api/brand`, `_brand_substitute`, or the deck colour reassignment. Third Cloud Run service `acme-service` live in `europe-west1`; `/api/brand` confirms "name": "Acme Financial". Deploy alias `deploy-acme` added to `~/.bashrc`. Tag `branding-acme-complete` at `7590d23`.
@@ -647,6 +657,11 @@ Cache/DB consistency invariant (`9cfeb42`); LLM-computed `priority_score` (`1372
 **Optional:**
 - Update `Docs/WeightedFamily/README_WeightedFamily.md` (folder index) — stale, missing branding doc
 - `force_color_prompt` unbound variable in `~/.bashrc` line 48 — cosmetic, aborts source before aliases load; workaround is `source <(grep '^alias deploy-' ~/.bashrc)`
+
+**⟨23Sep⟩ Resolved 23 Sep 2026 (`79cf56e`):**
+- **`adjacent_opportunities` empty-output drift.** Validator + curated fallback shipped. The `adjacent_opportunities_source` field now enables observability of how often the fallback fires.
+- **`_client_id_for_fallback` bug.** Was `str(client_name)` — display name — so the per-client branch of `PRIMARY_TRIGGER_FALLBACKS` never fired. Now uses `client_id`.
+- **Persona 9-tuple → 10-tuple sync.** All cache references in §5 and §6 updated.
 
 **⟨23Sep⟩ From 23 Sep Acme session:**
 - **Untracked files at repo root.** `Important_details.md`, `Docs/WeightedFamily/ing-fm-poc-platform-overview_6Pager.html`, `acme_logo_orange.png`, `acme_logo_white.png`. Deferred. The loose PNGs are duplicates of what is already committed in `assets/`; delete when convenient.

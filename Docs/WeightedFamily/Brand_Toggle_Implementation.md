@@ -1,11 +1,13 @@
 # Brand Toggle — Implementation Record
 
-**Version:** 21 September 2026
-**Status:** Delivered and verified
+**Version:** 21 September 2026 (base) — **23 September 2026 (addendum §11)**
+**Status:** Delivered and verified — extended to three brands on 23 Sep
 **Flavor:** Weighted-Family + Adjacencies (Flavor 2)
-**Branch:** `feat/bfs-ai-lab-brand-toggle`
-**Tags:** `ing-baseline-pre-branding`, `branding-working-pre-color`, `branding-complete-enel-only`
+**Branch:** `feat/bfs-ai-lab-brand-toggle` (base) — `feat/adjacent-opportunities-fallback` (current)
+**Tags:** `ing-baseline-pre-branding`, `branding-working-pre-color`, `branding-complete-enel-only` — see §11.6 for the 23 Sep tag set
 **Predecessor:** `Docs/Prompt_Branding_Work_Continuation.md` — the design brief from before implementation
+
+> **Reading note:** Sections §1–§10 record the branding work as it shipped on 21 September 2026 (two brands). For the three-brand state as of 23 September 2026 — including Acme Financial, the onboarding utility, and the updated tag/deploy/service tables — read **§11 "Three-Brand Extension"** at the bottom of this document.
 
 This document records what was built. The predecessor described what we intended; this describes what shipped, with the actual values, key names, and known deviations from the original design.
 
@@ -20,7 +22,10 @@ A **runtime brand toggle** for the ING Financial Markets Deal Intelligence Platf
 | `ing-fm-poc-service` | `ing-fm-poc-service-482846129838.europe-west1.run.app` | `BRAND=ING` | ING branding — orange accent, ING logos, "ING Copilot" |
 | `bfs-ai-lab-service` | `bfs-ai-lab-service-482846129838.europe-west1.run.app` | `BRAND=BFS_AI_LAB` | BFS AI Lab branding — turquoise accent, Cognizant BFS AI Lab logos, "BFS AI Lab Copilot" |
 
-Both services share the same Cloud SQL instance and read the same rows. Brand-specific text is substituted at read time on the way out of the API — the DB content is never neutralised or duplicated.
+**For the three-service state (ING + BFS AI Lab + Acme Financial), see §11.1.**
+
+Both services share the same Cloud SQL instance and read the same rows.
+Brand-specific text is substituted at read time on the way out of the API — the DB content is never neutralised or duplicated.
 
 **Verification status:** both services deployed, visually verified in browser, deck generation confirmed end-to-end on both, `test_parity.py` passes 13/13 with `BRAND` unset (the ING path is byte-identical in behaviour to before the toggle was added).
 
@@ -590,7 +595,10 @@ alias deploy-bfs="cd ~/ing-fm-poc && gcloud run deploy bfs-ai-lab-service \
   --quiet"
 ```
 
-**`BRAND=ING` is set explicitly on the ING service, not left to the default.** Reason: the intent is recorded in the Cloud Run service definition. If the default in code were ever changed, the ING service wouldn't silently shift brand.
+**A third alias — `deploy-acme` — was added on 23 Sep. See §11.1.**
+
+**`BRAND=ING` is set explicitly on the ING service, not left to the default.**
+Reason: the intent is recorded in the Cloud Run service definition. If the default in code were ever changed, the ING service wouldn't silently shift brand.
 
 ### 7.2 Deploy order
 
@@ -733,7 +741,9 @@ ls -la /tmp/bfs_test.pptx
 
 Expected: `filename="BFS_AI_LAB_Enel_S.p.A._Pitchbook.pptx"` and a file around 800 KB.
 
-### 8.4 Visual checks in browser
+**For the three-service verification loop covering ING, BFS AI Lab, and Acme Financial in one pass, see §11.5.**
+
+### 8.4 Visual checks in the browser
 
 **ING service — hard-refresh (`Ctrl+Shift+R`):**
 
@@ -900,6 +910,168 @@ The original brief flags a prior bug: `synthesize_mandate_catalyst` referenced `
 Committed on `feat/bfs-ai-lab-brand-toggle`. Never merged to the demo branch.
 
 ---
+
+## 11. Three-Brand Extension (23 September 2026)
+
+Sections §1–§10 above record the branding work as it shipped on **21 September 2026** — two brands (ING + BFS AI Lab). This section brings the record forward to **23 September 2026**, when the platform was extended to three brands and the onboarding workflow was automated.
+
+### 11.1 Acme Financial — third runtime brand
+
+A third Cloud Run service now runs the same Docker image with `BRAND=ACME_FINANCIAL`.
+
+| Service | URL | Env var | Renders |
+|---|---|---|---|
+| `ing-fm-poc-service` | `ing-fm-poc-service-pjlcvlic6a-ew.a.run.app` | `BRAND=ING` | ING — orange accent, ING logos, "ING Copilot" |
+| `bfs-ai-lab-service` | `bfs-ai-lab-service-pjlcvlic6a-ew.a.run.app` | `BRAND=BFS_AI_LAB` | BFS AI Lab — turquoise accent, Cognizant BFS AI Lab logos, "BFS AI Lab Copilot" |
+| `acme-service` | `acme-service-pjlcvlic6a-ew.a.run.app` | `BRAND=ACME_FINANCIAL` | Acme Financial — maroon accent, Acme logos, "Acme Financial Copilot" |
+
+A third deploy alias was added to `~/.bashrc`:
+
+```bash
+deploy-acme   → acme-service   with BRAND=ACME_FINANCIAL
+Commit 7590d23, tag branding-acme-complete.
+```
+Scope of the change. Adding Acme was a data-only edit — +29 lines in main.py (one BRAND_PROFILES entry, 27 keys), 4 PNG files (2 in assets/, 2 mirrored in frontend/public/assets/), plus the alias. No logic changes to ACTIVE_BRAND lookup, /api/brand, _brand_substitute, or the deck colour reassignment. This confirms the design contract: the toggle was built so that brand extension requires no code change.
+
+### 11.2 Profile schema — 27 keys, three brands
+The key count was clarified from "28" (a stale count in earlier drafts) to 27. All three brands carry the identical key set, verified programmatically:
+
+python
+python3 -c "
+import re
+src = open('main.py').read()
+def keys(name):
+    m = re.search(rf'\"{name}\":\s*\{{(.*?)\n    \}},', src, re.S)
+    return set(re.findall(r'^\s*\"([a-z_]+)\":', m.group(1), re.M))
+ing, bfs, acme = keys('ING'), keys('BFS_AI_LAB'), keys('ACME_FINANCIAL')
+print('parity:', ing == bfs == acme, '| count:', len(ing))
+"
+Expected: parity: True | count: 27.
+
+Acme Financial profile highlights (full dict in main.py line ~139):
+
+Maroon #701C36 accent, oxblood #3A0E1D navy
+
+Badge #701C36 (maroon — good white-text contrast, matching the ING badge pattern)
+
+logo_height_inches: 0.45 (same as ING; BFS is the outlier at 0.60)
+
+download_prefix_short: "ACME"
+
+rss_fallback_url: https://think.ing.com (same as ING/BFS — shared research feed, confirmed intentional)
+
+The Acme logo files are byte-identical (acme_logo_white.png and acme_logo_orange.png share MD5 72eb3dd7436ded6d3527e38920565cbb) — intentional, same asset under both filenames.
+
+### 11.3 Logo X-position shift — all brands
+In pitchbook_builder.py add_logo(), the X-position was shifted from Inches(11.8) to Inches(11.6).
+
+Intentional layout fix, applies to all three brands — not just Acme. Commit 2835c56.
+
+### 11.4 The brand onboarding utility
+tools/onboard_brand.py — an interactive utility that reduces adding a brand to a single command.
+
+bash
+python3 tools/onboard_brand.py \
+  --key NORTHWIND \
+  --name "Northwind Capital" \
+  --stage-from assets/northwind_logo_raw.png \
+  --accent "#701C36" \
+  --navy "#3A0E1D" \
+  --prefix-short "NW" \
+  --dry-run
+The utility:
+
+Derives hover / light / tint colour variants from the two base hexes via HSL shifts
+
+Crops + resizes the logo into the 400×218 box, aspect preserved
+
+Interactively collects the five prompt-persona strings (ING template pre-filled, Enter accepts)
+
+Builds the 27-key BRAND_PROFILES entry with schema conformance check
+
+Patches main.py with a surgical str.replace() at a verified anchor
+
+Appends the deploy-<key> alias to ~/.bashrc, escaped to match the existing aliases
+
+Writes brands/<KEY>.json as the canonical per-brand record
+
+Verifies with ast.parse + key-count grep after patching
+
+Rolls back from its own backup on verification failure
+
+Safety: --dry-run prints everything, writes nothing. --apply writes. Backups (main.py.onboard.bak, ~/.bashrc.onboard.bak) are created before every patch. The utility is idempotent — refuses to double-insert a brand key.
+
+Complete walkthrough: BRAND_ONBOARDING_GUIDE.md — covers the Gemini Canvas prompt for logo generation, Cloud Shell upload workflow, colour selection, deploy, verification, rollback, and troubleshooting.
+
+Commits 42b0db4 (utility), ee53780 (guidebook), bfefcf1 (Cloud Shell upload section).
+
+### 11.5 Post-deploy verification — three services
+Updated from §8.3. All three services verify identically:
+
+bash
+for SVC in ing-fm-poc-service bfs-ai-lab-service acme-service; do
+  URL=$(gcloud run services describe $SVC \
+    --region europe-west1 --project dulcet-radar-508218-c5 \
+    --format 'value(status.url)')
+  echo "== $SVC =="
+  curl -s "$URL/api/brand" | python3 -c "import sys,json; print(json.load(sys.stdin)['name'])"
+done
+Expected:
+
+text
+== ing-fm-poc-service ==
+ING
+== bfs-ai-lab-service ==
+BFS AI Lab
+== acme-service ==
+Acme Financial
+IAM binding. New Cloud Run services default to private. Both bfs-ai-lab-service and acme-service require the allUsers invoker binding for browser access. Commands are recorded in Docs/runbook (1).md.
+
+### 11.6 Recovery tags — 23 Sep 2026 set
+Extended from §9. The full tag set now on the working line:
+
+Tag	Commit	State
+ing-baseline-pre-branding	3d1bb16	BFS logos committed, no branding code
+branding-working-pre-color	565d8e3	Toggle working, both services deployed, pre-color-rebrand
+branding-complete-enel-only	82d75d0	Full two-brand feature, Enel-only whitelist
+attribution-added	52fb7d7	Architect attribution
+primary-trigger-implemented	3b99c3c	LLM-generated Slide 2 trigger
+cache-ttl-invalidation	d41a837	Cache TTL 900s, invalidated on ingestion
+ingestion-source-name-fix	ce85f57	Client-scoped source names; dedup AND
+complete-working-bfs-ing-22sep	69464f4	BFS branch tip, docs only
+branding-acme-complete	7590d23	Acme Financial added
+working-line-23sep2026	cfdf3c5	Current working line. Three-brand toggle + onboarding tool + adjacent_opportunities fix.
+
+### 11.7 adjacent_opportunities validator (cross-reference)
+A separate synthesis-layer fix shipped on the same branch on 23 Sep: the LLM occasionally returned an empty adjacent_opportunities string, which was cached for the full 900s TTL and silently degraded Slide 3 and the Copilot's conditional fourth section.
+
+The fix adds ADJACENT_OPPORTUNITY_FALLBACKS, _validate_adjacent_opportunities(), and _resolve_adjacent_opportunities() — mirroring the existing primary_trigger pattern. The synthesis cache tuple grew from 9 elements to 10, with the new element carrying adjacent_opportunities_source (llm / fallback / error). Commit 79cf56e.
+
+This is not a branding change — it belongs to the synthesis layer and is documented in full at MASTER_PERSONA_23Sep2026.md §13. Mentioned here only because it shipped on the same working line and readers of this record may encounter the new API field.
+
+### 11.8 Commit history — follow-on from §10.9
+Commits after the two-brand delivery (82d75d0 onwards):
+
+Commit	Content
+08723ed	Runbook — BFS Cloud Run IAM toggle commands
+decda5c	Brand Toggle Implementation Record (this document)
+93955c1	README rewrite for branding branch
+52fb7d7	Architect & developer attribution
+3b99c3c	LLM-generated primary_trigger for Slide 2
+d41a837	Cache TTL 900s, invalidated on ingestion
+ce85f57	Client-scoped ingestion source names; dedup AND
+69464f4	BFS branch tip (docs)
+7590d23	Acme Financial added as third runtime brand
+2835c56	Logo X-position shift 11.8" → 11.6" (all brands)
+2ddfbd9	Master persona 23 Sep 2026 (three-brand)
+42b0db4	Brand onboarding utility + .gitignore + brands/README.md + runbook
+ee53780	Brand onboarding guidebook
+bfefcf1	Cloud Shell upload section in guidebook
+79cf56e	adjacent_opportunities validator + fallback
+e688ebe	Persona update for the adjacent fix
+46a516e	Persona: working line advance
+cfdf3c5	README rewrite for three-brand + tool + fix
+The branding feature is now three services, one image, one branch. The design contract held: adding a brand is a data-only change.
 
 *End of document.*
 ```

@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": "1.0",
-    "generated_at": "2026-09-20T07:00:25.750432Z",
+    "generated_at": "2026-09-23T19:06:17.424749Z",
     "client_count": 13,
     "note": "Complete snapshot of client-scoped and global tables. Client-scoped tables are keyed by client_id under 'clients'. Global tables are at top level and are NOT reset per-client."
   },
@@ -529,7 +529,7 @@
           "est_revenue_eur_000": 5500.0,
           "propensity_score": 90,
           "value_score": 95,
-          "priority_score": 93,
+          "priority_score": 92,
           "rank": 2,
           "next_best_action": "We propose a \u20ac1.0bn dual-tranche senior unsecured issuance, strategically leveraging Enel's \u20ac3.5bn green asset pool through a \u20ac600m 7Y Green bond priced at Mid-swap + 73 bps (net of -5 bps greenium), complemented by a \u20ac400m 10Y Sustainability-Linked Bond. To ensure an optimal funding mix and swift execution, we recommend an immediate meeting with Treasury to finalize the funding calendar and sustainable finance readiness.",
           "why_now_nlg": "Enel faces a critical \u20ac10.13bn debt maturity wall in 2026-2027, necessitating proactive refinancing despite its robust \u20ac14.2bn liquidity buffer. The current market, featuring a 5Y EUR swap rate of 2.62% and an indicative -5 bps greenium, offers a timely opportunity to optimize funding costs and leverage Enel's sustainable finance capabilities."
@@ -1849,7 +1849,7 @@
           "est_revenue_eur_000": 5800.0,
           "propensity_score": 94,
           "value_score": 89,
-          "priority_score": 94,
+          "priority_score": 95,
           "rank": 1,
           "next_best_action": "We recommend immediate execution of a \u20ac4.0B 6Y EMTN issuance, targeting a yield of 3.82% with potential for a -5 bps greenium, leveraging the opportunity for a first BASF green tranche. Concurrently, implement a \u20ac1.2B 6Y IRS pre-hedge to manage interest rate risk and align with BASF Treasury's approved accelerated debt rollover strategy, locking in rates before the anticipated ECB policy revision.",
           "why_now_nlg": "BASF faces a significant \u20ac3.00bn maturity wall in 2026-2027, necessitating proactive refinancing despite a healthy \u20ac7.8bn liquidity buffer. The prevailing 5Y EUR swap rate at 2.62% presents an opportune window to lock in attractive funding costs and pre-hedge before anticipated ECB policy revisions, leveraging optionality from coatings carve-out proceeds."
@@ -1867,7 +1867,7 @@
           "description": "Carlyle is reportedly preparing a \u20ac4bn debt sale to finance the \u20ac7.7bn carve-out of BASF Coatings. This debt issuance will provide the necessary capital for the acquisition, highlighting significant activity in the debt capital markets to fund large-scale M&A transactions.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-0B994C0F",
@@ -1880,7 +1880,7 @@
           "description": "The text highlights a geopolitics-driven upgrade in BASF's earnings, suggesting a positive shift in the company's financial outlook. This improvement in earnings is expected to enhance BASF's overall liquidity and financial flexibility.",
           "confidence_pct": 90,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-1D1409C7",
@@ -1893,7 +1893,7 @@
           "description": "A recommendation was made to proactively pre-hedge the interest rate curve to capitalize on currently tight credit spreads. A pre-hedge overlay is being structured in conjunction with the new EMTN issuance to mitigate interest rate risk.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:26:48.376371"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-215990AE",
@@ -1906,7 +1906,7 @@
           "description": "The article mentions a 'debt move' by BASF, indicating a strategic decision concerning its debt portfolio. This could involve refinancing existing debt, issuing new debt, or other capital structure adjustments aimed at optimizing its financial position.",
           "confidence_pct": 90,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-2BBDE589",
@@ -1919,7 +1919,7 @@
           "description": "This signal indicates that BASF SE is involved in an M&A transaction concerning its coatings division. The transaction is being financed through the issuance of high-yield debt, with banks commencing the bond sale process, highlighting capital market activity related to the deal.",
           "confidence_pct": 95,
           "urgency": "High",
-          "created_at": "2026-09-16T19:34:17.862362"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-2F26BBE5",
@@ -1932,7 +1932,7 @@
           "description": "Banks are reportedly preparing to sell $4 billion in debt associated with the buyout of BASF Coatings. This indicates significant financing activity in the market related to a corporate acquisition or divestiture.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-4314FDB4",
@@ -1945,7 +1945,7 @@
           "description": "A significant \u20ac7.7 billion carve-out transaction involving BASF Coatings is underway. This strategic divestiture represents a major M&A activity for BASF SE.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-43468D37",
@@ -1958,7 +1958,7 @@
           "description": "Carlyle is in the process of preparing a \u20ac4 billion debt issuance. This funding initiative is designed to provide financial backing for the upcoming \u20ac7.7 billion BASF Coatings carve-out.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-4C916B7C",
@@ -1971,7 +1971,7 @@
           "description": "BASF SE's treasury has identified an upcoming debt maturity step-up, necessitating refinancing. In response, a 6-year Euro Medium Term Note (EMTN) benchmark is actively being structured.",
           "confidence_pct": 95,
           "urgency": "High",
-          "created_at": "2026-09-16T19:26:48.376371"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-4E031127",
@@ -1984,7 +1984,7 @@
           "description": "BASF SE is considering a new senior bond issuance of \u20ac1.5 billion. This potential issuance is linked to the maturity of existing derivative hedges, suggesting a need for refinancing or liquidity management.",
           "confidence_pct": 94,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-503FAC1A",
@@ -1997,7 +1997,7 @@
           "description": "The upcoming debt maturities for BASF SE present a candidate issue for optimizing residual funding sequencing. This could involve strategic liability management, potentially through the issuance of a senior benchmark tranche to address upcoming obligations and optimize the capital structure.",
           "confidence_pct": 90,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-50AC9A42",
@@ -2010,7 +2010,7 @@
           "description": "The Debt Capital Markets team advises pre-hedging the interest rate curve while credit spreads remain tight. The Rates Desk is actively structuring a pre-hedge overlay as part of the new EMTN issuance.",
           "confidence_pct": 95,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-5D2FBFCB",
@@ -2023,7 +2023,7 @@
           "description": "BASF has reportedly undertaken a debt move and experienced an earnings upgrade, both influenced by geopolitical factors. These developments are seen as potentially transformative for the company's financial position and market standing.",
           "confidence_pct": 94,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-5D943F2F",
@@ -2036,7 +2036,7 @@
           "description": "BASF's Executive Committee has approved accelerating their debt rollover, planning a EUR 2.0B 6Y Senior EMTN Benchmark issuance in Q3. Concurrently, they will implement an immediate EUR 1.2B 6Y Fixed-to-Floating IRS pre-hedge at 2.58% to cover 65% of floating rate liabilities.",
           "confidence_pct": 94,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-671FAC5F",
@@ -2049,7 +2049,7 @@
           "description": "BASF is reportedly making a 'Debt Move' that is described as a potential 'game changer' for the company. This action, influenced by geopolitics, suggests a strategic adjustment to its financial liabilities or capital structure.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-6BE8BBF5",
@@ -2062,7 +2062,7 @@
           "description": "Carlyle is arranging a \u20ac4 billion debt sale to support the \u20ac7.7 billion carve-out of BASF Coatings. This transaction indicates significant M&A activity and associated financing requirements for the client.",
           "confidence_pct": 94,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-7297FB1B",
@@ -2075,7 +2075,7 @@
           "description": "BASF SE's Treasury has identified an upcoming debt maturity step-up. To address this, a 6-year EMTN benchmark is being structured by the Debt Capital Markets team.",
           "confidence_pct": 95,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-7315D08B",
@@ -2088,7 +2088,7 @@
           "description": "Public materials show BASF SE has recent capital markets access, but significant residual debt maturities in 2026-2027 require attention. This situation highlights a potential refinancing opportunity or liquidity management consideration for the client.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-753E4A13",
@@ -2101,7 +2101,7 @@
           "description": "Financial institutions have commenced the process of selling speculative-grade bonds, commonly known as junk bonds, to provide the necessary capital for a strategic transaction involving BASF's coatings division. This bond issuance is a key step in securing the funding for an M&A-related activity by BASF.",
           "confidence_pct": 95,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-821C7A75",
@@ -2114,7 +2114,7 @@
           "description": "BASF Treasury is reviewing upcoming debt maturities for 2026/2027 and is considering a new \u20ac800M benchmark issuance. This issuance aims to refinance existing debt and optimize capital structure.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-8FA690DE",
@@ -2127,7 +2127,7 @@
           "description": "The chemicals platform is actively reviewing its interest rate swap portfolio, specifically floating-to-fixed instruments, indicating a focus on managing interest rate risk. This review is alongside a \u20ac4.8 billion 24-month maturity schedule, which may influence future hedging strategies.",
           "confidence_pct": 94,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-97EB2395",
@@ -2140,7 +2140,7 @@
           "description": "BASF launches hybrid canola for arid regions - High Plains Journal\nBASF launches hybrid canola for arid regions  High Plains Journal",
           "confidence_pct": 94,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG_BASF_BOARD_AUTH_01",
@@ -2153,7 +2153,7 @@
           "description": "Executive Committee authorisation covers \u20ac4.0B Senior EMTN benchmark issuance and \u20ac1.2B IRS pre-hedge.",
           "confidence_pct": 96,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG_BASF_LATENT_01",
@@ -2166,7 +2166,7 @@
           "description": "Pre-hedge interest rate swap window and bond issuance advisory.",
           "confidence_pct": 92,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG_BASF_LATENT_02",
@@ -2179,7 +2179,7 @@
           "description": "Refinancing window aligned with \u20ac3.0bn 2027 maturity and \u20ac5.5bn 2028 syndicated loan.",
           "confidence_pct": 88,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG_BASF_LATENT_03",
@@ -2192,7 +2192,7 @@
           "description": "Coatings carve-out proceeds enable green tranche alignment with ICMA Green Bond Principles.",
           "confidence_pct": 85,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-C2146856",
@@ -2205,7 +2205,7 @@
           "description": "BASF Treasury is considering an ISDA pre-hedge overlay in conjunction with their potential benchmark issuance. This decision is influenced by the current easing in 5-year EUR swap rates, presenting a favorable hedging environment.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-C977E4F1",
@@ -2218,7 +2218,7 @@
           "description": "BASF is considering an ISDA pre-hedge overlay to mitigate interest rate risk ahead of a potential \u20ac800M benchmark issuance. This strategy is influenced by current 5Y EUR swap easing conditions.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-C9949425",
@@ -2231,7 +2231,7 @@
           "description": "The text highlights a 'Debt Move' by BASF, suggesting a strategic action related to its financial liabilities. This action, combined with an earnings upgrade, is presented as a potential 'game changer' for the company's financial future and capital structure.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG_CLI010_BASF_ENERGYPRICEV",
@@ -2244,7 +2244,7 @@
           "description": "Gas and power volatility is elevated. European chemicals remain exposed to energy price volatility. Scenario review recommended against forecast consumption and hedge volumes.",
           "confidence_pct": 88,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG_CLI010_BASF_RATEHEDGEROL",
@@ -2257,7 +2257,7 @@
           "description": "Scheduled hedge report appears to show a material protection tranche expiring within 12 months. Post-roll fixed-rate coverage potentially falling from approx 68% to 46% vs provisional policy reference of 60%.",
           "confidence_pct": 92,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG_CLI010_BASF_TREASURYSCEN",
@@ -2270,7 +2270,7 @@
           "description": "Proposed structured agenda for treasury scenario review covering hedge-maturity sensitivity, commodity optionality, and liquidity headroom under downside market scenarios.",
           "confidence_pct": 90,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-D421F2DB",
@@ -2283,7 +2283,7 @@
           "description": "Carlyle is reportedly preparing a \u20ac4bn debt sale to support the \u20ac7.7bn carve-out of BASF Coatings. This transaction indicates a significant divestiture by BASF and a major acquisition for Carlyle, impacting BASF's corporate structure and asset portfolio.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-E1E18872",
@@ -2296,7 +2296,7 @@
           "description": "BASF Treasury is proactively reviewing its 2026/2027 debt maturities. They are evaluating an indicative \u20ac800M benchmark issuance to refinance these upcoming obligations.",
           "confidence_pct": 95,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG_EXT_13_1",
@@ -2309,7 +2309,7 @@
           "description": "BASF has a material interest-rate protection tranche expiring within approximately 12 months, which is expected to cause post-roll fixed coverage to decline from 68% to 46% against a 60% policy target. [Evidence Status: Derived Signal; Confidence: 85%; Evidence Basis: The source explicitly states the expiry of material interest rate protection and the resulting decline in fixed coverage below the policy target. While it supports further review, it explicitly denies a confirmed hedge mandate, making it a strong derived signal for potential action rather than a confirmed need.]",
           "confidence_pct": 85,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG_EXT_13_2",
@@ -2322,7 +2322,7 @@
           "description": "TTF gas and power price volatility may create additional operating margin exposure for BASF. [Evidence Status: Hypothesis; Confidence: 60%; Evidence Basis: The source indicates a potential risk by stating volatility 'may create' additional operating margin exposure, suggesting an unconfirmed or unquantified possibility rather than a definite or current exposure.]",
           "confidence_pct": 60,
           "urgency": "Low",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG_EXT_14_1",
@@ -2335,7 +2335,7 @@
           "description": "Banks are prepping and have begun the sale of a substantial debt package (estimated between \u20ac4 billion and \u20ac4.5 billion / $4 billion), which includes junk bonds, to finance Carlyle's \u20ac7.7 billion acquisition of BASF Coatings Business. [Evidence Status: Derived Signal; Confidence: 88%; Evidence Basis: Multiple headlines and summaries ([2], [4], [5], [8]) explicitly confirm banks are 'prepping' or 'kick[ing] off' the 'sale of buyout debt' or 'debt package' for the 'BASF Coatings Deal' or 'carve-out', with amounts specified as '$4 Billion', '\u20ac4bn', or '\u20ac4.5B'. The type of debt (junk bonds) and the acquisition value (\u20ac7.7 billion) are also clearly stated ([2], [5], [7]). This is for the acquirer (Carlyle) of BASF's divested business.]",
           "confidence_pct": 88,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG_EXT_14_2",
@@ -2348,7 +2348,7 @@
           "description": "BASF SE is pursuing a strategy of 'debt reduction' as part of its financial 'balancing act', which also encompasses share buybacks. [Evidence Status: Derived Signal; Confidence: 75%; Evidence Basis: Headline and summary [6] directly state 'Debt Reduction' as a component of 'BASF's Balancing Act'. Headline [3] mentions a 'Debt Move' by BASF, reinforcing the focus on debt-related actions by the company itself.]",
           "confidence_pct": 75,
           "urgency": "Medium",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "signal_id": "SIG-F7070DFC",
@@ -2361,7 +2361,7 @@
           "description": "BASF Coatings is reportedly preparing a \u20ac4.5 billion debt package. This financing is intended to support a carve-out transaction, with Carlyle leading the initiative.",
           "confidence_pct": 94,
           "urgency": "High",
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         }
       ],
       "document_vector_chunks": [
@@ -2372,7 +2372,7 @@
           "source_name": "Banks Are Prepping Sale of BASF Coatings\u2019 $4 Billion Buyout Debt - bloomberg.com",
           "text_content": "Banks Are Prepping Sale of BASF Coatings\u2019 $4 Billion Buyout Debt - bloomberg.com\nBanks Are Prepping Sale of BASF Coatings\u2019 $4 Billion Buyout Debt  bloomberg.com",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 2,
@@ -2381,7 +2381,7 @@
           "source_name": "Carlyle readies \u20ac4bn debt sale to back \u20ac7.7bn BASF Coatings carve-out - Private Equity Insights",
           "text_content": "Carlyle readies \u20ac4bn debt sale to back \u20ac7.7bn BASF Coatings carve-out - Private Equity Insights\nCarlyle readies \u20ac4bn debt sale to back \u20ac7.7bn BASF Coatings carve-out  Private Equity Insights",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 3,
@@ -2390,7 +2390,7 @@
           "source_name": "BASF launches hybrid canola for arid regions - High Plains Journal",
           "text_content": "BASF launches hybrid canola for arid regions - High Plains Journal\nBASF launches hybrid canola for arid regions  High Plains Journal",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 4,
@@ -2399,7 +2399,7 @@
           "source_name": "BASF\u2019s Geopolitics-Driven Earnings Upgrade and Debt Move Could Be A Game Changer For BASF (XTRA:BAS) - Yahoo Finance",
           "text_content": "BASF\u2019s Geopolitics-Driven Earnings Upgrade and Debt Move Could Be A Game Changer For BASF (XTRA:BAS) - Yahoo Finance\nBASF\u2019s Geopolitics-Driven Earnings Upgrade and Debt Move Could Be A Game Changer For BASF (XTRA:BAS)  Yahoo Finance",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 5,
@@ -2408,7 +2408,7 @@
           "source_name": "BASF\u2019s Geopolitics-Driven Earnings Upgrade and Debt Move Could Be A Game Changer For BASF (XTRA:BAS) - Yahoo Finance",
           "text_content": "BASF\u2019s Geopolitics-Driven Earnings Upgrade and Debt Move Could Be A Game Changer For BASF (XTRA:BAS) - Yahoo Finance\nBASF\u2019s Geopolitics-Driven Earnings Upgrade and Debt Move Could Be A Game Changer For BASF (XTRA:BAS)  Yahoo Finance",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 6,
@@ -2417,7 +2417,7 @@
           "source_name": "BASF launches hybrid canola for arid regions - High Plains Journal",
           "text_content": "BASF launches hybrid canola for arid regions - High Plains Journal\nBASF launches hybrid canola for arid regions  High Plains Journal",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 7,
@@ -2426,7 +2426,7 @@
           "source_name": "BASF launches hybrid canola for arid regions - High Plains Journal",
           "text_content": "BASF launches hybrid canola for arid regions - High Plains Journal\nBASF launches hybrid canola for arid regions  High Plains Journal",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 13,
@@ -2461,7 +2461,7 @@
             "executive_summary": "BASF faces a material reduction in interest rate fixed coverage below its policy target within 12 months due to expiring protection. There is also a potential for additional operating margin exposure from TTF gas and power price volatility, requiring further review to determine specific hedging needs.",
             "overall_evidence_assessment": "The evidence directly states specific expiring financial protection and potential exposures but explicitly notes the absence of a confirmed mandate, requiring further investigation to define potential opportunities."
           },
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 14,
@@ -2496,7 +2496,7 @@
             "executive_summary": "Banks are actively preparing and initiating the sale of a significant debt package, including junk bonds, to finance Carlyle's \u20ac7.7 billion acquisition of BASF Coatings Business. Separately, BASF SE itself is engaged in a strategic \"debt reduction\" initiative, aligning with its broader financial management, which also includes share buybacks.",
             "overall_evidence_assessment": "Strong evidence confirms the financing activity for the BASF Coatings divestiture is in progress. Evidence for BASF SE's own debt reduction strategy is present but lacks specific financial details or timeline."
           },
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 16,
@@ -2505,7 +2505,7 @@
           "source_name": "WorkFabric Context Engine (BASF SE)",
           "text_content": "Carlyle readies \u20ac4bn debt sale to back \u20ac7.7bn BASF Coatings carve-out - Private Equity Insights Carlyle readies \u20ac4bn debt sale to back \u20ac7.7bn BASF Coatings carve-out Private Equity Insights",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 17,
@@ -2514,7 +2514,7 @@
           "source_name": "BASF Group Treasury (Claudia Meier)",
           "text_content": "TREASURY EMAIL:\nFrom: CFO Treasury <treasury@basf.com>\nTo: Wholesale Coverage Director\nSubject: 2026/2027 Rollover & Pre-Hedging Request\n\nWe are reviewing upcoming debt maturities. Given 5Y EUR swap easing, we want to evaluate an indicative \u20ac800M benchmark issuance combined with an ISDA pre-hedge overlay.",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 22,
@@ -2523,7 +2523,7 @@
           "source_name": "BASF launches hybrid canola for arid regions - High Plains Journal",
           "text_content": "BASF launches hybrid canola for arid regions - High Plains Journal\nBASF launches hybrid canola for arid regions  High Plains Journal",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 26,
@@ -2532,7 +2532,7 @@
           "source_name": "BASF Group Treasury (Claudia Meier)",
           "text_content": "TREASURY EMAIL:\nFrom: CFO Treasury <treasury@basf.com>\nTo: Wholesale Coverage Director\nSubject: 2026/2027 Rollover & Pre-Hedging Request\n\nWe are reviewing upcoming debt maturities. Given 5Y EUR swap easing, we want to evaluate an indicative \u20ac800M benchmark issuance combined with an ISDA pre-hedge overlay.",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 28,
@@ -2541,7 +2541,7 @@
           "source_name": "Carlyle readies \u20ac4bn debt sale to back \u20ac7.7bn BASF Coatings carve-out - pe-insights.com",
           "text_content": "Carlyle readies \u20ac4bn debt sale to back \u20ac7.7bn BASF Coatings carve-out - pe-insights.com\nCarlyle readies \u20ac4bn debt sale to back \u20ac7.7bn BASF Coatings carve-out  pe-insights.com",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 29,
@@ -2550,7 +2550,7 @@
           "source_name": "WorkFabric Context Engine (BASF SE)",
           "text_content": "WORKFABRIC DCM MEMO:\nClient: BASF SE\nProduct: Debt Capital Markets (DCM)\nAuthor: Luca Moretti (DCM Origination)\nReconciliation: Public materials show recent capital markets access, but capex should not be equated with funding gap. Residual 2026-2027 debt maturities remain at sizable volume. Candidate issue: residual funding sequencing and liability management with senior benchmark tranche.",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 30,
@@ -2559,7 +2559,7 @@
           "source_name": "BASF Coatings readies \u20ac4.5B debt package for carve-out led by Carlyle - PitchBook",
           "text_content": "BASF Coatings readies \u20ac4.5B debt package for carve-out led by Carlyle - PitchBook\nBASF Coatings readies \u20ac4.5B debt package for carve-out led by Carlyle  PitchBook",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 31,
@@ -2568,7 +2568,7 @@
           "source_name": "BASF SE Evaluates \u20ac1.5B Senior Bond Issuance as Derivative Hedges Mature",
           "text_content": "BASF SE Evaluates \u20ac1.5B Senior Bond Issuance as Derivative Hedges Mature\nChemicals platform reviews floating-to-fixed interest rate swaps and \u20ac4.8B 24-month maturity schedule.",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 40,
@@ -2577,7 +2577,7 @@
           "source_name": "Banks Kick Off Sale of Junk Bonds Backing BASF Coatings Deal - Bloomberg.com",
           "text_content": "Banks Kick Off Sale of Junk Bonds Backing BASF Coatings Deal - Bloomberg.com\nBanks Kick Off Sale of Junk Bonds Backing BASF Coatings Deal  Bloomberg.com",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:34:17.862362"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 105,
@@ -2592,7 +2592,7 @@
             "confidence_pct": 92,
             "metric_identified": "68% -> 46%"
           },
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 106,
@@ -2607,7 +2607,7 @@
             "confidence_pct": 88,
             "metric_identified": "TTF Gas / Power"
           },
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 107,
@@ -2622,7 +2622,7 @@
             "confidence_pct": 90,
             "metric_identified": "Risk Analytics"
           },
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 9000001,
@@ -2631,7 +2631,7 @@
           "source_name": "Luca Moretti (DCM Origination)",
           "text_content": "WORKFABRIC DCM MEMO: BASF SE - treasury has authorised accelerated rollover. Recommend immediate EUR 4.0B 6Y EMTN + EUR 1.2B 6Y IRS pre-hedge overlay before ECB policy revision. Coatings carve-out proceeds provide optionality for green tranche structure.",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 9000002,
@@ -2651,7 +2651,7 @@
             ],
             "executive_summary": "Chemicals sector funding stabilised; BASF coverage policy breach requires immediate refinancing."
           },
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 9000003,
@@ -2660,7 +2660,7 @@
           "source_name": "BASF Group Treasury (Claudia Meier)",
           "text_content": "Subject: 2026/2027 Rollover Coordination - Following Executive Committee approval, we are initiating a EUR 4.0B Senior EMTN benchmark issuance process. Request ING proposal for dual-tranche structure including an inaugural green tranche. Targeting pricing window aligned with 5Y EUR Swap at 2.62% and current 120 bps credit spread.",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         },
         {
           "chunk_id": 9000004,
@@ -2669,7 +2669,7 @@
           "source_name": "European Chemicals Coverage (#deal-coverage-basf)",
           "text_content": "MS TEAMS TRANSCRIPT: [10:14] Anna Keller (RM): Treasury flagged the fixed coverage decline 68% to 46% against 60% policy target. [10:15] Luca Moretti (DCM): Recommend immediate EMTN issuance timing. [10:16] Roman Weiss (Rates): Structure 6Y pre-hedge IRS overlay.",
           "structured_metadata": null,
-          "created_at": "2026-09-16T19:49:25.215347"
+          "created_at": "2026-09-22T12:37:09.189259"
         }
       ],
       "debt_maturity_schedule": [

@@ -37,6 +37,22 @@ gcloud run services add-iam-policy-binding bfs-ai-lab-service \
     --member="allUsers" \
     --role="roles/run.invoker"
 
+#### To Disable Public Access of ACME Instance:
+Bash
+gcloud run services remove-iam-policy-binding acme-service \
+    --region=europe-west1 \
+    --project=dulcet-radar-508218-c5 \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+
+#### If You Want to Re-Enable the ACME Application
+Bash
+gcloud run services add-iam-policy-binding acme-service \
+    --region=europe-west1 \
+    --project=dulcet-radar-508218-c5 \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+
 # ING Financial Markets AI Agentic Platform — Operational Runbook
 
 Session Restart Quick Start

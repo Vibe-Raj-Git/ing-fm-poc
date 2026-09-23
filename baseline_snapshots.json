@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": "1.0",
-    "generated_at": "2026-09-23T19:06:17.424749Z",
+    "generated_at": "2026-09-23T19:48:50.171732Z",
     "client_count": 13,
     "note": "Complete snapshot of client-scoped and global tables. Client-scoped tables are keyed by client_id under 'clients'. Global tables are at top level and are NOT reset per-client."
   },

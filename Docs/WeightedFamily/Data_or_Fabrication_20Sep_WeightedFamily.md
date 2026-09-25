@@ -53,7 +53,7 @@ This document describes the actual pipeline as implemented, including the reset-
                                     ▼ /api/opportunities
 │  SYNTHESIS (Read-time, whitelisted clients only)                                         │
 │  • Read anchor from ca.ca_opportunity_scoring                                            │
-│  • Check TTL cache (300s, keyed by client_id, 8-tuple entry)                             │
+│  • Check TTL cache (900s, keyed by client_id, 10-tuple entry)                             │
 │  • On cache miss and client in _DEMO_CLIENT_IDS:                                         │
 │      – Fetch 20 most recent signals                                                      │
 │      – Call gemini-2.5-flash with the anchor first; 7-key JSON return                    │
@@ -75,7 +75,7 @@ Every arrow in this diagram maps to a specific function in `main.py` and a speci
 
 The **reset-to-pristine** mechanism (§8) is a separate, non-destructive path that restores curated baseline content from `baseline_snapshots.json`. It does not remove user-ingested rows; it refreshes the pristine rows' timestamps so they win the `created_at DESC` sort.
 
-**Note on `priority_score`:** the synthesis step produces `priority_score` as one of **seven keys** — the two Flavor 2 additions are `family` and `adjacent_opportunities`. `priority_score` is written back to the anchor table on every cache miss for whitelisted clients. See §6.2.
+**Note on `priority_score`:** the synthesis step produces `priority_score` as one of **eight keys** — the Flavor 2 additions are `family` and `adjacent_opportunities`, and the branding-branch addition is `primary_trigger`. `priority_score` is written back to the anchor table on every cache miss for whitelisted clients. See §6.2.
 
 ---
 
@@ -410,15 +410,18 @@ Priority Score = w_mat · S_mat + w_curve · S_curve + w_lev · S_lev + w_sig ·
 
 1. **Legacy path (pre-14-Sep ingestion era).** The old single-signal ingestion prompt included `priority_score` in its structured output. Values from that era are frozen unless overwritten.
 
-2. **Current path (18 Sep 2026, commit `13721ca`; extended 20 Sep 2026, commit `1a04960`).** The synthesis prompt (`synthesize_mandate_catalyst`) returns **seven keys**:
+2. **Current path (18 Sep 2026, commit `13721ca`; extended 20 Sep 2026, commit `1a04960`; extended 22 Sep 2026, commit `3b99c3c`; extended 23 Sep 2026, commit `79cf56e`).** The synthesis prompt (`synthesize_mandate_catalyst`) returns **eight keys**:
 
    - `why_now`, `action` — full narratives for slide 3
    - `why_now_summary`, `action_summary` — max 160 chars each, for slide 2
    - `priority_score` — integer 0-100. Weighted rubric: signal strength 40% / balance-sheet pressure 30% / market window 30%
-   - `family` — one of `FX_HEDGE`, `GREEN_ESG`, `RATES_HEDGE`, `DCM_REFI`. Selected by the LLM based on the anchor's primary product; see §6.8 (new)
-   - `adjacent_opportunities` — 80-140 word paragraph identifying up to 3 cross-sell angles grounded in the signal corpus; see §6.9 (new)
+   - `family` — one of `FX_HEDGE`, `GREEN_ESG`, `RATES_HEDGE`, `DCM_REFI`. Selected by the LLM based on the anchor's primary product; see §6.8
+   - `adjacent_opportunities` — 80-140 word paragraph identifying up to 3 cross-sell angles grounded in the signal corpus; see §6.9
+   - `primary_trigger` — two semicolon-separated datapoint clauses (≤ 180 chars) for Slide 2's Primary Market Trigger card; see §6.10 (new)
 
-   `priority_score` is written back to `ca.ca_opportunity_scoring.priority_score` on every synthesis cache miss for whitelisted clients. `family` and `adjacent_opportunities` are not persisted to the DB (no column exists — §7.2 forbids DDL); they travel through the 8-tuple cache, the API response, and the pitchbook bundle.
+   `priority_score` is written back to `ca.ca_opportunity_scoring.priority_score` on every synthesis cache miss for whitelisted clients. `family`, `adjacent_opportunities`, and `primary_trigger` are not persisted to the DB (no column exists — §7.2 forbids DDL); they travel through the 10-tuple cache, the API response, and the pitchbook bundle.
+
+   The cache tuple grew from 6 → 8 (Flavor 2, 20 Sep) → 9 (`primary_trigger`, 22 Sep) → 10 (`adjacent_opportunities_source`, 23 Sep). The `adjacent_opportunities_source` field at index 9 carries `llm` / `fallback` / `error` for observability.
 
 **The current value is not a frozen legacy number.** It reflects the last synthesis run for the client. Because the cache TTL is 300s, the score refreshes at most every 5 minutes per whitelisted client.
 
@@ -481,8 +484,8 @@ This is honest — it states the score is an LLM estimate, not a computed metric
 
 Two live read sites substitute a fabricated score when the DB has no value:
 
-- `main.py:225` — `/api/metrics` priorities query (`COALESCE(o.priority_score, 75) as score`)
-- `main.py:727` — `/api/opportunities` main query (`COALESCE(os.priority_score, 75)`)
+- `main.py` — `/api/metrics` priorities query (`COALESCE(o.priority_score, 75) as score`)
+- `main.py` — `/api/opportunities` main query (`COALESCE(os.priority_score, 75)`)
 
 Both use a fallback of `75`. A client with no scoring row would be displayed with a fake score of 75, classified as "Medium" by the §6.3 threshold rule. This **violates the zero-fabrication principle** stated in §1.
 
@@ -490,7 +493,7 @@ Both use a fallback of `75`. A client with no scoring row would be displayed wit
 
 **Mitigation (18 Sep, `13721ca`):** the `/api/metrics` endpoint now guarantees that whitelisted clients appear in the priorities list even when their score ranks below the top-4 slice. This prevents silent dropouts from the sidebar but does not remove the fallback score.
 
-**Backlog fix:** replace `COALESCE(priority_score, 75)` with a null-preserving read. Null-safety handling needed downstream in `_effective_score` (line 812) and the response construction (line 1166), both of which currently assume `score_num` is an integer. The design decision — filter unscored clients vs. render them with an "Unscored" label — should be made before implementation. This is a read-path change only; no schema change required.
+**Backlog fix:** replace `COALESCE(priority_score, 75)` with a null-preserving read. Null-safety handling needed downstream in `_effective_score` and the response construction, both of which currently assume `score_num` is an integer. The design decision — filter unscored clients vs. render them with an "Unscored" label — should be made before implementation. This is a read-path change only; no schema change required.
 
 ### 6.8 Product family as a synthesis output (Flavor 2, added 20 Sep)
 
@@ -531,9 +534,40 @@ The synthesis LLM returns `adjacent_opportunities` as the seventh key — an 80-
 4. Included in the Copilot `slide_3` payload for both `baseline_deck_slides` and `active_deck_slides`.
 5. Read by `handle_pitchbook_generation` from `_MANDATE_SYNTH_CACHE[cid][7]` and set on the pitchbook bundle before `build_pitchbook`.
 
-**Fallback.** Empty string when no adjacencies are found or when the cache is cold. The Slide 3 card renders the text `"Additional origination angles will appear here once the mandate synthesis identifies any."` in the empty case.
+**Fallback (updated 23 Sep, commit `79cf56e`; deck path updated 25 Sep, commit `d7c17d8`).** Empty LLM output is caught by `_validate_adjacent_opportunities` (non-empty, ≥ 100 chars, ≥ 40 words) and replaced with a curated paragraph from `ADJACENT_OPPORTUNITY_FALLBACKS`. The chain is: per-client (`CLI101`, `CLI103`) → per-family (`_GREEN_ESG`, `_DCM_REFI`, `_RATES_HEDGE`, `_FX_HEDGE`) → `_FALLBACK`. Every rejection logs the failed rule.
+
+The API path populates the cache with the resolved value — never an empty string. The API response also carries `adjacent_opportunities_source` (`llm` / `fallback` / `error`) for observability.
+
+The deck builder (`pitchbook_builder.py`) uses the same fallback chain since 25 Sep. When the synthesis cache is cold at deck-generation time — e.g. a deck download without a prior dashboard load — the deck renders the curated per-client paragraph, not a placeholder. The placeholder string `"Additional origination angles will appear here once the mandate synthesis identifies any."` remains in the code as the last-resort literal but is now effectively unreachable through the normal synthesis path.
+
+**Observed in a live demo (24 Sep 2026).** A manager downloaded the CLI101 deck without loading the dashboard first. The cache was cold. Slide 3's adjacent card showed the placeholder instead of a substantive paragraph. The 25 Sep fix closes this path.
 
 **Non-determinism.** Like `priority_score`, the paragraph varies across synthesis runs. Observed Enel outputs across a session: one 105-word paragraph citing rate pre-hedge + FX + liability management; another 105-word paragraph citing rate hedging + FX + DCM. Both grounded, both non-repetitive. This is expected — the LLM reads the corpus and writes a fresh summary each cache miss.
+
+### 6.10 Primary trigger as a synthesis output (added 22 Sep 2026, commit `3b99c3c`)
+
+Slide 2's Primary Market Trigger card is populated by an LLM-generated `primary_trigger` field. The synthesis prompt receives a family-scoped instruction block (`FAMILY_PRIORITY_SIGNALS` + `FAMILY_CONTEXT_SIGNALS`) that steers the LLM toward datapoints most relevant to the resolved product family.
+
+**Format rules.** Two semicolon-separated datapoint clauses, ≤ 180 characters, each clause contains a number and a unit, no marketing adjectives. Good example: `€3.5bn eligible green asset pool; €10.13bn maturity wall across 2026-2027`.
+
+**Validator (`_validate_primary_trigger`).** Five deterministic rules:
+
+1. Non-empty, ≤ 180 chars
+2. Exactly one semicolon
+3. Both clauses contain at least one digit
+4. No marketing words (from the `_MARKETING_WORDS` blocklist)
+5. Top family from `_FAMILY_KEYWORD_WEIGHTS` scoring matches the resolved family
+
+**Fallback chain (`_resolve_primary_trigger`).** On rejection, substitutes a curated value in order: per-client entry from `PRIMARY_TRIGGER_FALLBACKS` (`CLI101`, `CLI103`) → per-family entry (prefixed `_`) → literal `"Active capital structure optimization"`. Every rejection logs the rule that failed.
+
+**Read path precedence** in the deck and preview:
+
+1. Session override (`ov["trigger"]` / `deckOverrides.trigger`)
+2. `ctx["primary_trigger"]` — LLM-generated from the cache
+3. `ctx["trigger_source"]` — curated DB value
+4. Family default
+
+**Cold-cache behaviour.** On a cold cache, `primary_trigger` is absent from the bundle. Unlike `adjacent_opportunities`, this field does **not** have a deck-builder gap — the deck reads `ctx["trigger_source"]` as its tier-3 fallback, which is a curated DB value. The literal placeholder only fires if all four tiers are empty. Confirmed 25 Sep 2026 during the deck cold-cache audit.
 
 ---
 
@@ -789,6 +823,8 @@ Compliance with this pattern is validated by the test suite in `Copilot_Test_Sui
 
 Both are read from `_MANDATE_SYNTH_CACHE[cid]` at request time. Fallback: `None` and `""` when the cache is cold or expired.
 
+**Branding additions (22 Sep).** `baseline_deck_slides["slide_2"]` and `active_deck_slides["slide_2"]` carry the `primary_trigger` field (element 8 of the cache tuple) alongside `trigger_source`. The Copilot can answer questions about the trigger and fall back to the curated value when the cache is cold.
+
 The Copilot prompt's response architecture now includes a conditional fourth section — **Adjacent Opportunities** — which appears only when the `adjacent_opportunities` field is non-empty. The Copilot answers questions about cross-sell angles by reading this field directly, without a separate retrieval step.
 
 **Euro rendering fix.** The two `json.dumps` calls that serialize `baseline_deck_slides` and `active_deck_slides` into the prompt use `ensure_ascii=False`. UTF-8 characters (notably `€`) reach the LLM as real characters rather than JSON escapes. Prior to this fix, the Copilot occasionally echoed `\u20ac` in replies for Slide 3 while Slide 2 rendered `€` — the LLM's behavior was inconsistent given the same payload. Serializing with real UTF-8 removes the ambiguity.
@@ -943,7 +979,7 @@ Observed in the 19 Sep review: BASF's generated deck showed `€68,900M` revenue
 
 **Definition:** four families, ~20 keywords with weights 1–5. See §6.8 for the weights.
 
-**Sync invariant:** the dict is defined in **both** `main.py` (near `_CREDIT_RATINGS`, line ~89) and `pitchbook_builder.py` (near `_CREDIT_RATINGS`, line ~6). The two must remain **byte-identical**.
+**Sync invariant:** the dict is defined in **both** `main.py` (near `_CREDIT_RATINGS`) and `pitchbook_builder.py` (near `_CREDIT_RATINGS`). The two must remain **byte-identical**.
 
 - `main.py`'s copy is the canonical definition; it is not consumed by any code path in `main.py` today.
 - `pitchbook_builder.py`'s copy is what `detect_product_family` reads.
@@ -966,7 +1002,7 @@ Sibling documents within the Flavor 2 documentation set
 
 | Document | Relationship |
 |---|---|
-| `Docs/WeightedFamily/master_persona_20Sep_WeightedFamily.md` | Session persona for Flavor 2. §7.8 (cache/DB consistency), §7.9 (rating dict sync), §7.11 (family weights sync), §8.1 (rating exception), §8.4-8.6 (frontend fallbacks), §8.7 (family weights exception) |
+| `Docs/WeightedFamily/MASTER_PERSONA_25Sep2026.md` | Current authoritative persona. Supersedes `master_persona_20Sep_WeightedFamily.md`. Covers three-brand toggle, `primary_trigger`, adjacent validator, and the deck cold-cache fallback. |
 | `Docs/WeightedFamily/architecture_flow_20Sep_WeightedFamily.md` | Architecture reference. §5.5 (cache invariant), §5.6 (product family classification), §5.7 (adjacent opportunities), §6.3 (preview/PPTX parity), §6.5 (Slide 3 layout), §11 (principles) |
 | `Docs/WeightedFamily/data_population_20Sep_WeightedFamily.md` | Field-by-field lineage of every UI element |
 
@@ -1037,6 +1073,43 @@ architecture.
 7. Two `get_live_signals` definitions (§7.1)
 8. Compliance regex pre-filter not wired (§10.3)
 9. **Statistical refinement of `_FAMILY_KEYWORD_WEIGHTS`** (§11.10, Flavor 2) — as the platform accumulates classified anchors, learn or tune the weights
+
+---
+
+## 13b. Changelog — 22-25 Sep 2026 (state as of 25 Sep)
+
+Sections §1–§13 above describe the platform as of 20 Sep 2026. Since then, four waves of change:
+
+### 22 Sep 2026 — Synthesis + cache
+
+- **`primary_trigger`** added as the 8th synthesis key (commit `3b99c3c`). Deterministic five-rule validator, curated fallback chain. See new §6.10.
+- **Cache TTL extended** from 300s to 900s (commit `d41a837`). RM workflow no longer risks cache expiry mid-session.
+- **Cache invalidation on ingestion** — `_MANDATE_SYNTH_CACHE.pop(cid, None)` after every successful ingestion commit (`d41a837`).
+- **Ingestion source names client-scoped** — three Enel-era fallbacks replaced (`ce85f57`).
+- **Layer-1 dedup condition corrected** — OR → AND (`ce85f57`).
+- **`why_now` extended to 3 sentences** (`16890f7`).
+
+### 23 Sep 2026 — Acme + adjacent validator
+
+- **`ADJACENT_OPPORTUNITY_FALLBACKS`** dict + `_validate_adjacent_opportunities()` + `_resolve_adjacent_opportunities()` (commit `79cf56e`). The API path now substitutes a curated paragraph on empty LLM output. Cache tuple grew to 10 elements with `adjacent_opportunities_source`. See updated §6.9.
+- **`_client_id_for_fallback` bug fixed** — was `str(client_name)` (display name), so the per-client branch of `PRIMARY_TRIGGER_FALLBACKS` never fired. Now uses `client_id` (folded into `79cf56e`).
+- **Acme Financial** added as third runtime brand (commit `7590d23`). Data-only change: +29 lines in `main.py`, 4 PNGs. Three Cloud Run services now serve ING / BFS AI Lab / Acme Financial from the same image. See `Brand_Toggle_Implementation.md` §11.
+
+### 25 Sep 2026 — Deck cold-cache adjacent fallback
+
+- **`pitchbook_builder.py`** deck builder now uses the same curated fallback chain as the API when `ctx["adjacent_opportunities"]` is empty (commit `d7c17d8`). Observed in a live demo: cold cache + deck download without prior dashboard load → placeholder rendered. The fix eliminates the placeholder path. Verified on all three services. See updated §6.9.
+- **`primary_trigger` cold-cache audit** — confirmed no equivalent gap. Deck reads `ctx["trigger_source"]` (curated DB value) as tier 3. See §6.10.
+
+### Common with the 20 Sep state
+
+Everything else: schema (unchanged), reset-to-pristine mechanism (unchanged), defensive fallbacks (unchanged except the deck builder addition), compliance architecture (unchanged), `priority_score` semantics (unchanged), the `_CREDIT_RATINGS` and `_FAMILY_KEYWORD_WEIGHTS` sync invariants (unchanged).
+
+**Backlog carried forward and new items:**
+
+- All items 1–9 from §13 (unchanged)
+- **Brand onboarding utility** — `tools/onboard_brand.py`, guide at `BRAND_ONBOARDING_GUIDE.md`
+- **Migration tooling** — `load_baseline.py`, `schema_setup.sql` (aligned with live DB)
+- **Corporate migration in flight** — Service Now ticket pending, company project provisioning in progress
 
 ---
 

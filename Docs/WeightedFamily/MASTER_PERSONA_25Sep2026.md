@@ -1,10 +1,10 @@
 # SYSTEM DIRECTIVE: MASTER CONTEXT & ARCHITECTURAL PERSONA
 
-**Version:** 23 September 2026 — Flavor 2 + Three-Brand Toggle
+**Version:** 25 September 2026 — Flavor 2 + Three-Brand Toggle
 **Status:** Authoritative
 **Primary flavor:** Weighted-Family + Adjacencies (Flavor 2)
 **Branding extension:** Runtime three-brand toggle (ING + BFS AI Lab + Acme Financial)
-**Branch (current):** `feat/adjacent-opportunities-fallback` — the working line. Contains every commit from all prior feature branches plus the brand onboarding utility (`tools/onboard_brand.py`, guide at `Docs/WeightedFamily/BRAND_ONBOARDING_GUIDE.md`) and the `adjacent_opportunities` validator fix. `feat/brand-onboarding-tool` (tip `bfefcf1`) and `feat/complete-working-acme-financial` (tip `2ddfbd9`) remain as preserved milestones.
+**Branch (current):** `feat/adjacent-opportunities-fallback` — the working line. Contains every commit from all prior feature branches plus the brand onboarding utility (`tools/onboard_brand.py`, guide at `Docs/WeightedFamily/BRAND_ONBOARDING_GUIDE.md`), the `adjacent_opportunities` validator fix, and the deck cold-cache fallback fix. `feat/brand-onboarding-tool` (tip `bfefcf1`) and `feat/complete-working-acme-financial` (tip `2ddfbd9`) remain as preserved milestones. ⟨25Sep⟩
 **Previous branch:** `feat/bfs-ai-lab-brand-toggle` (tip: `69464f4`, tag `complete-working-bfs-ing-22sep`)
 **Parallel flavors:** Baseline (Flavor 1) and Flavor 2 demo branch (see §2.1)
 **Purpose:** Sets the working persona and full architectural context for AI-assisted sessions on the ING Financial Markets Deal Intelligence platform.
@@ -29,6 +29,10 @@ Every line below is a section that moved from the 22 Sep persona. Changed lines 
 | §14 | Backlog: Acme additions, untracked-file dispositions |
 | §15 | Session-open instruction now points at the Acme branch |
 | §16 | NEW — Three-Service Deploy Quick Reference |
+| **⟨25Sep⟩ §5** | New deck-builder fallback row (`pitchbook_builder.py`) |
+| **⟨25Sep⟩ §6** | New subsection: "adjacent_opportunities — Deck Cold-Cache Fallback" |
+| **⟨25Sep⟩ §13** | 25 Sep changelog: deck cold-cache fix deployed to all three services |
+| **⟨25Sep⟩ §14** | Deck cold-cache issue moved to resolved |
 
 ---
 
@@ -233,6 +237,7 @@ Every displayed value traces to a specific row filtered by `client_id`. Fallback
 | `_hex_to_rgb()` | Profile hex → RGB tuple |
 | `add_logo()` | **⟨23Sep⟩ Logo X-position now `Inches(11.6)` (was 11.8), intentional across all three brands** |
 | `_CREDIT_RATINGS` | Same dict as `main.py` |
+| **⟨25Sep⟩ adjacent fallback** | Deck builder's Slide 3 Adjacent Opportunities card now uses the same curated fallback chain as `_resolve_adjacent_opportunities` when `ctx["adjacent_opportunities"]` is empty. Imports `ADJACENT_OPPORTUNITY_FALLBACKS` from `main.py` inside the function (avoids circular import). Fallback chain: ov → ctx → client → family → `_FALLBACK` → literal. Literal is now effectively unreachable. Commit `d7c17d8` |
 
 ### `frontend/src/App.jsx` — React Workspace
 
@@ -315,6 +320,33 @@ Slide 2's Primary Market Trigger card renders the LLM-generated `primary_trigger
 4. Family default
 
 **Cold-cache caveat:** `primary_trigger` is LLM-generated only when the synthesis cache has been warmed within the last 900 seconds. On a cold cache, the deck and preview fall back to the curated `trigger_source`. The RM workflow loads the dashboard first, so the cache is warm in practice.
+
+**Note:** `primary_trigger` does **not** have the deck cold-cache gap that `adjacent_opportunities` had. Its read path falls back to `ctx["trigger_source"]` — a curated DB value — before any placeholder. Confirmed 25 Sep 2026.
+
+### `adjacent_opportunities` — Deck Cold-Cache Fallback (25 Sep 2026)
+
+**The bug.** The deck builder had its own placeholder string that fired when `ctx["adjacent_opportunities"]` was empty:
+
+```python
+_adj_text = adjacent_opportunities_text or "Additional origination angles will appear here once the mandate synthesis identifies any."
+```
+
+The API path (`/api/opportunities`) already resolved the field correctly — it reads from `_MANDATE_SYNTH_CACHE` and falls back through the curated dict. But the deck builder has no DB column to read from. `adjacent_opportunities` only exists in the synthesis cache. On a cold cache — e.g. a deck download without a prior dashboard load — the field was empty, and the placeholder rendered.
+
+**Observed in a live demo (24 Sep 2026).** The manager downloaded the CLI101 deck without loading the dashboard first. The synthesis cache was cold. Slide 3's adjacent card showed the placeholder string instead of the LLM paragraph.
+
+**The fix.** `pitchbook_builder.py` now imports `ADJACENT_OPPORTUNITY_FALLBACKS` from `main.py` (inside the function, avoiding a circular import) and falls back through the same chain:
+
+1. `ov["adjacent_opportunities"]` — session override
+2. `ctx["adjacent_opportunities"]` — cache or bundle
+3. `ADJACENT_OPPORTUNITY_FALLBACKS[client_id]` — curated per-client
+4. `ADJACENT_OPPORTUNITY_FALLBACKS[_family]` — curated per-family
+5. `ADJACENT_OPPORTUNITY_FALLBACKS["_FALLBACK"]` — last curated
+6. Literal placeholder — now effectively unreachable
+
+**Verified.** All three services (ING, BFS, Acme) with a forced cold cache render the curated Enel paragraph for CLI101. With a warm cache they render the LLM paragraph. The demo failure mode is closed.
+
+**Commit `d7c17d8`.** Deployed to all three services 25 Sep 2026.
 
 ### Cache Invalidation on Ingestion
 
@@ -544,7 +576,7 @@ decda5c  docs: add Brand Toggle Implementation Record
 | `README.md` | Branch landing page — Flavor 2 + three-brand toggle (renders on GitHub) |
 | `README_Flavor2.md` | Original README preserved (pre-branding) |
 | `AUTHORS.md` | Architect & developer attribution |
-| `Docs/WeightedFamily/MASTER_PERSONA_23Sep2026.md` | ⟨23Sep⟩ This file. Persona + architecture context (Flavor 2 + three-brand). |
+| `Docs/WeightedFamily/MASTER_PERSONA_25Sep2026.md` | ⟨25Sep⟩ This file. Persona + architecture context (Flavor 2 + three-brand + deck cold-cache fix). |
 | `Docs/WeightedFamily/Brand_Toggle_Implementation.md` | Complete branding implementation record |
 | `Docs/WeightedFamily/master_persona_20Sep_WeightedFamily.md` | Superseded by this file |
 | `Docs/WeightedFamily/architecture_flow_20Sep_WeightedFamily.md` | Deep architecture reference |
@@ -588,6 +620,24 @@ At `~/ing-fm-poc-backups/`: `20260921_042605` (pre-branding), `20260921_054602_s
 ---
 
 ## 13. CHANGELOG
+
+### ⟨25Sep⟩ 25 Sep 2026 — Deck cold-cache adjacent fallback
+
+**The bug.** The deck builder had its own placeholder string that fired when `ctx["adjacent_opportunities"]` was empty. The API path already resolved correctly, but the deck path read only from `ctx` (populated from the synthesis cache). On a cold cache — e.g. a deck download without a prior dashboard load — the field was empty, and Slide 3's adjacent card rendered the placeholder instead of a substantive paragraph.
+
+**Observed in a live demo.** The manager downloaded the CLI101 deck without loading the dashboard first. The cache was cold. The adjacent card showed the placeholder.
+
+**The fix.** `pitchbook_builder.py` now imports `ADJACENT_OPPORTUNITY_FALLBACKS` from `main.py` inside the function (avoids circular import) and falls back through the same curated chain as `_resolve_adjacent_opportunities`: ov → ctx → client → family → `_FALLBACK` → literal. The literal is now effectively unreachable.
+
+**Verified on all three services** with a forced cold cache. Deck extraction confirms the curated Enel paragraph renders, not the placeholder. With a warm cache the LLM paragraph renders.
+
+**Also confirmed:** `primary_trigger` does **not** have the same gap. Its read path falls back to `ctx["trigger_source"]` — a curated DB value — before any placeholder.
+
+Commit `d7c17d8`. Deployed to ING (`00115-nqj`), BFS, and Acme 25 Sep 2026.
+
+**IAM note.** During the BFS verification, the `allUsers` binding on `bfs-ai-lab-service` was found missing. Restored via `add-iam-policy-binding`. Public access on all three services re-verified.
+
+**Cache performance confirmed.** First call after cold start: ~14.5 seconds (Vertex AI latency). Second call: ~0.87 seconds. The 900s TTL keeps subsequent calls warm.
 
 ### ⟨23Sep⟩ 23 Sep 2026 — Branch consolidation
 
@@ -666,6 +716,11 @@ Cache/DB consistency invariant (`9cfeb42`); LLM-computed `priority_score` (`1372
 **Optional:**
 - Update `Docs/WeightedFamily/README_WeightedFamily.md` (folder index) — stale, missing branding doc
 - `force_color_prompt` unbound variable in `~/.bashrc` line 48 — cosmetic, aborts source before aliases load; workaround is `source <(grep '^alias deploy-' ~/.bashrc)`
+
+**⟨25Sep⟩ Resolved 25 Sep 2026 (`d7c17d8`):**
+- **Deck cold-cache adjacent fallback.** The deck builder now uses the curated `ADJACENT_OPPORTUNITY_FALLBACKS` chain instead of a placeholder. Verified on all three services with forced cold cache.
+- **`primary_trigger` cold-cache check.** Confirmed no gap — falls back to curated `trigger_source` (DB value) before any placeholder.
+- **BFS `allUsers` binding restored.** Was missing at test time; restored via IAM policy binding. All three services re-verified public.
 
 **⟨23Sep⟩ Resolved 23 Sep 2026 (`79cf56e`):**
 - **`adjacent_opportunities` empty-output drift.** Validator + curated fallback shipped. The `adjacent_opportunities_source` field now enables observability of how often the fallback fires.
@@ -780,7 +835,7 @@ Acme Financial
 
 ---
 
-*End of document. This persona is the authoritative state as of 23 September 2026. Save future updates as `Docs/WeightedFamily/MASTER_PERSONA_<date>.md` and archive the prior version.*
+*End of document. This persona is the authoritative state as of 25 September 2026. Save future updates as `Docs/WeightedFamily/MASTER_PERSONA_<date>.md` and archive the prior version.*
 
 ---
 
@@ -788,7 +843,6 @@ Acme Financial
 
 **In any future session, open with:**
 
-> *Read `Docs/WeightedFamily/MASTER_PERSONA_23Sep2026.md` for full context. Working branch is `feat/adjacent-opportunities-fallback` — the consolidated line carrying every prior feature branch plus the brand onboarding utility and the adjacent_opportunities fix. Confirm orientation and wait for my direction.*
+> *Read `Docs/WeightedFamily/MASTER_PERSONA_25Sep2026.md` for full context. Working branch is `feat/adjacent-opportunities-fallback` — the consolidated line carrying every prior feature branch plus the brand onboarding utility, the adjacent_opportunities fix, and the deck cold-cache fallback fix. Confirm orientation and wait for my direction.*
 
 The session picks up from there.
-

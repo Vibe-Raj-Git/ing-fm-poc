@@ -108,7 +108,7 @@ Every visual element on the dashboard sources from live tables. Nothing is hardc
 
 1. **Context Fabric chips accept five channel names.** `ANALYST_NOTE`, `CONTEXT_FABRIC`, and `MEMO` are standardized to `WORKFABRIC_MEMO` at display time. The analyst note channel merges into the WorkFabric chip rather than producing a separate chip.
 2. **Live Verified News accepts four channel aliases.** `NEWS_RSS`, `LIVE_RSS_NEWS`, `LIVE RSS News`, and `News RSS` are all queried, sorted together by `created_at DESC, chunk_id DESC`. The current ingestion pipeline writes `LIVE_RSS_NEWS`; the other three are legacy aliases retained for compatibility.
-3. **The Client Data segment's rating field is a code-level curated exception.** `credit_rating` is read from `_CREDIT_RATINGS` in `main.py:89` (and mirrored in `pitchbook_builder.py:6`), not from a DB column. `ca.client_master` has no `credit_rating` column. See §11.7.
+3. **The Client Data segment's rating field is a code-level curated exception.** `credit_rating` is read from `_CREDIT_RATINGS` in `main.py` (near `_FAMILY_KEYWORD_WEIGHTS`) and mirrored in `pitchbook_builder.py` (near the module logger), not from a DB column. `ca.client_master` has no `credit_rating` column. See §11.7.
 
 **The `This Week` tiles were replaced in the 20 Sep session** (commit `f9f8eeb`). The prior "Avg. time to first draft" tile was hardcoded and unmeasurable; the prior three tiles (`Active drafts`, `Deals pending review`, `Cohort matches`) all rendered a frontend render count with no backend source. All four now read whitelist-scoped SQL values via `/api/metrics`.
 
@@ -920,7 +920,7 @@ They are distinct records with distinct IDs. The duplication is a data entry iss
 
 `ca.client_master` has **no `credit_rating` column**. The client card and pitchbook cover display a rating sourced from a curated `_CREDIT_RATINGS` dict:
 
-**`main.py:89`** and **`pitchbook_builder.py:6`**:
+**`main.py`** (near `_FAMILY_KEYWORD_WEIGHTS`) and **`pitchbook_builder.py`** (near the module logger):
 
 ```python
 _CREDIT_RATINGS = {
@@ -1064,7 +1064,7 @@ architecture.
 
 **Backlog confirmed in this version:**
 
-1. `COALESCE(priority_score, 75)` at `main.py:225, 727` (§6.7)
+1. `COALESCE(priority_score, 75)` in `/api/metrics` and `/api/opportunities` (§6.7)
 2. Frontend `default*` constants in `App.jsx` (§11.8)
 3. `pitchbook_builder.py:1045` revenue/EBITDA fallback (§11.8)
 4. `main.py:602` swap pre-hedge fallback (§11.8)
@@ -1122,7 +1122,7 @@ changed the `priority_score` lifecycle and added two code-level curated exceptio
 
 - **§6.2 rewritten.** The 17 Sep version stated `priority_score` was a "legacy frozen value" that would not change. That is false after commit `13721ca` (18 Sep). The synthesis prompt now returns `priority_score` as a fifth key with an explicit weighted rubric, and the value is written back on every synthesis cache miss. Non-determinism at `temperature=0.0` documented (observed 85-94 for `CLI101` in one session).
 - **§6.3 updated.** The `_effective_score` preference chain (fresh synthesis over DB value) is now documented. Line numbers corrected to `main.py:812–814`.
-- **§6.7 line numbers corrected.** Was `main.py:214` / `main.py:666`; now `main.py:225` / `main.py:727`. Whitelist-guarantee mitigation from `13721ca` documented.
+- **§6.7 line numbers corrected.** Whitelist-guarantee mitigation from `13721ca` documented.
 - **§3 UI table refreshed.** "This Week" tiles re-sourced with the four new metrics (`clients_with_signals`, `active_signals`, `high_priority_clients`, `clients_in_database`). Client Data segment notes the `credit_rating` code-level source.
 - **§4.1 `ca.client_master`** — noted no `credit_rating` column, cross-referenced to §11.7.
 - **§4.1 `ca.ext_company_filings`** — added multi-row hazard note, cross-referenced to §11.9.
@@ -1157,7 +1157,7 @@ changed the `priority_score` lifecycle and added two code-level curated exceptio
 
 ### Backlog confirmed in this version
 
-1. `COALESCE(priority_score, 75)` at `main.py:225, 727` (§6.7)
+1. `COALESCE(priority_score, 75)` in `/api/metrics` and `/api/opportunities` (§6.7)
 2. Frontend `default*` constants in `App.jsx` (§11.8)
 3. `pitchbook_builder.py:1045` revenue/EBITDA fallback (§11.8)
 4. `main.py:602` swap pre-hedge fallback (§11.8)

@@ -1052,7 +1052,22 @@ def build_pitchbook(ctx, opp, compliance_bullets=None, overrides=None):
     p_c2_b.space_before = Pt(4)
 
     # Card 3 - Adjacent Opportunities (new, full width, stacked)
-    _adj_text = adjacent_opportunities_text or "Additional origination angles will appear here once the mandate synthesis identifies any."
+    # Fallback chain: session override -> ctx -> curated per-client -> per-family -> generic
+    if adjacent_opportunities_text:
+        _adj_text = adjacent_opportunities_text
+    else:
+        _cid = ov.get("id") or ctx.get("client_id") or ctx.get("id") or ""
+        _fam = ov.get("product_family") or ctx.get("product_family") or ctx.get("family") or ""
+        try:
+            from main import ADJACENT_OPPORTUNITY_FALLBACKS as _ADJ_FB
+            _adj_text = (
+                _ADJ_FB.get(_cid)
+                or _ADJ_FB.get(f"_{_fam}")
+                or _ADJ_FB.get("_FALLBACK")
+                or "Additional origination angles will appear here once the mandate synthesis identifies any."
+            )
+        except Exception:
+            _adj_text = "Additional origination angles will appear here once the mandate synthesis identifies any."
     card3 = s3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(3.2), Inches(4.95), Inches(9.8), Inches(2.15))
     card3.fill.solid()
     card3.fill.fore_color.rgb = RGBColor(236, 253, 245)
